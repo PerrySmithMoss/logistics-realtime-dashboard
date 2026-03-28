@@ -2,10 +2,14 @@ export class FleetStatsUpdatedEvent {
   static readonly type = "FLEET.STATS_UPDATED" as const;
 
   constructor(
-    public readonly stats: {
-      total: number;
-      activeCount: number;
-      performancePct: number;
+    public readonly payload: {
+      summary: {
+        total: number;
+        activeCount: number;
+        delayedCount: number;
+        performancePct: number;
+      };
+      vehicles: any[];
     },
   ) {}
 }
