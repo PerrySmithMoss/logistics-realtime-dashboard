@@ -5,7 +5,7 @@ export interface GetVehicleDetailsRequest {
 export interface GetVehicleDetailsResponse {
   id: string;
   plateNumber: string;
-  status: "active" | "inactive" | "maintenance";
+  status: "active" | "inactive" | "delayed" | "maintenance";
   lat: number;
   lng: number;
 }
