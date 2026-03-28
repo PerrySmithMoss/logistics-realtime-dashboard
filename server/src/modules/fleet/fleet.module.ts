@@ -8,11 +8,17 @@ import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interfac
 import { FleetController } from "./api/fleet.controller";
 import { IFleetController } from "./api/interfaces/fleet-controller.interface";
 import { FleetEventReactor } from "./core/events/fleet-event-reactor";
+import { IFleetDataService } from "./core/interfaces/fleet-data-service.interface";
 import { FleetStatsProjection } from "./core/projections/fleet-stats.projection";
 import { FleetDataService } from "./core/services/fleet-data.service";
 import { FleetObserverService } from "./core/services/fleet-observer.service";
 import { FleetEventSubscriber } from "./infrastructure/fleet-event-subscriber";
 import { FleetSimulator } from "./infrastructure/fleet.simulator";
+
+export interface FleetModuleResult {
+  controller: IFleetController;
+  dataService: IFleetDataService;
+}
 
 export class FleetModule {
   public static async init(
@@ -21,7 +27,7 @@ export class FleetModule {
     eventBroker: IEventBroker,
     config: IAppConfig["modules"]["fleet"],
     lifecycle: ILifecycleManager,
-  ): Promise<IFleetController> {
+  ): Promise<FleetModuleResult> {
     const projection = new FleetStatsProjection();
     const dataService = new FleetDataService(queryBus, projection);
     const observerService = new FleetObserverService(eventBroker);
@@ -51,6 +57,10 @@ export class FleetModule {
     }
 
     await dataService.hydrate();
-    return new FleetController(observerService, dataService);
+
+    return {
+      controller: new FleetController(observerService, dataService),
+      dataService,
+    };
   }
 }

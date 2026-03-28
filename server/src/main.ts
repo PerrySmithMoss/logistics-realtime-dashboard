@@ -5,7 +5,7 @@ import { HttpServer } from "./app/server.js";
 
 export const bootstrap = async () => {
   const container = await AppContainer.create(config);
-  const app = createApp(container.controllers);
+  const app = createApp(container.controllers, container.lifecycle);
   const server = new HttpServer(app);
 
   await server.start(config.server);

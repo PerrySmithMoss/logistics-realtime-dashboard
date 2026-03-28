@@ -1,9 +1,11 @@
+import { createErrorHandler, notFoundHandler } from "@api/middleware";
 import { createApiRouter } from "api/router";
 import express, { Express } from "express";
 import { IAppContainer } from "./interfaces/container.interface";
 
 export const createApp = (
   controllers: IAppContainer["controllers"],
+  lifecycle: IAppContainer["lifecycle"],
 ): Express => {
   const app = express();
 
@@ -13,8 +15,8 @@ export const createApp = (
 
   app.use("/api/v1", createApiRouter(controllers));
 
-  // app.use(notFoundHandler);
-  // app.use(errorHandler);
+  app.use(notFoundHandler);
+  app.use(createErrorHandler(lifecycle));
 
   return app;
 };

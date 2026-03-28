@@ -60,16 +60,17 @@ export class AppContainer implements IAppContainer {
       config.modules.vehicle,
     );
 
-    const fleetController = await FleetModule.init(
-      commandBus,
-      queryBus,
-      eventBroker,
-      config.modules.fleet,
-      lifecycle,
-    );
+    const { controller: fleetController, dataService: fleetDataService } =
+      await FleetModule.init(
+        commandBus,
+        queryBus,
+        eventBroker,
+        config.modules.fleet,
+        lifecycle,
+      );
 
     const controllers = {
-      health: new HealthController(lifecycle),
+      health: new HealthController(lifecycle, fleetDataService),
       vehicle: vehicleController,
       fleet: fleetController,
     };
