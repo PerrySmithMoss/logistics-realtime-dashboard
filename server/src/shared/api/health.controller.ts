@@ -1,3 +1,4 @@
+import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 import { Request, Response } from "express";
@@ -7,30 +8,38 @@ export class HealthController
   extends BaseController
   implements IHealthController
 {
-  constructor(private readonly lifecycle: ILifecycleManager) {
+  constructor(
+    private readonly lifecycle: ILifecycleManager,
+    private readonly dataService: IFleetDataService,
+  ) {
     super();
   }
 
-  public check = async (_req: Request, res: Response) => {
-    // 1. Check if we are in the middle of a graceful shutdown
+  public live = (_req: Request, res: Response) => {
+    return this.ok(res, { status: "alive" });
+  };
+
+  public ready = async (_req: Request, res: Response) => {
     if (this.lifecycle.isShuttingDown) {
-      return res.status(503).json({
-        status: "SHUTTING_DOWN",
-        message: "Server is draining existing connections",
-      });
+      return res.status(503).json({ status: "SHUTTING_DOWN" });
     }
 
-    // 2. Check if the app has finished initializing (Buses, DB, etc.)
     if (!this.lifecycle.isReady) {
-      return res.status(503).json({
-        status: "STARTING",
-        message: "Server is warming up",
-      });
+      return res.status(503).json({ status: "STARTING" });
     }
 
-    // 3. System is healthy
+    const snapshot = await this.dataService.getCurrentSnapshot();
+    const isHydrated = snapshot.summary.total > 0;
+
+    if (!isHydrated) {
+      return res
+        .status(503)
+        .json({ status: "DEGRADED", reason: "projection_empty" });
+    }
+
     return this.ok(res, {
       status: "UP",
+      uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     });
   };

@@ -8,7 +8,8 @@ export const createApiRouter = (
 ): Router => {
   const rootRouter = Router();
 
-  rootRouter.get("/health", controllers.health.check);
+  rootRouter.get("/health/live", controllers.health.live);
+  rootRouter.get("/health/ready", controllers.health.ready);
 
   rootRouter.use("/vehicles", createVehicleRoutes(controllers.vehicle));
 

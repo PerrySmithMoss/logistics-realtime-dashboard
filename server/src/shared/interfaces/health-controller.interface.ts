@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 
 export interface IHealthController {
-  check(req: Request, res: Response): Promise<void | Response>;
+  live(req: Request, res: Response): void | Response;
+  ready(req: Request, res: Response): Promise<void | Response>;
 }
