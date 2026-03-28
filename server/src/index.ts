@@ -3,7 +3,7 @@ import { Application } from "@app/application";
 const app = new Application();
 
 app.start().catch((err) => {
-  console.error("💥 FAILED TO START SERVER:", err);
+  console.error("FAILED TO START SERVER:", err);
   process.exit(1);
 });
 

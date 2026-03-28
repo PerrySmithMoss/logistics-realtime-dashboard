@@ -7,13 +7,15 @@ import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { ILifecycleManager } from "@shared/interfaces";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 
 export interface IAppContainer {
-  readonly lifecycle: ILifecycleManager;
+  readonly logger: ILogger;
   readonly commandBus: ICommandBus;
   readonly queryBus: IQueryBus;
   readonly database: IDatabase;
   readonly eventBroker: IEventBroker;
+  readonly lifecycle: ILifecycleManager;
 
   readonly controllers: {
     readonly health: IHealthController;

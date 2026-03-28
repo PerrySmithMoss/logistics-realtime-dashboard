@@ -5,6 +5,7 @@ import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { OsrmClient } from "@shared/lib/osrm";
 import { FleetController } from "./api/fleet.controller";
 import { IFleetController } from "./api/interfaces/fleet-controller.interface";
@@ -26,6 +27,7 @@ export class FleetModule {
     commandBus: ICommandBus,
     queryBus: IQueryBus,
     eventBroker: IEventBroker,
+    logger: ILogger,
     config: IAppConfig["modules"]["fleet"],
     lifecycle: ILifecycleManager,
   ): Promise<FleetModuleResult> {
@@ -36,6 +38,7 @@ export class FleetModule {
       queryBus,
       projection,
       osrmClient,
+      logger,
       lifecycle,
     );
 

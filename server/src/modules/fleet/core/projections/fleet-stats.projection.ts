@@ -11,6 +11,10 @@ export class FleetStatsProjection implements IFleetStatsProjection {
    */
   private readonly hotCache = new Map<string, VehicleSnapshot>();
 
+  public get totalCount(): number {
+    return this.hotCache.size;
+  }
+
   public handleUpdate(event: IStatusChangeEvent): void {
     const existing = this.hotCache.get(event.vehicleId);
 

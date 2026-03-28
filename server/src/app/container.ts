@@ -12,13 +12,16 @@ import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { InMemoryEventBroker } from "@shared/infrastructure/events/in-memory-event-broker";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
+import { ConsoleLogger } from "@shared/infrastructure/logger";
 import { InMemoryDatabase } from "@shared/infrastructure/persistence/in-memory-database";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { IAppContainer } from "./interfaces/container.interface";
 
 export class AppContainer implements IAppContainer {
+  public readonly logger: ILogger;
   public readonly lifecycle: ILifecycleManager;
   public readonly commandBus: ICommandBus;
   public readonly queryBus: IQueryBus;
@@ -32,6 +35,7 @@ export class AppContainer implements IAppContainer {
       queryBus: IQueryBus;
       database: IDatabase;
       eventBroker: IEventBroker;
+      logger: ILogger;
     },
     public readonly controllers: {
       health: IHealthController;
@@ -48,17 +52,22 @@ export class AppContainer implements IAppContainer {
   }
 
   public static async create(config: IAppConfig): Promise<AppContainer> {
+    const baseLogger = new ConsoleLogger();
     const lifecycle = new LifecycleManager();
     const commandBus = new CommandBus();
     const queryBus = new QueryBus();
     const database = new InMemoryDatabase(lifecycle);
     const eventBroker = new InMemoryEventBroker(lifecycle);
 
+    const vehicleLogger = baseLogger.withContext("Vehicle");
+    const fleetLogger = baseLogger.withContext("Fleet");
+
     const vehicleController = VehicleModule.init(
       commandBus,
       queryBus,
       eventBroker,
       database,
+      vehicleLogger,
       config.modules.vehicle,
     );
 
@@ -67,6 +76,7 @@ export class AppContainer implements IAppContainer {
         commandBus,
         queryBus,
         eventBroker,
+        fleetLogger,
         config.modules.fleet,
         lifecycle,
       );
@@ -80,7 +90,14 @@ export class AppContainer implements IAppContainer {
     lifecycle.setReady();
 
     return new AppContainer(
-      { lifecycle, commandBus, queryBus, database, eventBroker },
+      {
+        lifecycle,
+        commandBus,
+        queryBus,
+        database,
+        eventBroker,
+        logger: baseLogger,
+      },
       controllers,
       fleetDataService,
     );

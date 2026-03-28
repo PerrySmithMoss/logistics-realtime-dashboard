@@ -1,7 +1,8 @@
+import { IOsrmClient } from "@shared/interfaces/osrm-client-interface";
 import { httpClient } from "../http";
 import { OsrmNearestResponse } from "./osrm.types";
 
-export class OsrmClient {
+export class OsrmClient implements IOsrmClient {
   constructor(
     private readonly baseUrl: string = "https://router.project-osrm.org",
   ) {}

@@ -3,6 +3,7 @@ import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { IVehicleController } from "./api/interfaces/vehicle-controller.interface";
 import { VehicleController } from "./api/vehicle.controller";
 import {
@@ -25,6 +26,7 @@ export class VehicleModule {
     queryBus: IQueryBus,
     broker: IEventBroker,
     db: IDatabase,
+    logger: ILogger,
     config: IAppConfig["modules"]["vehicle"],
   ): IVehicleController {
     const repository = new InMemoryVehicleRepository(db);

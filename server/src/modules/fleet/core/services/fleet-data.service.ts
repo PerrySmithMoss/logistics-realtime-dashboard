@@ -1,6 +1,7 @@
 import { ListAllVehiclesQuery } from "@modules/vehicle/core/queries/list-all-vehicles.query";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { ILifecycleManager } from "@shared/interfaces";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { IOsrmClient } from "@shared/interfaces/osrm-client-interface";
 import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
@@ -19,6 +20,7 @@ export class FleetDataService implements IFleetDataService {
     private readonly queryBus: IQueryBus,
     private readonly projection: FleetStatsProjection,
     private readonly osrmClient: IOsrmClient,
+    private readonly logger: ILogger,
     private readonly lifecycle: ILifecycleManager,
   ) {
     this.lifecycle.onShutdown(async () => {
@@ -27,6 +29,8 @@ export class FleetDataService implements IFleetDataService {
   }
 
   public async hydrate(): Promise<void> {
+    this.logger.info("Starting hydration process...");
+
     try {
       const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {});
 
@@ -40,9 +44,16 @@ export class FleetDataService implements IFleetDataService {
       }
 
       this._isHydrated = false;
-      console.log("[FleetDataService] Hydration complete.");
+
+      const snapshot = this.projection.getCurrentSnapshot();
+
+      this.logger.info("Hydration complete", {
+        totalVehicles: snapshot.summary.total,
+        active: snapshot.summary.activeCount,
+        performance: `${snapshot.summary.performancePct}%`,
+      });
     } catch (err) {
-      console.error("[FleetDataService] Hydration failed:", err);
+      this.logger.error("Hydration failed", err);
       this._isHydrated = false;
       throw err;
     }
@@ -65,8 +76,8 @@ export class FleetDataService implements IFleetDataService {
         const snapped = await this.snapVehicleToRoad(event);
         this.projection.handleUpdate(snapped);
       } catch (err) {
-        console.error(
-          `[FleetDataService] Failed to process movement for ${event.vehicleId}:`,
+        this.logger.error(
+          `Failed to process movement for ${event.vehicleId}:`,
           err,
         );
       }
@@ -78,9 +89,7 @@ export class FleetDataService implements IFleetDataService {
   public clearPendingSnaps(): void {
     if (this.pendingSnaps.size === 0) return;
 
-    console.log(
-      `[FleetDataService] Clearing ${this.pendingSnaps.size} pending snaps...`,
-    );
+    this.logger.info(`Clearing ${this.pendingSnaps.size} pending snaps...`);
 
     for (const timeout of this.pendingSnaps.values()) {
       clearTimeout(timeout);
