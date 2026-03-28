@@ -3,6 +3,7 @@ import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 
 export interface IFleetDataService {
   hydrate(): Promise<void>;
+  readonly isHydrated: boolean;
   processVehicleMovement(event: IStatusChangeEvent): Promise<void>;
   getCurrentSnapshot(): Promise<IFleetSnapshot>;
 }

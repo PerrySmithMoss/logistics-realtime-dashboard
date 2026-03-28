@@ -28,13 +28,11 @@ export class HealthController
       return res.status(503).json({ status: "STARTING" });
     }
 
-    const snapshot = await this.dataService.getCurrentSnapshot();
-    const isHydrated = snapshot.summary.total > 0;
-
-    if (!isHydrated) {
-      return res
-        .status(503)
-        .json({ status: "DEGRADED", reason: "projection_empty" });
+    if (!this.dataService.isHydrated) {
+      return res.status(503).json({
+        status: "INITIALIZING",
+        reason: "awaiting_hydration",
+      });
     }
 
     return this.ok(res, {

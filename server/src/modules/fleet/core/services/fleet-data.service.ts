@@ -8,6 +8,8 @@ import { IFleetDataService } from "../interfaces/fleet-data-service.interface";
 import { FleetStatsProjection } from "../projections/fleet-stats.projection";
 
 export class FleetDataService implements IFleetDataService {
+  private _isHydrated = false;
+
   private readonly pendingSnaps = new Map<
     string,
     ReturnType<typeof setTimeout>
@@ -27,6 +29,7 @@ export class FleetDataService implements IFleetDataService {
   public async hydrate(): Promise<void> {
     try {
       const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {});
+
       for (const v of vehicles) {
         this.projection.handleUpdate({
           ...v,
@@ -35,13 +38,18 @@ export class FleetDataService implements IFleetDataService {
           isSnapped: v.isSnapped ?? false,
         } as IStatusChangeEvent);
       }
-      console.log(
-        `[FleetDataService] Hydrated with ${vehicles.length} vehicles.`,
-      );
+
+      this._isHydrated = false;
+      console.log("[FleetDataService] Hydration complete.");
     } catch (err) {
       console.error("[FleetDataService] Hydration failed:", err);
+      this._isHydrated = false;
       throw err;
     }
+  }
+
+  public get isHydrated(): boolean {
+    return this._isHydrated;
   }
 
   public async processVehicleMovement(
