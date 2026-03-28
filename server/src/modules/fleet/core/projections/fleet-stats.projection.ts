@@ -1,5 +1,4 @@
 import { VehicleSnapshot } from "@modules/vehicle/core/dtos/vehicle-snapshot.dto";
-import { mockVehicles } from "@modules/vehicle/data/mock-vehicles";
 import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 import { IFleetStatsProjection } from "../interfaces/fleet-stats-projection.interface";
@@ -11,20 +10,6 @@ export class FleetStatsProjection implements IFleetStatsProjection {
    * It provides O(1) access to the latest state of the fleet.
    */
   private readonly hotCache = new Map<string, VehicleSnapshot>();
-
-  constructor() {
-    this.seedInitialData();
-  }
-
-  private seedInitialData(): void {
-    mockVehicles.forEach((v) => {
-      this.hotCache.set(v.id, {
-        ...v,
-        lastUpdated: new Date().toISOString(),
-        isSnapped: false,
-      });
-    });
-  }
 
   public handleUpdate(event: IStatusChangeEvent): void {
     const existing = this.hotCache.get(event.vehicleId);

@@ -72,9 +72,11 @@ export class FleetDataService implements IFleetDataService {
         const [snappedLng, snappedLat] = data.waypoints[0].location;
         return { ...v, lat: snappedLat, lng: snappedLng, isSnapped: true };
       }
-    } catch {
+    } catch (err) {
+      // todo: ideally we would logger with a shared logger
       console.warn(
-        `[OSRM] Snapping failed for ${v.vehicleId}, using raw coords.`,
+        `[OSRM] Snapping failed for ${v.vehicleId}, using raw coords: `,
+        { vehicle: v, error: err },
       );
     }
     return v;
