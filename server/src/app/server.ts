@@ -1,12 +1,13 @@
 import { Express } from "express";
 import { Server } from "http";
+import { IServer } from "./interfaces/server.interface";
 
 export interface ServerConfig {
   port: number;
   env: string;
 }
 
-export class HttpServer {
+export class HttpServer implements IServer {
   private server?: Server;
 
   constructor(private readonly app: Express) {}
@@ -32,10 +33,6 @@ export class HttpServer {
     });
   }
 
-  public get isRunning(): boolean {
-    return !!this.server && this.server.listening;
-  }
-
   public async stop(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.server) return resolve();
@@ -55,5 +52,9 @@ export class HttpServer {
         resolve();
       });
     });
+  }
+
+  public get isRunning(): boolean {
+    return !!this.server && this.server.listening;
   }
 }

@@ -1,5 +1,6 @@
 import { IAppConfig } from "@config/index";
 import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller.interface";
+import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { FleetModule } from "@modules/fleet/fleet.module";
 import { IVehicleController } from "@modules/vehicle/api/interfaces/vehicle-controller.interface";
 import { VehicleModule } from "@modules/vehicle/vehicle.module";
@@ -25,7 +26,7 @@ export class AppContainer implements IAppContainer {
   public readonly eventBroker: IEventBroker;
 
   private constructor(
-    dependencies: {
+    public readonly dependencies: {
       lifecycle: ILifecycleManager;
       commandBus: ICommandBus;
       queryBus: IQueryBus;
@@ -37,6 +38,7 @@ export class AppContainer implements IAppContainer {
       vehicle: IVehicleController;
       fleet: IFleetController;
     },
+    public readonly fleetDataService: IFleetDataService,
   ) {
     this.lifecycle = dependencies.lifecycle;
     this.commandBus = dependencies.commandBus;
@@ -80,6 +82,7 @@ export class AppContainer implements IAppContainer {
     return new AppContainer(
       { lifecycle, commandBus, queryBus, database, eventBroker },
       controllers,
+      fleetDataService,
     );
   }
 }

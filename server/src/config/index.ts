@@ -10,6 +10,7 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((val) => val === "true"),
+  OSRM_URL: z.string().default("https://router.project-osrm.org"),
 });
 
 const _env = envSchema.safeParse(process.env);
@@ -36,6 +37,7 @@ export const config = {
     },
     fleet: {
       enableFleetSimulator: env.ENABLE_FLEET_SIMULATOR,
+      osrmUrl: env.OSRM_URL,
     },
   },
 } as const;

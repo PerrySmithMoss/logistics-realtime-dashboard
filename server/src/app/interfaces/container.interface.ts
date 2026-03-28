@@ -1,4 +1,5 @@
 import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller.interface";
+import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { IVehicleController } from "@modules/vehicle/api/interfaces/vehicle-controller.interface";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
@@ -19,4 +20,6 @@ export interface IAppContainer {
     readonly vehicle: IVehicleController;
     readonly fleet: IFleetController;
   };
+
+  fleetDataService: IFleetDataService;
 }

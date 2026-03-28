@@ -30,13 +30,15 @@ export class FleetModule {
     lifecycle: ILifecycleManager,
   ): Promise<FleetModuleResult> {
     const projection = new FleetStatsProjection();
-    const osrmClient = new OsrmClient();
+    const osrmClient = new OsrmClient(config.osrmUrl);
+
     const dataService = new FleetDataService(
       queryBus,
       projection,
       osrmClient,
       lifecycle,
     );
+
     const observerService = new FleetObserverService(eventBroker);
 
     if (config.enableFleetSimulator) {
@@ -62,8 +64,6 @@ export class FleetModule {
         simulator.stop();
       });
     }
-
-    await dataService.hydrate();
 
     return {
       controller: new FleetController(observerService, dataService),
