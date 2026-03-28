@@ -9,13 +9,16 @@ export class InMemoryEventBroker implements IEventBroker {
   constructor(lifecycle: ILifecycleManager) {
     // prevent event handlers from firing during the shutdown drain window
     lifecycle.onShutdown(async () => {
-      const count = [...this.listeners.values()].reduce(
+      const eventCount = this.listeners.size;
+      const handlerCount = [...this.listeners.values()].reduce(
         (sum, handlers) => sum + handlers.length,
         0,
       );
+
       this.listeners.clear();
+
       console.log(
-        `[EventBroker] Cleared ${count} listeners across ${this.listeners.size} events.`,
+        `[EventBroker] Cleared ${handlerCount} listener${handlerCount === 1 ? "" : "s"} across ${eventCount} event${eventCount === 1 ? "" : "s"}.`,
       );
     });
   }

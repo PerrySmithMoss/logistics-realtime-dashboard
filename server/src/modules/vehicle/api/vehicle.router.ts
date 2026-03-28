@@ -5,11 +5,11 @@ export const createVehicleRoutes = (controller: IVehicleController) => {
   const vehicleRouter = Router();
 
   // get all vehicle records
-  vehicleRouter.get(
-    "/",
-    //     validator(validateGetVehiclesRequest),
-    controller.getAll,
-  );
+  // vehicleRouter.get(
+  //   "/",
+  //   //     validator(validateGetVehiclesRequest),
+  //   controller.getAll,
+  // );
 
   // get a vehicle record
   vehicleRouter.get("/:id", (req, res) => controller.getDetails(req, res));
@@ -22,11 +22,11 @@ export const createVehicleRoutes = (controller: IVehicleController) => {
   );
 
   // SSE for the real-time updates on vehicles
-  vehicleRouter.get(
-    "/stats/stream",
-    //     validator(validateStatsStreamRequest),
-    controller.streamStats,
-  );
+  // vehicleRouter.get(
+  //   "/stats/stream",
+  //   //     validator(validateStatsStreamRequest),
+  //   controller.streamStats,
+  // );
 
   return vehicleRouter;
 };

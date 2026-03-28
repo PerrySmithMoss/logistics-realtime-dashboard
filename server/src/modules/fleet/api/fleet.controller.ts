@@ -67,7 +67,12 @@ export class FleetController
     const heartbeatTimer = setInterval(() => {
       try {
         const ok = res.write(":\n\n");
-        if (!ok) cleanup();
+        if (!ok) {
+          cleanup();
+        } else {
+          // keep simulator alive while client is connected
+          this.observerService.keepAlive();
+        }
       } catch {
         cleanup();
       }

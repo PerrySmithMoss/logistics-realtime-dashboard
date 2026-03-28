@@ -49,6 +49,12 @@ export class FleetObserverService implements IFleetObserverService {
     if (this.observers.size === 0) this.deactivateFleetPipeline();
   }
 
+  public keepAlive(): void {
+    if (this.observers.size > 0) {
+      this.simulator?.heartbeat("OBSERVER_KEEP_ALIVE");
+    }
+  }
+
   private broadcastToObservers = (event: FleetStatsUpdatedEvent): void => {
     for (const [id, observer] of this.observers.entries()) {
       if (observer.res.writableEnded || !observer.res.writable) {
