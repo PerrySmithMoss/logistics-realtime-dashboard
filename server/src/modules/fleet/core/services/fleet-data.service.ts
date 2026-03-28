@@ -1,5 +1,7 @@
 import { ListAllVehiclesQuery } from "@modules/vehicle/core/queries/list-all-vehicles.query";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
+import { ILifecycleManager } from "@shared/interfaces";
+import { IOsrmClient } from "@shared/interfaces/osrm-client-interface";
 import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 import { IFleetDataService } from "../interfaces/fleet-data-service.interface";
@@ -14,7 +16,13 @@ export class FleetDataService implements IFleetDataService {
   constructor(
     private readonly queryBus: IQueryBus,
     private readonly projection: FleetStatsProjection,
-  ) {}
+    private readonly osrmClient: IOsrmClient,
+    private readonly lifecycle: ILifecycleManager,
+  ) {
+    this.lifecycle.onShutdown(async () => {
+      this.clearPendingSnaps();
+    });
+  }
 
   public async hydrate(): Promise<void> {
     try {
@@ -28,10 +36,10 @@ export class FleetDataService implements IFleetDataService {
         } as IStatusChangeEvent);
       }
       console.log(
-        `💧 [FleetDataService] Hydrated with ${vehicles.length} vehicles.`,
+        `[FleetDataService] Hydrated with ${vehicles.length} vehicles.`,
       );
     } catch (err) {
-      console.error("❌ [FleetDataService] Hydration failed:", err);
+      console.error("[FleetDataService] Hydration failed:", err);
       throw err;
     }
   }
@@ -39,46 +47,58 @@ export class FleetDataService implements IFleetDataService {
   public async processVehicleMovement(
     event: IStatusChangeEvent,
   ): Promise<void> {
-    // debounce per vehicle to prevent OSRM from being spammed
-    // if a vehicle publishes rapidly.
     const existing = this.pendingSnaps.get(event.vehicleId);
     if (existing) clearTimeout(existing);
 
-    this.pendingSnaps.set(
-      event.vehicleId,
-      setTimeout(async () => {
+    const timeout = setTimeout(async () => {
+      try {
+        this.pendingSnaps.delete(event.vehicleId);
+
         const snapped = await this.snapVehicleToRoad(event);
         this.projection.handleUpdate(snapped);
-        this.pendingSnaps.delete(event.vehicleId);
-      }, 200),
+      } catch (err) {
+        console.error(
+          `[FleetDataService] Failed to process movement for ${event.vehicleId}:`,
+          err,
+        );
+      }
+    }, 200);
+
+    this.pendingSnaps.set(event.vehicleId, timeout);
+  }
+
+  public clearPendingSnaps(): void {
+    if (this.pendingSnaps.size === 0) return;
+
+    console.log(
+      `[FleetDataService] Clearing ${this.pendingSnaps.size} pending snaps...`,
     );
+
+    for (const timeout of this.pendingSnaps.values()) {
+      clearTimeout(timeout);
+    }
+
+    this.pendingSnaps.clear();
   }
 
   public async getCurrentSnapshot(): Promise<IFleetSnapshot> {
     return this.projection.getCurrentSnapshot();
   }
 
-  // TODO: batch these into a single OSRM table/nearest request,
-  // or host a private OSRM instance for production use
+  // TODO: batch these into a single OSRM table/nearest request to be more efficient,
+  // and/or host a private OSRM instance for production use
   private async snapVehicleToRoad(
     v: IStatusChangeEvent,
   ): Promise<IStatusChangeEvent> {
-    try {
-      const url = `https://router.project-osrm.org/nearest/v1/driving/${v.lng},${v.lat}?number=1`;
-      const res = await fetch(url);
-      const data = await res.json();
+    const data = await this.osrmClient.getNearest(v.lng, v.lat, {
+      signal: this.lifecycle.getShutdownSignal(),
+    });
 
-      if (data.code === "Ok" && data.waypoints?.length > 0) {
-        const [snappedLng, snappedLat] = data.waypoints[0].location;
-        return { ...v, lat: snappedLat, lng: snappedLng, isSnapped: true };
-      }
-    } catch (err) {
-      // todo: ideally we would logger with a shared logger
-      console.warn(
-        `[OSRM] Snapping failed for ${v.vehicleId}, using raw coords: `,
-        { vehicle: v, error: err },
-      );
+    if (data?.code === "Ok" && data.waypoints?.length > 0) {
+      const [snappedLng, snappedLat] = data.waypoints[0].location;
+      return { ...v, lat: snappedLat, lng: snappedLng, isSnapped: true };
     }
-    return v;
+
+    return { ...v, isSnapped: false };
   }
 }

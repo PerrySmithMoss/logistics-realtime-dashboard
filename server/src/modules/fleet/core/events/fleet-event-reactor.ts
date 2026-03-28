@@ -33,7 +33,7 @@ export class FleetEventReactor implements IBroadcastScheduler {
   public start() {
     if (this.publishInterval) return;
 
-    console.log("🚀 [FleetReactor] Activating broadcast loop...");
+    console.log("[FleetEventReactor] Activating broadcast loop...");
     this.publishInterval = setInterval(async () => {
       if (!this.needsPublish) return;
 
@@ -49,7 +49,7 @@ export class FleetEventReactor implements IBroadcastScheduler {
 
   public stop(): void {
     if (this.publishInterval) {
-      console.log("💤 [FleetReactor] Deactivating broadcast loop...");
+      console.log("[FleetEventReactor] Deactivating broadcast loop...");
       clearInterval(this.publishInterval);
       this.publishInterval = null;
     }

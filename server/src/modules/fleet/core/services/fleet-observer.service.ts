@@ -33,7 +33,7 @@ export class FleetObserverService implements IFleetObserverService {
     const isFirst = this.observers.size === 0;
     this.observers.set(id, { callback, res });
     console.log(
-      `👤 [FleetObserverService] Observer joined: ${id} | Total: ${this.observers.size}`,
+      `[FleetObserverService] Observer joined: ${id} | Total: ${this.observers.size}`,
     );
 
     if (isFirst) this.activateFleetPipeline();
@@ -43,7 +43,7 @@ export class FleetObserverService implements IFleetObserverService {
     const existed = this.observers.delete(id);
     if (!existed) return;
     console.log(
-      `👤 [FleetObserverService] Observer left: ${id} | Total: ${this.observers.size}`,
+      `[FleetObserverService] Observer left: ${id} | Total: ${this.observers.size}`,
     );
 
     if (this.observers.size === 0) this.deactivateFleetPipeline();
@@ -66,7 +66,7 @@ export class FleetObserverService implements IFleetObserverService {
   };
 
   private activateFleetPipeline(): void {
-    console.log("⚡ [FleetObserverService] Activating pipeline...");
+    console.log("[FleetObserverService] Activating pipeline...");
     this.reactor?.start();
     this.eventBroker.subscribe(
       FleetStatsUpdatedEvent.type,
@@ -76,7 +76,7 @@ export class FleetObserverService implements IFleetObserverService {
   }
 
   private deactivateFleetPipeline(): void {
-    console.log("❄️ [FleetObserverService] Deactivating pipeline...");
+    console.log("[FleetObserverService] Deactivating pipeline...");
     this.reactor?.stop();
     this.eventBroker.unsubscribe(
       FleetStatsUpdatedEvent.type,

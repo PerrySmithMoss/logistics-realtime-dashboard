@@ -5,6 +5,7 @@ import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
+import { OsrmClient } from "@shared/lib/osrm";
 import { FleetController } from "./api/fleet.controller";
 import { IFleetController } from "./api/interfaces/fleet-controller.interface";
 import { FleetEventReactor } from "./core/events/fleet-event-reactor";
@@ -29,7 +30,13 @@ export class FleetModule {
     lifecycle: ILifecycleManager,
   ): Promise<FleetModuleResult> {
     const projection = new FleetStatsProjection();
-    const dataService = new FleetDataService(queryBus, projection);
+    const osrmClient = new OsrmClient();
+    const dataService = new FleetDataService(
+      queryBus,
+      projection,
+      osrmClient,
+      lifecycle,
+    );
     const observerService = new FleetObserverService(eventBroker);
 
     if (config.enableFleetSimulator) {

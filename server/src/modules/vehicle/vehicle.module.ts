@@ -52,7 +52,7 @@ export class VehicleModule {
       repo.save(vehicle);
     });
 
-    console.log(`✅ [VehicleModule] Seeded ${mockVehicles.length} vehicles.`);
+    console.log(`[VehicleModule] Seeded ${mockVehicles.length} vehicles.`);
   }
 
   private static registerCommands(

@@ -6,6 +6,7 @@ import {
 export class LifecycleManager implements ILifecycleManager {
   private _state: AppState = AppState.STARTING;
   private readonly shutdownTasks: (() => Promise<void>)[] = [];
+  private readonly abortController = new AbortController();
 
   public get state(): AppState {
     return this._state;
@@ -15,6 +16,10 @@ export class LifecycleManager implements ILifecycleManager {
   }
   public get isShuttingDown(): boolean {
     return this._state === AppState.SHUTTING_DOWN;
+  }
+
+  public getShutdownSignal(): AbortSignal {
+    return this.abortController.signal;
   }
 
   public setReady(): void {
@@ -34,6 +39,9 @@ export class LifecycleManager implements ILifecycleManager {
 
   public async closeAll(): Promise<void> {
     this._state = AppState.CLOSED;
+
+    this.abortController.abort();
+
     for (const task of this.shutdownTasks) {
       await task().catch(console.error);
     }

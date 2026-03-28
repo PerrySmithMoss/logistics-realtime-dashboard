@@ -15,7 +15,7 @@ export class FleetSimulator implements ISimulator {
   }
 
   public heartbeat(source: string = "UNKNOWN") {
-    console.log(`💓 [Simulator] Heartbeat from: ${source}`);
+    console.log(`[Simulator] Heartbeat from: ${source}`);
     this.lastHeartbeat = Date.now();
     if (!this.interval) {
       this.start();
@@ -25,7 +25,7 @@ export class FleetSimulator implements ISimulator {
   public start() {
     if (this.interval) return;
 
-    console.log("📡 [FleetSimulator] Waking up - Active listeners detected.");
+    console.log("[FleetSimulator] Waking up - Active listeners detected.");
 
     this.tick();
     this.interval = setInterval(() => this.tick(), 5000);
@@ -33,7 +33,7 @@ export class FleetSimulator implements ISimulator {
 
   public stop() {
     if (this.interval) {
-      console.log("🛑 [Simulator] Stopping - no active listeners.");
+      console.log("[Simulator] Stopping - no active listeners.");
       clearInterval(this.interval);
       this.interval = null;
     }
@@ -48,7 +48,7 @@ export class FleetSimulator implements ISimulator {
     );
 
     if (diff > this.WATCHDOG_TIMEOUT) {
-      console.log("🚨 [Watchdog] TIMEOUT EXCEEDED. Shutting down...");
+      console.log("[Watchdog] TIMEOUT EXCEEDED. Shutting down...");
       this.stop();
       return;
     }
