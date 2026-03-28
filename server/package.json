@@ -4,17 +4,19 @@
   "description": "",
   "main": "dist/app/index.js",
   "scripts": {
-    "dev": "tsx --watch ./src/app/index.ts",
+    "dev": "tsx --watch $([ -f .env.local ] && echo '--env-file=.env.local') ./src/index.ts",
     "build": "tsc",
-    "start": "node ./dist/app/index.js",
+    "start": "node --env-file=.env ./dist/index.js",
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "eslint": "^10.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },

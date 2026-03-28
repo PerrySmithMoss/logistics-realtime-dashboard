@@ -9,12 +9,12 @@ export const createApp = (
 
   app.use(express.json({ limit: "1mb" }));
 
-  app.use(requestIdMiddleware);
+  // app.use(requestIdMiddleware);
 
   app.use("/api/v1", createApiRouter(controllers));
 
-  app.use(notFoundHandler);
-  app.use(errorHandler);
+  // app.use(notFoundHandler);
+  // app.use(errorHandler);
 
   return app;
 };
