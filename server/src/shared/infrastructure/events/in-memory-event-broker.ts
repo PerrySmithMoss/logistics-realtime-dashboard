@@ -1,35 +1,47 @@
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 
-type Handler = (data: any) => void | Promise<void>;
+type Handler = (data: unknown) => void | Promise<void>;
 
 export class InMemoryEventBroker implements IEventBroker {
-  private listeners: Map<string, Handler[]> = new Map();
+  private readonly listeners = new Map<string, Handler[]>();
 
-  constructor(lifecycle: ILifecycleManager) {}
-
-  async publish(eventName: string, data: any): Promise<void> {
-    const handlers = this.listeners.get(eventName) || [];
-
-    console.log(`[EventBroker] 📢 Event ${eventName} published:`, data);
-
-    handlers.forEach((handler) => {
-      Promise.resolve(handler(data)).catch((err) => {
-        console.error(`[EventBroker] Error in listener for ${eventName}:`, err);
-      });
+  constructor(lifecycle: ILifecycleManager) {
+    // prevent event handlers from firing during the shutdown drain window
+    lifecycle.onShutdown(async () => {
+      const count = [...this.listeners.values()].reduce(
+        (sum, handlers) => sum + handlers.length,
+        0,
+      );
+      this.listeners.clear();
+      console.log(
+        `[EventBroker] Cleared ${count} listeners across ${this.listeners.size} events.`,
+      );
     });
   }
 
-  subscribe(eventName: string, handler: Handler): void {
-    const current = this.listeners.get(eventName) || [];
+  public publish(eventName: string, data: unknown): void {
+    const handlers = this.listeners.get(eventName) ?? [];
+    for (const handler of handlers) {
+      Promise.resolve(handler(data)).catch((err) =>
+        console.error(
+          `[EventBroker] Unhandled error in listener for "${eventName}":`,
+          err,
+        ),
+      );
+    }
+  }
+
+  public subscribe(eventName: string, handler: Handler): void {
+    const current = this.listeners.get(eventName) ?? [];
     this.listeners.set(eventName, [...current, handler]);
   }
 
-  public unsubscribe(event: string, callback: Function) {
-    const current = this.listeners.get(event) || [];
+  public unsubscribe(eventName: string, handler: Handler): void {
+    const current = this.listeners.get(eventName) ?? [];
     this.listeners.set(
-      event,
-      current.filter((fn) => fn !== callback),
+      eventName,
+      current.filter((fn) => fn !== handler),
     );
   }
 }
