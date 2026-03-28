@@ -1,3 +1,4 @@
+import { IAppConfig } from "@config/index";
 import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller.interface";
 import { FleetModule } from "@modules/fleet/fleet.module";
 import { IVehicleController } from "@modules/vehicle/api/interfaces/vehicle-controller.interface";
@@ -11,7 +12,6 @@ import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { InMemoryEventBroker } from "@shared/infrastructure/events/in-memory-event-broker";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
 import { InMemoryDatabase } from "@shared/infrastructure/persistence/in-memory-database";
-import { IAppConfig } from "@shared/interfaces/config.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
@@ -23,35 +23,62 @@ export class AppContainer implements IAppContainer {
   public readonly queryBus: IQueryBus;
   public readonly database: IDatabase;
   public readonly eventBroker: IEventBroker;
-  public readonly controllers: {
-    health: IHealthController;
-    vehicle: IVehicleController;
-    fleet: IFleetController;
-  };
 
-  constructor(private readonly config: IAppConfig) {
-    this.lifecycle = new LifecycleManager();
-    this.commandBus = new CommandBus();
-    this.queryBus = new QueryBus();
+  private constructor(
+    dependencies: {
+      lifecycle: ILifecycleManager;
+      commandBus: ICommandBus;
+      queryBus: IQueryBus;
+      database: IDatabase;
+      eventBroker: IEventBroker;
+    },
+    public readonly controllers: {
+      health: IHealthController;
+      vehicle: IVehicleController;
+      fleet: IFleetController;
+    },
+  ) {
+    this.lifecycle = dependencies.lifecycle;
+    this.commandBus = dependencies.commandBus;
+    this.queryBus = dependencies.queryBus;
+    this.database = dependencies.database;
+    this.eventBroker = dependencies.eventBroker;
+  }
 
-    this.database = new InMemoryDatabase(this.lifecycle);
-    this.eventBroker = new InMemoryEventBroker(this.lifecycle);
+  public static async create(config: IAppConfig): Promise<AppContainer> {
+    const lifecycle = new LifecycleManager();
+    const commandBus = new CommandBus();
+    const queryBus = new QueryBus();
+    const database = new InMemoryDatabase(lifecycle);
+    const eventBroker = new InMemoryEventBroker(lifecycle);
 
-    this.lifecycle.onShutdown(async () => {
-      console.log("Finalising logs...");
-    });
+    const vehicleController = VehicleModule.init(
+      commandBus,
+      queryBus,
+      eventBroker,
+      database,
+      config.modules.vehicle,
+    );
 
-    this.controllers = {
-      health: new HealthController(this.lifecycle),
-      vehicle: VehicleModule.init(
-        this.commandBus,
-        this.queryBus,
-        this.eventBroker,
-        this.database,
-      ),
-      fleet: FleetModule.init(this.queryBus, this.eventBroker),
+    const fleetController = await FleetModule.init(
+      commandBus,
+      queryBus,
+      eventBroker,
+      config.modules.fleet,
+      lifecycle,
+    );
+
+    const controllers = {
+      health: new HealthController(lifecycle),
+      vehicle: vehicleController,
+      fleet: fleetController,
     };
 
-    this.lifecycle.setReady();
+    lifecycle.setReady();
+
+    return new AppContainer(
+      { lifecycle, commandBus, queryBus, database, eventBroker },
+      controllers,
+    );
   }
 }
