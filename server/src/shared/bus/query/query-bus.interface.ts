@@ -9,9 +9,6 @@ export interface IQueryBus {
     params: GlobalQueryRegistry[K]["request"],
   ): Promise<GlobalQueryRegistry[K]["response"]>;
 
-  /**
-   * Registers a handler for a specific query name.
-   */
   register<K extends keyof GlobalQueryRegistry>(
     queryName: K,
     handler: {
