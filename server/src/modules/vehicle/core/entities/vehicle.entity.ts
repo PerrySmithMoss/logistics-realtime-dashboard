@@ -1,9 +1,11 @@
+import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
+
 export interface VehicleProps {
   id: string;
   plateNumber: string;
   lat: number;
   lng: number;
-  status: "active" | "inactive" | "maintenance";
+  status: "active" | "inactive" | "delayed" | "maintenance";
   lastUpdated: Date;
 }
 
@@ -46,7 +48,10 @@ export class Vehicle {
     return this.props.status;
   }
 
-  public toSnapshot(): Readonly<VehicleProps> {
-    return Object.freeze({ ...this.props });
+  public toSnapshot(): Readonly<VehicleSnapshot> {
+    return Object.freeze({
+      ...this.props,
+      lastUpdated: this.props.lastUpdated.toISOString(),
+    });
   }
 }

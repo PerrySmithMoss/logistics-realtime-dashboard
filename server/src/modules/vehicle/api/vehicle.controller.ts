@@ -2,7 +2,7 @@ import { BaseController } from "@shared/api/base.controller";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { Request, Response } from "express";
-import { VehicleCommandType } from "../core/commands/update-location/update-vehicle-location.command";
+import { UpdateVehicleLocationCommand } from "../core/commands/update-location/update-vehicle-location";
 import { IVehicleController } from "./interfaces/vehicle-controller.interface";
 
 export class VehicleController
@@ -19,7 +19,7 @@ export class VehicleController
   public create = async (req: Request, res: Response) => {
     const { plateNumber } = req.body;
     // await this.commandBus.execute(...)
-    this.created(res);
+    // this.created(res);
   };
 
   public getDetails = async (req: Request, res: Response) => {
@@ -31,9 +31,10 @@ export class VehicleController
   public updateLocation = async (req: Request, res: Response) => {
     const { vehicleId, lat, lng } = req.body;
 
-    await this.commandBus.execute(VehicleCommandType.UPDATE_LOCATION, {
+    await this.commandBus.execute(UpdateVehicleLocationCommand.type, {
       vehicleId,
-      coordinates: { lat, lng },
+      lat,
+      lng,
     });
 
     this.accepted(res);
