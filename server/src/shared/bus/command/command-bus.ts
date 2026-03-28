@@ -1,25 +1,34 @@
 import { ICommandBus } from "./command-bus.interface";
 import { GlobalCommandRegistry } from "./command-registry";
 
+type AnyCommandHandler = { handle(command: unknown): Promise<void> };
+
 export class CommandBus implements ICommandBus {
-  private handlers = new Map<string, any>();
+  private readonly handlers = new Map<
+    keyof GlobalCommandRegistry,
+    AnyCommandHandler
+  >();
 
   public register<K extends keyof GlobalCommandRegistry>(
     commandName: K,
-    handler: any,
+    handler: { handle(command: GlobalCommandRegistry[K]): Promise<void> },
   ): void {
-    this.handlers.set(commandName as string, handler);
+    if (this.handlers.has(commandName)) {
+      throw new Error(
+        `Handler for command ${String(commandName)} is already registered.`,
+      );
+    }
+    this.handlers.set(commandName, handler);
   }
 
   public async execute<K extends keyof GlobalCommandRegistry>(
     commandName: K,
     request: GlobalCommandRegistry[K],
   ): Promise<void> {
-    const handler = this.handlers.get(commandName as string);
+    const handler = this.handlers.get(commandName);
     if (!handler) {
-      throw new Error(`No handler for ${commandName as string}`);
+      throw new Error(`No handler for ${commandName}`);
     }
-
     await handler.handle(request);
   }
 }
