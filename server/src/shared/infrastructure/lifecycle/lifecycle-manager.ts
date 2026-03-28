@@ -18,14 +18,14 @@ export class LifecycleManager implements ILifecycleManager {
   }
 
   public setReady(): void {
-    if (this._state !== AppState.STARTING) return;
+    if (this._state !== AppState.STARTING) {
+      throw new Error(`Cannot transition to READY from ${this._state}`);
+    }
     this._state = AppState.READY;
-    console.log("[Lifecycle] 🟢 Application is fully operational.");
   }
 
   public prepareForShutdown(): void {
     this._state = AppState.SHUTTING_DOWN;
-    console.log("[Lifecycle] ⚠️ Shutdown initiated. Draining resources...");
   }
 
   public onShutdown(task: () => Promise<void>): void {
@@ -34,8 +34,8 @@ export class LifecycleManager implements ILifecycleManager {
 
   public async closeAll(): Promise<void> {
     this._state = AppState.CLOSED;
-    await Promise.all(
-      this.shutdownTasks.map((task) => task().catch(console.error)),
-    );
+    for (const task of this.shutdownTasks) {
+      await task().catch(console.error);
+    }
   }
 }
