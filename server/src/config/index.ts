@@ -6,6 +6,7 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().default(5500),
   HOST: z.string().default("localhost"),
+  MIN_LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("DEBUG"),
   ENABLE_FLEET_SIMULATOR: z
     .enum(["true", "false"])
     .default("false")
@@ -30,6 +31,7 @@ export const config = {
     env: env.NODE_ENV,
     isProd: env.NODE_ENV === "production",
     isDev: env.NODE_ENV === "development",
+    minLogLevel: env.MIN_LOG_LEVEL,
   },
   modules: {
     vehicle: {
