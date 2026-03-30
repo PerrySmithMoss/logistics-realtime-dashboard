@@ -113,4 +113,16 @@ export class ConsoleLogger implements ILogger {
     }
     this.write("ERROR", message, errorData);
   }
+
+  public critical(message: string, data?: any) {
+    let errorData = data;
+    if (data instanceof Error) {
+      errorData = {
+        name: data.name,
+        message: data.message,
+        stack: data.stack,
+      };
+    }
+    this.write("CRITICAL", message, errorData);
+  }
 }

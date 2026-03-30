@@ -47,7 +47,10 @@ export class Application {
     try {
       await dataService.hydrate();
     } catch (err) {
-      this.logger.error("Hydration failed", err);
+      this.logger.critical(
+        "Background Hydration failed. Fleet data will be unavailable.",
+        err,
+      );
     }
   }
 
