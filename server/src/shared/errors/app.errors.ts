@@ -57,24 +57,41 @@ export class UnprocessableEntityError extends AppError {
 export class InternalServerError extends AppError {
   constructor(
     message: string = "Internal Server Error",
+    cause?: unknown,
     isOperational: boolean = true,
-    cause?: Error,
   ) {
-    super(message, AppErrorCodes.InternalServerError, 500, isOperational);
+    const normalizedCause = cause instanceof Error ? cause : undefined;
+
+    super(
+      message,
+      AppErrorCodes.InternalServerError,
+      500,
+      isOperational,
+      undefined,
+      { cause: normalizedCause },
+    );
+
     this.name = "InternalServerError";
+
     this.cause = cause;
   }
 }
 
 export class ExternalServiceError extends AppError {
-  constructor(service: string, cause?: Error) {
+  constructor(service: string, cause?: unknown, isOperational: boolean = true) {
+    const normalizedCause = cause instanceof Error ? cause : undefined;
+
     super(
       `${service} request failed`,
       AppErrorCodes.ExternalServiceError,
       502,
-      true,
+      isOperational,
+      undefined,
+      { cause: normalizedCause },
     );
+
     this.name = "ExternalServiceError";
+
     this.cause = cause;
   }
 }

@@ -1,3 +1,4 @@
+// @config/index.ts
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -11,7 +12,7 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((val) => val === "true"),
-  OSRM_URL: z.string().default("https://router.project-osrm.org"),
+  OPEN_ROUTE_SERVICE_API_KEY: z.string().min(1, "ORS API Key is required"),
 });
 
 const _env = envSchema.safeParse(process.env);
@@ -39,7 +40,7 @@ export const config = {
     },
     fleet: {
       enableFleetSimulator: env.ENABLE_FLEET_SIMULATOR,
-      osrmUrl: env.OSRM_URL,
+      orsApiKey: env.OPEN_ROUTE_SERVICE_API_KEY,
     },
   },
 } as const;

@@ -13,7 +13,7 @@ export const httpClient = async <T>(
   url: string,
   {
     timeout = 5500,
-    transform = true,
+    transform = false,
     retries = 2,
     initialRetryDelay = 1000,
     allowRetry = false,
@@ -71,7 +71,7 @@ export const httpClient = async <T>(
           ? await response.json().catch(() => null)
           : null;
 
-      return transform ? result?.data : result;
+      return transform && result?.data !== undefined ? result.data : result;
     } catch (err: any) {
       clearTimeout(timeoutId);
 
