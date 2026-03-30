@@ -1,4 +1,5 @@
 import { GlobalQueryRegistry } from "@shared/bus/query/query-registry";
+import { InternalServerError } from "@shared/errors/app.errors";
 import { IQueryBus } from "./query-bus.interface";
 
 type AnyHandler = { handle(query: unknown): Promise<unknown> };
@@ -15,7 +16,10 @@ export class QueryBus implements IQueryBus {
     },
   ): void {
     if (this.handlers.has(queryName)) {
-      throw new Error(`Query Handler for ${queryName} is already registered.`);
+      throw new InternalServerError(
+        `Query Handler for ${String(queryName)} is already registered.`,
+        false,
+      );
     }
     this.handlers.set(queryName, handler);
   }
@@ -27,8 +31,9 @@ export class QueryBus implements IQueryBus {
     const handler = this.handlers.get(queryName);
 
     if (!handler) {
-      throw new Error(
-        `No handler registered for query: "${String(queryName)}"`,
+      throw new InternalServerError(
+        `Missing Query Handler: No handler registered for "${String(queryName)}"`,
+        false,
       );
     }
 

@@ -14,8 +14,6 @@ export class InMemoryVehicleRepository
     this.table = this.db.getTable("vehicles");
   }
 
-  // --- WRITE METHODS ---
-
   async save(vehicle: Vehicle): Promise<void> {
     this.table.set(vehicle.id, vehicle);
   }
@@ -23,8 +21,6 @@ export class InMemoryVehicleRepository
   async delete(id: string): Promise<void> {
     this.table.delete(id);
   }
-
-  // --- READ METHODS ---
 
   async findById(id: string): Promise<Vehicle | null> {
     return this.table.get(id) || null;

@@ -15,7 +15,7 @@ import { FleetStatsProjection } from "./core/projections/fleet-stats.projection"
 import { FleetDataService } from "./core/services/fleet-data.service";
 import { FleetObserverService } from "./core/services/fleet-observer.service";
 import { FleetEventSubscriber } from "./infrastructure/fleet-event-subscriber";
-import { FleetSimulator } from "./infrastructure/fleet.simulator";
+import { FleetSimulator } from "./infrastructure/fleet-simulator";
 
 export interface FleetModuleResult {
   controller: IFleetController;
@@ -32,7 +32,7 @@ export class FleetModule {
     lifecycle: ILifecycleManager,
   ): Promise<FleetModuleResult> {
     const projection = new FleetStatsProjection();
-    const osrmClient = new OsrmClient(config.osrmUrl);
+    const osrmClient = new OsrmClient(config.osrmUrl, logger);
 
     const dataService = new FleetDataService(
       queryBus,

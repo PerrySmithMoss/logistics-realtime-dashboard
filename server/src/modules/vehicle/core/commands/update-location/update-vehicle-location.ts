@@ -1,3 +1,4 @@
+import { NotFoundError } from "@shared/errors/app.errors";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { VehicleEvents } from "../../events/vehicle.events";
@@ -29,7 +30,10 @@ export class UpdateVehicleLocationHandler {
 
   async handle(command: UpdateVehicleLocationCommand): Promise<void> {
     const vehicle = await this.repository.findById(command.vehicleId);
-    if (!vehicle) throw new Error(`Vehicle ${command.vehicleId} not found`);
+
+    if (!vehicle) {
+      throw new NotFoundError(`Vehicle ${command.vehicleId}`);
+    }
 
     vehicle.updatePosition(command.lat, command.lng);
 

@@ -1,5 +1,10 @@
 import { ListAllVehiclesQuery } from "@modules/vehicle/core/queries/list-all-vehicles.query";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
+import {
+  AppError,
+  AppErrorCodes,
+  InternalServerError,
+} from "@shared/errors/app.errors";
 import { ILifecycleManager } from "@shared/interfaces";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { IOsrmClient } from "@shared/interfaces/osrm-client-interface";
@@ -42,11 +47,19 @@ export class FleetDataService implements IFleetDataService {
     try {
       // TODO: add abort signal to query bus
       const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {
-        signal: controller.signal, // If your bus supports it
+        // TODO: add support for abort signal
+        signal: controller.signal,
       });
 
       for (const v of vehicles) {
-        if (controller.signal.aborted) throw new Error("Hydration Aborted");
+        if (controller.signal.aborted) {
+          throw new AppError(
+            "Hydration timed out",
+            AppErrorCodes.HYDRATION_FAILED,
+            500,
+            false,
+          );
+        }
 
         this.projection.handleUpdate({
           ...v,
@@ -66,7 +79,9 @@ export class FleetDataService implements IFleetDataService {
     } catch (err) {
       this._isHydrated = false;
       this.logger.error("[FleetDataService] Hydration failed", err);
-      throw err;
+
+      if (err instanceof AppError) throw err;
+      throw new InternalServerError("Hydration failed");
     } finally {
       clearTimeout(timeoutId);
     }
@@ -128,13 +143,20 @@ export class FleetDataService implements IFleetDataService {
   private async snapVehicleToRoad(
     v: IStatusChangeEvent,
   ): Promise<IStatusChangeEvent> {
-    const data = await this.osrmClient.getNearest(v.lat, v.lng, {
-      signal: this.lifecycle.getShutdownSignal(),
-    });
+    try {
+      const data = await this.osrmClient.getNearest(v.lat, v.lng, {
+        signal: this.lifecycle.getShutdownSignal(),
+      });
 
-    if (data?.code === "Ok" && data.waypoints?.length > 0) {
-      const [snappedLng, snappedLat] = data.waypoints[0].location;
-      return { ...v, lat: snappedLat, lng: snappedLng, isSnapped: true };
+      if (data?.code === "Ok" && data.waypoints?.length > 0) {
+        const [snappedLng, snappedLat] = data.waypoints[0].location;
+        return { ...v, lat: snappedLat, lng: snappedLng, isSnapped: true };
+      }
+    } catch (err) {
+      this.logger.warn(
+        `OSRM Snapping failed for ${v.vehicleId}, using raw coords.`,
+        { err: err.message },
+      );
     }
 
     return { ...v, isSnapped: false };

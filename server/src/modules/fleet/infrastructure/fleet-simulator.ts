@@ -1,5 +1,6 @@
 import { UpdateVehicleLocationCommand } from "@modules/vehicle/core/commands/update-location/update-vehicle-location";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
+import { AppError } from "@shared/errors/app.errors";
 import { ISimulator } from "@shared/interfaces";
 import { ILogger } from "@shared/interfaces/logger.interface";
 
@@ -77,9 +78,13 @@ export class FleetSimulator implements ISimulator {
         );
       } catch (err) {
         this.logger.error(
-          `📡 [FleetSimulator] Error updating ${id}:`,
-          err.message,
+          `[FleetSimulator] Failed to update vehicle ${id}`,
+          err,
         );
+
+        if (err instanceof AppError && !err.isOperational) {
+          this.stop();
+        }
       }
     }
   }

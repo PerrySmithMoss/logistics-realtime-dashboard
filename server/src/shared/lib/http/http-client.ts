@@ -1,4 +1,4 @@
-import { FetchError } from "@shared/errors/app.errors";
+import { ExternalServiceError, FetchError } from "@shared/errors/app.errors";
 
 export interface HttpClientOptions extends RequestInit {
   timeout?: number;
@@ -55,6 +55,7 @@ export const httpClient = async <T>(
           const errorMsg = errorData?.message
             ? errorData?.message
             : `Request failed with ${response.status}`;
+
           throw new FetchError(
             `${label}: ${errorMsg}`,
             response.status,
@@ -81,11 +82,14 @@ export const httpClient = async <T>(
 
       if (isLastAttempt || !canRetry) {
         if (err instanceof FetchError) throw err;
-        throw new FetchError(
-          `${label}: ${isTimeout ? "Timeout" : "Network Error"}`,
-          isTimeout ? 408 : 500,
-          { originalError: err.message },
-        );
+
+        if (isTimeout) {
+          throw new FetchError(`${label}: Gateway Timeout`, 504, {
+            original: err.message,
+          });
+        }
+
+        throw new ExternalServiceError(label, err);
       }
 
       const delay = initialRetryDelay * Math.pow(2, attempt);

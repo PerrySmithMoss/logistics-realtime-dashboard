@@ -9,6 +9,8 @@ export class FleetController
   extends BaseController
   implements IFleetController
 {
+  private readonly HEARTBEAT_INTERVAL = 15000;
+
   constructor(
     private readonly observerService: IFleetObserverService,
     private readonly dataService: IFleetDataService,
@@ -20,18 +22,14 @@ export class FleetController
     const snapshot = await this.dataService.getCurrentSnapshot();
 
     return res.status(200).json({
-      summary: snapshot.summary,
-      vehicles: snapshot.vehicles,
+      ...snapshot,
       timestamp: new Date().toISOString(),
     });
   };
 
   public stream = async (req: Request, res: Response) => {
     const connectionId = randomUUID();
-    let isCleanedUp = false;
-
-    req.socket.setKeepAlive(true, 1000);
-    req.socket.setTimeout(20000);
+    let heartbeatTimer: NodeJS.Timeout | null = null;
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -40,45 +38,43 @@ export class FleetController
       "X-Accel-Buffering": "no",
     });
 
-    res.write("retry: 5000\n\n");
-    res.write(": ok\n\n");
-
-    // TODO: once fleet exceeds 50+ vehicles, send only deltas
-    // rather than the full snapshot on connect
-    const snapshot = await this.dataService.getCurrentSnapshot();
-    res.write(`event: stats-update\ndata: ${JSON.stringify(snapshot)}\n\n`);
-
-    this.observerService.addObserver(connectionId, res, (data) => {
-      if (!res.writableEnded) {
-        res.write(`event: stats-update\ndata: ${JSON.stringify(data)}\n\n`);
-      }
-    });
+    const sendSse = (event: string, data: any) => {
+      if (res.writableEnded) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
 
     const cleanup = () => {
-      if (isCleanedUp) return;
-      isCleanedUp = true;
-
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
       this.observerService.removeObserver(connectionId);
-      clearInterval(heartbeatTimer);
-
       if (!res.writableEnded) res.end();
     };
 
-    const heartbeatTimer = setInterval(() => {
+    res.on("close", cleanup);
+    res.on("finish", cleanup);
+    req.on("error", cleanup);
+
+    const initialSnapshot = await this.dataService.getCurrentSnapshot();
+    sendSse("stats-update", initialSnapshot);
+
+    this.observerService.addObserver(connectionId, res, (data) => {
+      sendSse("stats-update", data);
+    });
+
+    heartbeatTimer = setInterval(() => {
       try {
-        const ok = res.write(":\n\n");
-        if (!ok) {
+        // keep connection alive
+        const canWrite = res.write(":\n\n");
+        if (!canWrite) {
           cleanup();
         } else {
-          // keep simulator alive while client is connected
           this.observerService.keepAlive();
         }
       } catch {
         cleanup();
       }
-    }, 15000);
-
-    res.on("close", cleanup);
-    req.on("error", cleanup);
+    }, this.HEARTBEAT_INTERVAL);
   };
 }

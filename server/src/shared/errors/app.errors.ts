@@ -2,9 +2,10 @@ export enum AppErrorCodes {
   NotFound = "NOT_FOUND",
   BadRequest = "BAD_REQUEST",
   UnprocessableEntity = "UNPROCESSABLE_ENTITY",
+  FetchError = "FETCH_ERROR",
+  HYDRATION_FAILED = "HYDRATION_FAILED",
   InternalServerError = "INTERNAL_SERVER_ERROR",
   ExternalServiceError = "EXTERNAL_SERVICE_ERROR",
-  FetchError = "FETCH_ERROR",
 }
 
 interface AppErrorDetails {
@@ -54,8 +55,12 @@ export class UnprocessableEntityError extends AppError {
 }
 
 export class InternalServerError extends AppError {
-  constructor(message: string = "Internal Server Error", cause?: Error) {
-    super(message, AppErrorCodes.InternalServerError, 500, true);
+  constructor(
+    message: string = "Internal Server Error",
+    isOperational: boolean = true,
+    cause?: Error,
+  ) {
+    super(message, AppErrorCodes.InternalServerError, 500, isOperational);
     this.name = "InternalServerError";
     this.cause = cause;
   }

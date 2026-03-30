@@ -1,8 +1,10 @@
+import { Vehicle } from "@modules/vehicle/core/entities/vehicle.entity";
+import { InternalServerError } from "@shared/errors/app.errors";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 
 export class InMemoryDatabase implements IDatabase {
-  public readonly vehicles = new Map<string, any>();
+  public readonly vehicles = new Map<string, Vehicle[]>();
 
   constructor(_lifecycle: ILifecycleManager) {}
 
@@ -14,14 +16,16 @@ export class InMemoryDatabase implements IDatabase {
     const table = tables[name];
 
     if (!table) {
-      throw new Error(`Table ${name} does not exist in InMemoryDatabase.`);
+      throw new InternalServerError(
+        `Table ${name} does not exist in InMemoryDatabase.`,
+        false,
+      );
     }
 
     return table as Map<K, V>;
   }
 
   async query<T>(tableName: string): Promise<T[]> {
-    // Reuse getTable to keep logic DRY (Don't Repeat Yourself)
     const table = this.getTable<string, T>(tableName);
     return Array.from(table.values());
   }

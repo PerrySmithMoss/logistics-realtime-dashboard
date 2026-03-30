@@ -1,3 +1,4 @@
+import { InternalServerError } from "@shared/errors/app.errors";
 import { ICommandBus } from "./command-bus.interface";
 import { GlobalCommandRegistry } from "./command-registry";
 
@@ -14,8 +15,9 @@ export class CommandBus implements ICommandBus {
     handler: { handle(command: GlobalCommandRegistry[K]): Promise<void> },
   ): void {
     if (this.handlers.has(commandName)) {
-      throw new Error(
+      throw new InternalServerError(
         `Handler for command ${String(commandName)} is already registered.`,
+        false,
       );
     }
     this.handlers.set(commandName, handler);
@@ -27,7 +29,10 @@ export class CommandBus implements ICommandBus {
   ): Promise<void> {
     const handler = this.handlers.get(commandName);
     if (!handler) {
-      throw new Error(`No handler for ${commandName}`);
+      throw new InternalServerError(
+        `No handler registered for ${commandName}`,
+        false,
+      );
     }
     await handler.handle(request);
   }

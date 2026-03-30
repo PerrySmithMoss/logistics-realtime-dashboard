@@ -18,9 +18,9 @@ export class FleetEventReactor implements IBroadcastScheduler {
   public async onVehicleLocationChange(data: unknown): Promise<void> {
     try {
       if (!isStatusChangeEvent(data)) {
-        this.logger.error(
-          "[FleetEventReactor] onVehicleLocationChange malformed data: ",
-          data,
+        this.logger.warn(
+          "[FleetEventReactor] Received malformed status change event",
+          { data },
         );
         return;
       }
@@ -28,7 +28,7 @@ export class FleetEventReactor implements IBroadcastScheduler {
       await this.dataService.processVehicleMovement(data);
       this.needsPublish = true;
     } catch (err) {
-      this.logger.error("[FleetEventReactor] Error:", err);
+      this.logger.error("[FleetEventReactor] Pipeline processing failed", err);
     }
   }
 

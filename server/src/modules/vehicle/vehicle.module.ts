@@ -70,7 +70,6 @@ export class VehicleModule {
         type: UpdateVehicleLocationCommand.type,
         handler: new UpdateVehicleLocationHandler(repo, broker),
       },
-      // { type: RegisterVehicleCommand.type, handler: new RegisterVehicleHandler(repo, broker) }
     ];
 
     commandRegistry.forEach(({ type, handler }) => bus.register(type, handler));

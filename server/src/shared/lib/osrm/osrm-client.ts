@@ -1,4 +1,4 @@
-import { consoleLogger } from "@shared/infrastructure/logger";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { IOsrmClient } from "@shared/interfaces/osrm-client-interface";
 import { httpClient } from "../http";
 import { OsrmNearestResponse } from "./osrm.types";
@@ -6,6 +6,7 @@ import { OsrmNearestResponse } from "./osrm.types";
 export class OsrmClient implements IOsrmClient {
   constructor(
     private readonly baseUrl: string = "https://router.project-osrm.org",
+    private readonly logger: ILogger,
   ) {}
 
   public async getNearest(
@@ -22,7 +23,7 @@ export class OsrmClient implements IOsrmClient {
         transform: false,
       });
     } catch (err) {
-      consoleLogger.error("[OsrmClient] Failed to fetch nearest road:", {
+      this.logger.error("[OsrmClient] Failed to fetch nearest road:", {
         error: err,
         coordinates: lat,
         lng,

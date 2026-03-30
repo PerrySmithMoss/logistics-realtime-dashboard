@@ -1,3 +1,7 @@
+import {
+  BadRequestError,
+  UnprocessableEntityError,
+} from "@shared/errors/app.errors";
 import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
 
 export interface VehicleProps {
@@ -12,27 +16,22 @@ export interface VehicleProps {
 export class Vehicle {
   private constructor(private props: VehicleProps) {}
 
-  /**
-   * FACTORY METHOD: Entities should usually be created through a static method.
-   * This allows for validation before the object even exists.
-   */
   public static create(props: Omit<VehicleProps, "lastUpdated">): Vehicle {
     if (!props.plateNumber || props.plateNumber.length < 5) {
-      throw new Error("Invalid Plate Number");
+      throw new BadRequestError("Plate number must be at least 5 characters.");
     }
-
-    return new Vehicle({
-      ...props,
-      lastUpdated: new Date(),
-    });
+    return new Vehicle({ ...props, lastUpdated: new Date() });
   }
 
   public updatePosition(lat: number, lng: number): void {
-    if (lat < -90 || lat > 90) throw new Error("Invalid Latitude");
-    if (lng < -180 || lng > 180) throw new Error("Invalid Longitude");
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw new BadRequestError("Invalid lat or lng coordinates provided.");
+    }
 
     if (this.props.status === "maintenance") {
-      throw new Error("Cannot update location: Vehicle is in maintenance.");
+      throw new UnprocessableEntityError(
+        "Cannot update location while in maintenance.",
+      );
     }
 
     this.props.lat = lat;

@@ -1,3 +1,4 @@
+import { InternalServerError } from "@shared/errors/app.errors";
 import {
   AppState,
   ILifecycleManager,
@@ -27,7 +28,10 @@ export class LifecycleManager implements ILifecycleManager {
 
   public setReady(): void {
     if (this._state !== AppState.STARTING) {
-      throw new Error(`Cannot transition to READY from ${this._state}`);
+      throw new InternalServerError(
+        `Cannot transition to READY from ${this._state}`,
+        false,
+      );
     }
     this._state = AppState.READY;
   }
