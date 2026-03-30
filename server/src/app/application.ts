@@ -1,6 +1,8 @@
 import { createErrorHandler, notFoundHandler } from "@api/middleware";
 import { config } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
+import { consoleLogger } from "@shared/infrastructure/logger";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { createApiRouter } from "api/router";
 import express from "express";
 import { AppContainer } from "./container";
@@ -11,87 +13,96 @@ import { HttpServer } from "./server";
 export class Application {
   private server?: IServer;
   private container?: IAppContainer;
+  private logger?: ILogger;
 
   public async start() {
-    this.container = await AppContainer.create(config);
+    try {
+      this.container = await AppContainer.create(config);
 
-    const expressApp = express();
-    expressApp.use(express.json({ limit: "1mb" }));
-    // app.use(requestIdMiddleware);
-    expressApp.use("/api/v1", createApiRouter(this.container.controllers));
-    expressApp.use(notFoundHandler);
-    expressApp.use(createErrorHandler(this.container.lifecycle));
+      this.logger = this.container.appLogger;
 
-    this.runBackgroundHydration(this.container.fleetDataService);
+      const expressApp = express();
+      expressApp.use(express.json({ limit: "1mb" }));
+      // app.use(requestIdMiddleware);
+      expressApp.use("/api/v1", createApiRouter(this.container.controllers));
+      expressApp.use(notFoundHandler);
 
-    this.server = new HttpServer(expressApp);
-    await this.server.start(config.server);
+      expressApp.use(createErrorHandler(this.container.errorLogger));
 
-    this.logStartupStatus();
+      this.runBackgroundHydration(this.container.fleetDataService);
 
-    return this;
+      this.server = new HttpServer(expressApp, this.container.serverLogger);
+      await this.server.start(config.server);
+
+      this.logStartupStatus();
+
+      return this;
+    } catch (err) {
+      consoleLogger.error("CRITICAL: Failed to start application:", err);
+      process.exit(1);
+    }
   }
 
   private async runBackgroundHydration(dataService: IFleetDataService) {
-    const HYDRATION_TIMEOUT = 30000;
-
     try {
-      await Promise.race([
-        dataService.hydrate(),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Hydration Timeout")),
-            HYDRATION_TIMEOUT,
-          ),
-        ),
-      ]);
-      console.log("[Application] Hydration successful.");
-    } catch (err: any) {
-      console.error(`[Application] Hydration failed: ${err.message}`);
+      await dataService.hydrate();
+    } catch (err) {
+      this.logger.error("Hydration failed", err);
     }
   }
 
   private logStartupStatus() {
     const { port, env, host, isDev } = config.server;
     const protocol = isDev ? "http" : "https";
-    console.log(`
-      System Online | PID: ${process.pid}
-      URL:      ${protocol}://${host || "localhost"}:${port}
-      Env:      ${env.toUpperCase()}
-      Status:   Ready
-    `);
+
+    this.logger.info("System Online:", {
+      PID: process.pid,
+      URL: `${protocol}://${host}:${port}`,
+      ENV: `${env.toUpperCase()}`,
+      STATUS: "Ready",
+    });
   }
 
   public async shutdown(signal: string) {
-    console.log(`\n[${signal}] Initiating graceful shutdown...`);
+    const activeLogger = this.logger || consoleLogger;
 
-    if (!this.container || !this.server) process.exit(0);
+    activeLogger.warn(`Shutdown initiated via ${signal}`);
+
+    if (!this.container || !this.server) {
+      activeLogger.info("Services not initialised. Exiting process.");
+      process.exit(0);
+    }
 
     this.container.lifecycle.prepareForShutdown();
 
-    const forceExit = setTimeout(
-      () => {
-        console.error("Cleanup timed out. Forcing exit.");
-        process.exit(1);
-      },
-      config.server.isDev ? 3000 : 10000,
-    );
+    const forceExitTimeout = config.server.isDev ? 3000 : 10000;
+    const forceExit = setTimeout(() => {
+      activeLogger.error(
+        `Cleanup timed out after ${forceExitTimeout}ms. Forcing exit.`,
+      );
+      process.exit(1);
+    }, forceExitTimeout);
 
     if (!config.server.isDev) {
-      console.log("Waiting 3s to redirect traffic...");
+      activeLogger.info("Waiting 3s for resources to drain...");
       await new Promise((r) => setTimeout(r, 3000));
     }
 
     try {
+      activeLogger.info(
+        "Stopping HTTP server and closing database connections...",
+      );
+
       await Promise.all([
         this.server.stop(),
         this.container.lifecycle.closeAll(),
       ]);
+
       clearTimeout(forceExit);
-      console.log("[Application] Shutdown complete.");
+      activeLogger.info("Shutdown successful.");
       process.exit(0);
     } catch (err) {
-      console.error("Error during shutdown:", err);
+      activeLogger.error("Error during graceful shutdown:", err);
       process.exit(1);
     }
   }

@@ -21,13 +21,6 @@ import { ILogger } from "@shared/interfaces/logger.interface";
 import { IAppContainer } from "./interfaces/container.interface";
 
 export class AppContainer implements IAppContainer {
-  public readonly logger: ILogger;
-  public readonly lifecycle: ILifecycleManager;
-  public readonly commandBus: ICommandBus;
-  public readonly queryBus: IQueryBus;
-  public readonly database: IDatabase;
-  public readonly eventBroker: IEventBroker;
-
   private constructor(
     public readonly dependencies: {
       lifecycle: ILifecycleManager;
@@ -38,29 +31,53 @@ export class AppContainer implements IAppContainer {
       logger: ILogger;
     },
     public readonly controllers: {
-      health: IHealthController;
-      vehicle: IVehicleController;
-      fleet: IFleetController;
+      readonly health: IHealthController;
+      readonly vehicle: IVehicleController;
+      readonly fleet: IFleetController;
     },
     public readonly fleetDataService: IFleetDataService,
-  ) {
-    this.lifecycle = dependencies.lifecycle;
-    this.commandBus = dependencies.commandBus;
-    this.queryBus = dependencies.queryBus;
-    this.database = dependencies.database;
-    this.eventBroker = dependencies.eventBroker;
+    public readonly appLogger: ILogger,
+    public readonly serverLogger: ILogger,
+    public readonly errorLogger: ILogger,
+  ) {}
+
+  public get logger() {
+    return this.dependencies.logger;
+  }
+  public get commandBus() {
+    return this.dependencies.commandBus;
+  }
+  public get queryBus() {
+    return this.dependencies.queryBus;
+  }
+  public get database() {
+    return this.dependencies.database;
+  }
+  public get eventBroker() {
+    return this.dependencies.eventBroker;
+  }
+  public get lifecycle() {
+    return this.dependencies.lifecycle;
   }
 
   public static async create(config: IAppConfig): Promise<AppContainer> {
-    const baseLogger = new ConsoleLogger();
-    const lifecycle = new LifecycleManager();
+    const baseLogger = new ConsoleLogger({
+      level: config.server.minLogLevel,
+      isDev: config.server.isDev,
+    });
+    const appLogger = baseLogger.withContext("App");
+    const serverLogger = baseLogger.withContext("HttpServer");
+    const errorLogger = baseLogger.withContext("ErrorHandler");
+    const eventBrokerLogger = baseLogger.withContext("InMemoryEventBroker");
+    const vehicleLogger = baseLogger.withContext("Vehicle");
+    const fleetLogger = baseLogger.withContext("Fleet");
+    const lifecycleLogger = baseLogger.withContext("LifecycleManager");
+
+    const lifecycle = new LifecycleManager(lifecycleLogger);
     const commandBus = new CommandBus();
     const queryBus = new QueryBus();
     const database = new InMemoryDatabase(lifecycle);
-    const eventBroker = new InMemoryEventBroker(lifecycle);
-
-    const vehicleLogger = baseLogger.withContext("Vehicle");
-    const fleetLogger = baseLogger.withContext("Fleet");
+    const eventBroker = new InMemoryEventBroker(lifecycle, eventBrokerLogger);
 
     const vehicleController = VehicleModule.init(
       commandBus,
@@ -91,15 +108,18 @@ export class AppContainer implements IAppContainer {
 
     return new AppContainer(
       {
-        lifecycle,
+        logger: baseLogger,
         commandBus,
         queryBus,
         database,
         eventBroker,
-        logger: baseLogger,
+        lifecycle,
       },
       controllers,
       fleetDataService,
+      appLogger,
+      serverLogger,
+      errorLogger,
     );
   }
 }

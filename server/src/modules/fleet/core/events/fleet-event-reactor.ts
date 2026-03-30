@@ -1,6 +1,7 @@
 import { isStatusChangeEvent } from "@shared/guards/vehicle-event.guards";
 import { IBroadcastScheduler } from "@shared/interfaces";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { IFleetDataService } from "../interfaces/fleet-data-service.interface";
 import { FleetStatsUpdatedEvent } from "./fleet-events";
 
@@ -11,12 +12,13 @@ export class FleetEventReactor implements IBroadcastScheduler {
   constructor(
     private readonly dataService: IFleetDataService,
     private readonly broker: IEventBroker,
+    private readonly logger: ILogger,
   ) {}
 
   public async onVehicleLocationChange(data: unknown): Promise<void> {
     try {
       if (!isStatusChangeEvent(data)) {
-        console.error(
+        this.logger.error(
           "[FleetEventReactor] onVehicleLocationChange malformed data: ",
           data,
         );
@@ -26,14 +28,14 @@ export class FleetEventReactor implements IBroadcastScheduler {
       await this.dataService.processVehicleMovement(data);
       this.needsPublish = true;
     } catch (err) {
-      console.error("[FleetEventReactor] Error:", err);
+      this.logger.error("[FleetEventReactor] Error:", err);
     }
   }
 
   public start() {
     if (this.publishInterval) return;
 
-    console.log("[FleetEventReactor] Activating broadcast loop...");
+    this.logger.info("[FleetEventReactor] Activating broadcast loop...");
     this.publishInterval = setInterval(async () => {
       if (!this.needsPublish) return;
 
@@ -49,7 +51,7 @@ export class FleetEventReactor implements IBroadcastScheduler {
 
   public stop(): void {
     if (this.publishInterval) {
-      console.log("[FleetEventReactor] Deactivating broadcast loop...");
+      this.logger.info("[FleetEventReactor] Deactivating broadcast loop...");
       clearInterval(this.publishInterval);
       this.publishInterval = null;
     }

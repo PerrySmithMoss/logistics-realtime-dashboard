@@ -1,3 +1,4 @@
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { Express } from "express";
 import { Server } from "http";
 import { IServer } from "./interfaces/server.interface";
@@ -10,11 +11,14 @@ export interface ServerConfig {
 export class HttpServer implements IServer {
   private server?: Server;
 
-  constructor(private readonly app: Express) {}
+  constructor(
+    private readonly app: Express,
+    private readonly logger: ILogger,
+  ) {}
 
   public start(config: ServerConfig): Promise<void> {
     if (this.server) {
-      console.warn("Server is already running.");
+      this.logger.warn("Server is already running.");
       return;
     }
 
@@ -25,7 +29,7 @@ export class HttpServer implements IServer {
 
       this.server.on("error", (error: any) => {
         if (error.code === "EADDRINUSE") {
-          console.error(`❌ Port ${config.port} is already in use.`);
+          this.logger.error(`❌ Port ${config.port} is already in use.`);
           return reject(error);
         }
         reject(error);
@@ -37,7 +41,7 @@ export class HttpServer implements IServer {
     return new Promise((resolve, reject) => {
       if (!this.server) return resolve();
 
-      console.log("Shutting down HTTP server...");
+      this.logger.info("Shutting down HTTP server...");
 
       if ("closeIdleConnections" in this.server) {
         this.server.closeIdleConnections();
@@ -48,7 +52,7 @@ export class HttpServer implements IServer {
 
         this.server = undefined;
 
-        console.log("HTTP server closed.");
+        this.logger.info("HTTP server closed.");
         resolve();
       });
     });

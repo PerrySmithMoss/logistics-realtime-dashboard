@@ -11,17 +11,18 @@ import { ILogger } from "@shared/interfaces/logger.interface";
 
 export interface IAppContainer {
   readonly logger: ILogger;
+  readonly appLogger: ILogger;
+  readonly serverLogger: ILogger;
+  readonly errorLogger: ILogger;
   readonly commandBus: ICommandBus;
   readonly queryBus: IQueryBus;
   readonly database: IDatabase;
   readonly eventBroker: IEventBroker;
   readonly lifecycle: ILifecycleManager;
-
   readonly controllers: {
     readonly health: IHealthController;
     readonly vehicle: IVehicleController;
     readonly fleet: IFleetController;
   };
-
-  fleetDataService: IFleetDataService;
+  readonly fleetDataService: IFleetDataService;
 }

@@ -2,11 +2,14 @@ import {
   AppState,
   ILifecycleManager,
 } from "@shared/interfaces/lifecycle-manager.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 
 export class LifecycleManager implements ILifecycleManager {
   private _state: AppState = AppState.STARTING;
   private readonly shutdownTasks: (() => Promise<void>)[] = [];
   private readonly abortController = new AbortController();
+
+  constructor(private readonly logger: ILogger) {}
 
   public get state(): AppState {
     return this._state;
@@ -42,8 +45,16 @@ export class LifecycleManager implements ILifecycleManager {
 
     this.abortController.abort();
 
-    for (const task of this.shutdownTasks) {
-      await task().catch(console.error);
+    // run tasks in reverse order of registration,
+    // as we usually register infra first and services last.
+    const reversedTasks = [...this.shutdownTasks].reverse();
+
+    for (const task of reversedTasks) {
+      try {
+        await task();
+      } catch (err) {
+        this.logger.error("shutdown task failed:", err);
+      }
     }
   }
 }

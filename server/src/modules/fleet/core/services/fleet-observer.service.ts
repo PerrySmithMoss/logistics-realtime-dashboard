@@ -3,6 +3,7 @@ import { Response } from "express";
 import { FleetStatsUpdatedEvent } from "../events/fleet-events";
 
 import { IBroadcastScheduler, ISimulator } from "@shared/interfaces";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { IFleetObserverService } from "../interfaces/fleet-observer-service.interface";
 
 interface Observer {
@@ -15,7 +16,10 @@ export class FleetObserverService implements IFleetObserverService {
   private reactor?: IBroadcastScheduler;
   private simulator?: ISimulator;
 
-  constructor(private readonly eventBroker: IEventBroker) {}
+  constructor(
+    private readonly eventBroker: IEventBroker,
+    private readonly logger: ILogger,
+  ) {}
 
   public setLiveComponents(
     reactor: IBroadcastScheduler,
@@ -32,7 +36,7 @@ export class FleetObserverService implements IFleetObserverService {
   ): void {
     const isFirst = this.observers.size === 0;
     this.observers.set(id, { callback, res });
-    console.log(
+    this.logger.info(
       `[FleetObserverService] Observer joined: ${id} | Total: ${this.observers.size}`,
     );
 
@@ -42,7 +46,7 @@ export class FleetObserverService implements IFleetObserverService {
   public removeObserver(id: string): void {
     const existed = this.observers.delete(id);
     if (!existed) return;
-    console.log(
+    this.logger.info(
       `[FleetObserverService] Observer left: ${id} | Total: ${this.observers.size}`,
     );
 
@@ -66,7 +70,7 @@ export class FleetObserverService implements IFleetObserverService {
   };
 
   private activateFleetPipeline(): void {
-    console.log("[FleetObserverService] Activating pipeline...");
+    this.logger.info("[FleetObserverService] Activating pipeline...");
     this.reactor?.start();
     this.eventBroker.subscribe(
       FleetStatsUpdatedEvent.type,
@@ -76,7 +80,7 @@ export class FleetObserverService implements IFleetObserverService {
   }
 
   private deactivateFleetPipeline(): void {
-    console.log("[FleetObserverService] Deactivating pipeline...");
+    this.logger.info("[FleetObserverService] Deactivating pipeline...");
     this.reactor?.stop();
     this.eventBroker.unsubscribe(
       FleetStatsUpdatedEvent.type,

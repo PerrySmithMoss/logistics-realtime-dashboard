@@ -1,3 +1,4 @@
+import { consoleLogger } from "@shared/infrastructure/logger";
 import { IOsrmClient } from "@shared/interfaces/osrm-client-interface";
 import { httpClient } from "../http";
 import { OsrmNearestResponse } from "./osrm.types";
@@ -8,8 +9,8 @@ export class OsrmClient implements IOsrmClient {
   ) {}
 
   public async getNearest(
-    lng: number,
     lat: number,
+    lng: number,
   ): Promise<OsrmNearestResponse | null> {
     const endpoint = `${this.baseUrl}/nearest/v1/driving/${lng},${lat}?number=1`;
 
@@ -21,8 +22,11 @@ export class OsrmClient implements IOsrmClient {
         transform: false,
       });
     } catch (err) {
-      // We log here, but let the caller decide if they want a fallback
-      console.error("[OsrmClient] Failed to fetch nearest road:", err);
+      consoleLogger.error("[OsrmClient] Failed to fetch nearest road:", {
+        error: err,
+        coordinates: lat,
+        lng,
+      });
       return null;
     }
   }

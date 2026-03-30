@@ -1,25 +1,31 @@
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 
 type Handler = (data: unknown) => void | Promise<void>;
 
 export class InMemoryEventBroker implements IEventBroker {
   private readonly listeners = new Map<string, Handler[]>();
+  public readonly logger: ILogger;
 
-  constructor(lifecycle: ILifecycleManager) {
-    // prevent event handlers from firing during the shutdown drain window
+  constructor(lifecycle: ILifecycleManager, logger: ILogger) {
+    this.logger = logger;
+
     lifecycle.onShutdown(async () => {
       const eventCount = this.listeners.size;
-      const handlerCount = [...this.listeners.values()].reduce(
+      const eventNames = Array.from(this.listeners.keys());
+      const handlerCount = Array.from(this.listeners.values()).reduce(
         (sum, handlers) => sum + handlers.length,
         0,
       );
 
-      this.listeners.clear();
-
-      console.log(
-        `[EventBroker] Cleared ${handlerCount} listener${handlerCount === 1 ? "" : "s"} across ${eventCount} event${eventCount === 1 ? "" : "s"}.`,
+      this.logger.info(
+        handlerCount > 0
+          ? `Closing Event Broker: Cleared ${handlerCount} active stream listeners.`
+          : `Closing Event Broker: No active stream listeners to clear.`,
       );
+
+      this.listeners.clear();
     });
   }
 
@@ -27,7 +33,7 @@ export class InMemoryEventBroker implements IEventBroker {
     const handlers = this.listeners.get(eventName) ?? [];
     for (const handler of handlers) {
       Promise.resolve(handler(data)).catch((err) =>
-        console.error(
+        this.logger.error(
           `[EventBroker] Unhandled error in listener for "${eventName}":`,
           err,
         ),
@@ -41,10 +47,15 @@ export class InMemoryEventBroker implements IEventBroker {
   }
 
   public unsubscribe(eventName: string, handler: Handler): void {
-    const current = this.listeners.get(eventName) ?? [];
-    this.listeners.set(
-      eventName,
-      current.filter((fn) => fn !== handler),
-    );
+    const handlers = this.listeners.get(eventName);
+    if (!handlers) return;
+
+    const filtered = handlers.filter((h) => h !== handler);
+
+    if (filtered.length === 0) {
+      this.listeners.delete(eventName);
+    } else {
+      this.listeners.set(eventName, filtered);
+    }
   }
 }

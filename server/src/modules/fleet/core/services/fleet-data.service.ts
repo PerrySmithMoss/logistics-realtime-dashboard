@@ -11,6 +11,8 @@ import { FleetStatsProjection } from "../projections/fleet-stats.projection";
 export class FleetDataService implements IFleetDataService {
   private _isHydrated = false;
 
+  private readonly HYDRATION_TIMEOUT = 30000;
+
   private readonly pendingSnaps = new Map<
     string,
     ReturnType<typeof setTimeout>
@@ -29,12 +31,23 @@ export class FleetDataService implements IFleetDataService {
   }
 
   public async hydrate(): Promise<void> {
-    this.logger.info("Starting hydration process...");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      this.logger.error("[FleetDataService] Hydration timed out internally");
+    }, this.HYDRATION_TIMEOUT);
+
+    this.logger.info("[FleetDataService] Starting hydration process...");
 
     try {
-      const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {});
+      // TODO: add abort signal to query bus
+      const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {
+        signal: controller.signal, // If your bus supports it
+      });
 
       for (const v of vehicles) {
+        if (controller.signal.aborted) throw new Error("Hydration Aborted");
+
         this.projection.handleUpdate({
           ...v,
           vehicleId: v.id,
@@ -43,19 +56,19 @@ export class FleetDataService implements IFleetDataService {
         } as IStatusChangeEvent);
       }
 
-      this._isHydrated = false;
-
+      this._isHydrated = true;
       const snapshot = this.projection.getCurrentSnapshot();
 
-      this.logger.info("Hydration complete", {
+      this.logger.info("[FleetDataService] Hydration complete", {
         totalVehicles: snapshot.summary.total,
         active: snapshot.summary.activeCount,
-        performance: `${snapshot.summary.performancePct}%`,
       });
     } catch (err) {
-      this.logger.error("Hydration failed", err);
       this._isHydrated = false;
+      this.logger.error("[FleetDataService] Hydration failed", err);
       throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -66,6 +79,8 @@ export class FleetDataService implements IFleetDataService {
   public async processVehicleMovement(
     event: IStatusChangeEvent,
   ): Promise<void> {
+    if (this.lifecycle.isShuttingDown) return;
+
     const existing = this.pendingSnaps.get(event.vehicleId);
     if (existing) clearTimeout(existing);
 
@@ -77,7 +92,7 @@ export class FleetDataService implements IFleetDataService {
         this.projection.handleUpdate(snapped);
       } catch (err) {
         this.logger.error(
-          `Failed to process movement for ${event.vehicleId}:`,
+          `[FleetDataService] Failed to process movement for ${event.vehicleId}:`,
           err,
         );
       }
@@ -89,7 +104,9 @@ export class FleetDataService implements IFleetDataService {
   public clearPendingSnaps(): void {
     if (this.pendingSnaps.size === 0) return;
 
-    this.logger.info(`Clearing ${this.pendingSnaps.size} pending snaps...`);
+    this.logger.info(
+      `[FleetDataService] Clearing ${this.pendingSnaps.size} pending snaps...`,
+    );
 
     for (const timeout of this.pendingSnaps.values()) {
       clearTimeout(timeout);
@@ -103,11 +120,15 @@ export class FleetDataService implements IFleetDataService {
   }
 
   // TODO: batch these into a single OSRM table/nearest request to be more efficient,
-  // and/or host a private OSRM instance for production use
+  // and/or host a private OSRM instance for production use.
+  //   Instead of a setTimeout per vehicle, use a Buffer/Batching strategy:
+  // - Collect all moving vehicleIds into a Set.
+  // - Every 500ms, take all IDs in the Set and send one batch request to OSRM.
+  // This will reduce network traffic, make the app feel faster and less expensive.
   private async snapVehicleToRoad(
     v: IStatusChangeEvent,
   ): Promise<IStatusChangeEvent> {
-    const data = await this.osrmClient.getNearest(v.lng, v.lat, {
+    const data = await this.osrmClient.getNearest(v.lat, v.lng, {
       signal: this.lifecycle.getShutdownSignal(),
     });
 

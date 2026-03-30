@@ -32,7 +32,7 @@ export class VehicleModule {
     const repository = new InMemoryVehicleRepository(db);
 
     if (config.seedMockData) {
-      this.seedRepository(repository);
+      this.seedRepository(repository, logger);
     }
 
     this.registerCommands(commandBus, repository, broker);
@@ -41,7 +41,10 @@ export class VehicleModule {
     return new VehicleController(commandBus, queryBus);
   }
 
-  private static seedRepository(repo: InMemoryVehicleRepository) {
+  private static seedRepository(
+    repo: InMemoryVehicleRepository,
+    logger: ILogger,
+  ) {
     mockVehicles.forEach((data) => {
       const vehicle = Vehicle.create({
         id: data.id,
@@ -54,7 +57,7 @@ export class VehicleModule {
       repo.save(vehicle);
     });
 
-    console.log(`[VehicleModule] Seeded ${mockVehicles.length} vehicles.`);
+    logger.info(`[VehicleModule] Seeded ${mockVehicles.length} vehicles.`);
   }
 
   private static registerCommands(

@@ -1,4 +1,5 @@
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 
 export interface EventSubscription {
   event: string;
@@ -14,6 +15,7 @@ export class FleetEventSubscriber {
   constructor(
     private readonly broker: IEventBroker,
     private readonly subscriptions: EventSubscription[],
+    private readonly logger: ILogger,
   ) {}
 
   public subscribe(): void {
@@ -22,7 +24,10 @@ export class FleetEventSubscriber {
         try {
           await handler(data);
         } catch (err) {
-          console.error(`[FleetSubscriber] Failed to process "${event}":`, err);
+          this.logger.error(
+            `[FleetSubscriber] Failed to process "${event}":`,
+            err,
+          );
         }
       };
 

@@ -42,22 +42,26 @@ export class FleetModule {
       lifecycle,
     );
 
-    const observerService = new FleetObserverService(eventBroker);
+    const observerService = new FleetObserverService(eventBroker, logger);
 
     if (config.enableFleetSimulator) {
-      const simulator = new FleetSimulator(commandBus);
+      const simulator = new FleetSimulator(commandBus, logger);
       simulator.initialise(mockVehicles.map((v) => v.id));
 
-      const reactor = new FleetEventReactor(dataService, eventBroker);
+      const reactor = new FleetEventReactor(dataService, eventBroker, logger);
 
       observerService.setLiveComponents(reactor, simulator);
 
-      const subscriber = new FleetEventSubscriber(eventBroker, [
-        {
-          event: VehicleEvents.LOCATION_UPDATED,
-          handler: (data) => reactor.onVehicleLocationChange(data),
-        },
-      ]);
+      const subscriber = new FleetEventSubscriber(
+        eventBroker,
+        [
+          {
+            event: VehicleEvents.LOCATION_UPDATED,
+            handler: (data) => reactor.onVehicleLocationChange(data),
+          },
+        ],
+        logger,
+      );
 
       subscriber.subscribe();
 
