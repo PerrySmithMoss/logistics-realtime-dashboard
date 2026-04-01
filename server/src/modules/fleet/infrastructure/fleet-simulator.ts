@@ -8,11 +8,18 @@ export class FleetSimulator implements ISimulator {
   private interval: NodeJS.Timeout | null = null;
   private vehicleIds: string[] = [];
   private lastHeartbeat: number = 0;
-  private readonly WATCHDOG_TIMEOUT = 30000;
+  private vehicleStates = new Map<
+    string,
+    { lat: number; lng: number; heading: number }
+  >();
 
   constructor(
     private readonly commandBus: ICommandBus,
     private readonly logger: ILogger,
+    private readonly settings: {
+      tickInterval: number;
+      watchdogTimeout: number;
+    },
   ) {}
 
   public initialise(ids: string[]) {
@@ -33,7 +40,7 @@ export class FleetSimulator implements ISimulator {
     this.logger.info("[FleetSimulator] Waking up - Active listeners detected.");
 
     this.tick();
-    this.interval = setInterval(() => this.tick(), 5000);
+    this.interval = setInterval(() => this.tick(), this.settings.tickInterval);
   }
 
   public stop() {
@@ -48,7 +55,7 @@ export class FleetSimulator implements ISimulator {
     const now = Date.now();
     const diff = now - this.lastHeartbeat;
 
-    if (diff > this.WATCHDOG_TIMEOUT) {
+    if (diff > this.settings.watchdogTimeout) {
       this.logger.info(
         "[FleetSimulator] WATCHDOG_TIMEOUT. Shutting down simulator...",
       );
@@ -58,23 +65,30 @@ export class FleetSimulator implements ISimulator {
 
     for (const id of this.vehicleIds) {
       try {
-        const latDelta = (Math.random() - 0.5) * 0.0005;
-        const lngDelta = (Math.random() - 0.5) * 0.0005;
+        let state = this.vehicleStates.get(id);
+        if (!state) {
+          state = {
+            lat: 51.5074 + (Math.random() - 0.5) * 0.01,
+            lng: -0.1278 + (Math.random() - 0.5) * 0.01,
+            heading: Math.random() * 2 * Math.PI,
+          };
+        }
 
-        // In a real app, we'd fetch current POS from a DB/Cache,
-        // but for a demo, we can just "jitter" around a base point.
-        const mockEvent = {
-          vehicleId: id,
-          // randomly flip status for demo purposes
-          status: Math.random() > 0.9 ? "delayed" : "active",
-          lat: 51.5074 + latDelta,
-          lng: -0.1278 + lngDelta,
-          timestamp: new Date().toISOString(),
-        };
+        const speed = 0.0002;
+        const steeringDrift = (Math.random() - 0.5) * 0.2;
+
+        state.heading += steeringDrift;
+        state.lat += Math.cos(state.heading) * speed;
+        state.lng += Math.sin(state.heading) * speed;
+
+        this.vehicleStates.set(id, state);
+
+        // change status for demo purposes
+        const status = Math.random() > 0.98 ? "delayed" : "active";
 
         await this.commandBus.execute(
           UpdateVehicleLocationCommand.type,
-          mockEvent,
+          new UpdateVehicleLocationCommand(id, state.lat, state.lng, status),
         );
       } catch (err) {
         this.logger.error(

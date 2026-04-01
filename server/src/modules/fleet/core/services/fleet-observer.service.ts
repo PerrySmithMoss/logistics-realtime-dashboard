@@ -62,10 +62,15 @@ export class FleetObserverService implements IFleetObserverService {
   private broadcastToObservers = (event: FleetStatsUpdatedEvent): void => {
     for (const [id, observer] of this.observers.entries()) {
       if (observer.res.writableEnded || !observer.res.writable) {
-        this.removeObserver(id);
+        this.observers.delete(id);
         continue;
       }
+
       observer.callback(event.payload);
+    }
+
+    if (this.observers.size === 0) {
+      this.deactivateFleetPipeline();
     }
   };
 

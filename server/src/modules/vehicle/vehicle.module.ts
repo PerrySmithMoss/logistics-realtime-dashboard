@@ -45,12 +45,17 @@ export class VehicleModule {
     repo: InMemoryVehicleRepository,
     logger: ILogger,
   ) {
-    mockVehicles.forEach((data) => {
+    const HUB_LAT = 51.5074;
+    const HUB_LNG = -0.1278;
+
+    mockVehicles.forEach((data, index) => {
+      const latOffset = index * 0.0002;
+      const lngOffset = index * 0.0002;
+
       const vehicle = Vehicle.create({
-        id: data.id,
-        plateNumber: data.plateNumber,
-        lat: data.lat,
-        lng: data.lng,
+        ...data,
+        lat: HUB_LAT + latOffset,
+        lng: HUB_LNG + lngOffset,
         status: data.status as any,
       });
 
