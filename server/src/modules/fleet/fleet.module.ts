@@ -40,12 +40,24 @@ export class FleetModule {
       orsClient,
       logger,
       lifecycle,
+      {
+        batchIntervalMs: config.batchIntervalMs,
+        hydrationTimeout: config.hydrationTimeout,
+      },
     );
 
     const observerService = new FleetObserverService(eventBroker, logger);
 
     if (config.enableFleetSimulator) {
-      const simulator = new FleetSimulator(commandBus, logger);
+      const simulator = new FleetSimulator(
+        commandBus,
+        logger,
+
+        {
+          tickInterval: config.simulatorTickInterval,
+          watchdogTimeout: config.watchdogTimeout,
+        },
+      );
       simulator.initialise(mockVehicles.map((v) => v.id));
 
       const reactor = new FleetEventReactor(dataService, eventBroker, logger);

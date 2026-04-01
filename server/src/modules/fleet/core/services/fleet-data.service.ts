@@ -15,9 +15,6 @@ import { FleetStatsProjection } from "../projections/fleet-stats.projection";
 
 export class FleetDataService implements IFleetDataService {
   private _isHydrated = false;
-  private readonly HYDRATION_TIMEOUT = 30000;
-  private readonly BATCH_INTERVAL_MS = 500;
-
   private snapBuffer = new Map<string, IStatusChangeEvent>();
   private batchInterval: NodeJS.Timeout | null = null;
 
@@ -27,6 +24,10 @@ export class FleetDataService implements IFleetDataService {
     private readonly snappingService: IGeoSnappingService,
     private readonly logger: ILogger,
     private readonly lifecycle: ILifecycleManager,
+    private readonly settings: {
+      hydrationTimeout: number;
+      batchIntervalMs: number;
+    },
   ) {
     this.lifecycle.onShutdown(async () => {
       this.stopBatching();
@@ -39,7 +40,7 @@ export class FleetDataService implements IFleetDataService {
     const controller = new AbortController();
     const timeoutId = setTimeout(
       () => controller.abort(),
-      this.HYDRATION_TIMEOUT,
+      this.settings.hydrationTimeout,
     );
 
     try {
@@ -111,7 +112,7 @@ export class FleetDataService implements IFleetDataService {
     if (this.batchInterval) return;
     this.batchInterval = setInterval(
       () => this.flushSnapBuffer(),
-      this.BATCH_INTERVAL_MS,
+      this.settings.batchIntervalMs,
     );
   }
 
