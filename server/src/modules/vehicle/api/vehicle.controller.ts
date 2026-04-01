@@ -29,12 +29,13 @@ export class VehicleController
   };
 
   public updateLocation = async (req: Request, res: Response) => {
-    const { vehicleId, lat, lng } = req.body;
+    const { vehicleId, lat, lng, status } = req.body;
 
     await this.commandBus.execute(UpdateVehicleLocationCommand.type, {
       vehicleId,
       lat,
       lng,
+      status,
     });
 
     this.accepted(res);

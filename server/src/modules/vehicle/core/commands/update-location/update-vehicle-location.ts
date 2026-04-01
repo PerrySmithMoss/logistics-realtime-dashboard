@@ -1,6 +1,7 @@
 import { NotFoundError } from "@shared/errors/app.errors";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { VehicleStatus } from "../../entities/vehicle.entity";
 import { VehicleEvents } from "../../events/vehicle.events";
 import { IVehicleReadRepository } from "../../interfaces/vehicle-read-repository.interface";
 import { IVehicleWriteRepository } from "../../interfaces/vehicle-write-repository.interface";
@@ -12,6 +13,7 @@ export class UpdateVehicleLocationCommand {
     public readonly vehicleId: string,
     public readonly lat: number,
     public readonly lng: number,
+    public readonly status: VehicleStatus,
   ) {}
 }
 
@@ -37,6 +39,8 @@ export class UpdateVehicleLocationHandler {
 
     vehicle.updatePosition(command.lat, command.lng);
 
+    vehicle.updateStatus(command.status);
+
     await this.repository.save(vehicle);
 
     const snapshot = vehicle.toSnapshot();
@@ -44,7 +48,7 @@ export class UpdateVehicleLocationHandler {
     const event: IStatusChangeEvent = {
       vehicleId: snapshot.id,
       plateNumber: snapshot.plateNumber,
-      status: snapshot.status as any,
+      status: snapshot.status,
       lat: snapshot.lat,
       lng: snapshot.lng,
       timestamp: snapshot.lastUpdated,

@@ -4,12 +4,20 @@ import {
 } from "@shared/errors/app.errors";
 import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
 
+export const VehicleStatuses = [
+  "active",
+  "inactive",
+  "delayed",
+  "maintenance",
+] as const;
+export type VehicleStatus = (typeof VehicleStatuses)[number];
+
 export interface VehicleProps {
   id: string;
   plateNumber: string;
   lat: number;
   lng: number;
-  status: "active" | "inactive" | "delayed" | "maintenance";
+  status: VehicleStatus;
   lastUpdated: Date;
 }
 
@@ -36,6 +44,22 @@ export class Vehicle {
 
     this.props.lat = lat;
     this.props.lng = lng;
+    this.props.lastUpdated = new Date();
+  }
+
+  public updateStatus(status: VehicleProps["status"]): void {
+    const validStatuses: VehicleProps["status"][] = [
+      "active",
+      "inactive",
+      "delayed",
+      "maintenance",
+    ];
+
+    if (!validStatuses.includes(status)) {
+      throw new BadRequestError(`Invalid status: ${status}`);
+    }
+
+    this.props.status = status;
     this.props.lastUpdated = new Date();
   }
 

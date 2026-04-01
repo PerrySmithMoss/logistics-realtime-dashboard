@@ -1,3 +1,5 @@
+import { VehicleStatus } from "../entities/vehicle.entity";
+
 export interface GetVehicleDetailsRequest {
   vehicleId: string;
 }
@@ -5,7 +7,7 @@ export interface GetVehicleDetailsRequest {
 export interface GetVehicleDetailsResponse {
   id: string;
   plateNumber: string;
-  status: "active" | "inactive" | "delayed" | "maintenance";
+  status: VehicleStatus;
   lat: number;
   lng: number;
 }
