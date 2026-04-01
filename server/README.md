@@ -1,26 +1,28 @@
 # Logistics Real-Time Dashboard (Backend Core)
 
-## 🏗 Architectural Decisions
+## Architectural Decisions
 
-1. Modular Monolith & Vertical Slices
-   Unlike traditional layered architectures that group all "Controllers" together, this project uses Vertical Slices. Everything related to the Vehicle domain (Logic, Persistence, API) lives in one folder.
+Modular monolith over microservices
+I opted for a Modular Monolith using Vertical Slices. Instead of grouping by technical role (all controllers in one folder, all models in another), everything for the Vehicle domain—logic, persistence, and API—lives together.
 
-Benefit: High cohesion. If we need to move the Vehicle logic to a Microservice later, we can extract the entire folder with minimal friction.
+- The rationale: at this scale, microservices add unnecessary network latency and "distributed system tax." By keeping high cohesion within the folder, we maintain the ability to "snap off" the Vehicle module into a standalone microservice later with almost zero refactoring, but without the overhead today.
 
-2. CQRS (Command Query Responsibility Segregation)
-   I implemented a custom Command Bus and Query Bus to separate state-changing operations from data-retrieval operations.
+CQRS (Command Query Responsibility Segregation)
+I implemented a custom Command Bus and Query Bus to strictly decouple state changes from data retrieval.
 
-Commands: Explicitly handle intent (e.g., UpdateLocation). They return void and trigger side effects via an Event Broker.
+- Commands: Handle intent (e.g., UpdateLocation). They are fire-and-forget, returning void and triggering side effects via an Event Broker.
+- Queries: Pure data retrieval. They return DTOs directly from the projection layer, bypassing domain logic to keep the "Read" side as fast as possible.
 
-Queries: Pure data retrieval (e.g., GetFleetStats). They return DTOs directly from the persistence layer, bypassing complex domain logic for maximum performance.
+Dependency Inversion & Strategic Minimalism
+The project follows DIP (Dependency Inversion Principle). High-level business rules don't depend on low-level tools; they both depend on interfaces.
 
-3. Dependency Inversion & Composition Root
-   The project follows the Dependency Inversion Principle. High-level modules (Core) do not depend on low-level modules (Infrastructure); both depend on abstractions (Interfaces).
+The "2GB VPS" Constraint: I deliberately avoided heavy external infra like Redis, RabbitMQ, or Postgres. On a low-RAM VPS, every megabyte matters.
 
-Composition Root (app/container.ts): All dependencies are instantiated and injected here. This makes the system 100% unit-testable by allowing us to swap the InMemoryDatabase for a mock without touching the business logic. While currently using an InMemoryDatabase for rapid prototyping and zero-config setup, the repository pattern ensures that swapping to PostgreSQL or MongoDB requires zero changes to the core domain logic.
+- I wrote a custom In-Memory Bus and Repository to keep the RSS footprint under 50MB.
+- The architecture is Infrastructure agnostic. Because we use the Repository and Adapter patterns, swapping the In-Memory store for PostgreSQL or moving the Event Broker to Redis Pub/Sub is a one-line change in the AppContainer.
 
-4. Type-Safe Module Augmentation
-   To solve the "any" problem in generic buses, I utilized TypeScript Module Augmentation. This allows each module to "register" its commands and queries into a global registry, providing full IDE autocompletion and compile-time safety when dispatching messages. When a module is added, it registers its types globally:
+Type-Safe Module Augmentation
+To solve the `any` problem common in generic buses, I used **TypeScript Module Augmentation**. This allows modules to "register" their own commands and queries into a global registry. This gives us full IDE autocompletion and compile-time safety without a massive, bloated central switch statement.
 
 ```typescript
 declare module "@shared/bus/command-registry" {
@@ -33,24 +35,68 @@ declare module "@shared/bus/command-registry" {
 }
 ```
 
-## Performance & Scalability Considerations
+---
 
-Preventing UI "Jitter". In high-frequency update scenarios (e.g., coordinates every 100ms), I've architected the backend to support:
+## Performance & API Resilience
 
-- Throttling at the Edge: The Event Broker can be extended to buffer updates before broadcasting.
-- Snapshotting: Entities provide a toSnapshot() method, ensuring the UI receives flat, stable JSON rather than complex class instances that might trigger unnecessary re-renders.
+### Adaptive Geo-Snapping (The "Quota Saver")
 
-- Zero-Library Philosophy
-  This implementation uses zero external frameworks (aside from Express and zod). Every architectural component—from the Command Bus to the Dependency Injection container—is written in pure TypeScript to demonstrate a deep understanding of design patterns over library-specific "magic".
+Real-time GPS data is noisy and expensive to process. To handle high-frequency updates (100ms+) without melting the CPU or burning through API credits, I implemented:
 
-### System Flow
+- Spatial debouncing: We only hit the snapping API if the vehicle has moved >10 meters from its last known snapped position. This filters out "GPS jitter" and stationary idling.
+- Buffered Batching: Instead of an HTTP request per ping, we buffer updates and send a single Batch POST to OpenRouteService every 500ms. This reduces network overhead by nearly 90%.
 
-Request -> Express Router -> Command Bus -> Command Handler -> Domain Entity -> Repository -> Event Broker -> UI
+### Graceful Degradation & Lifecycle
 
-## Constraints & Trade-offs
+Real-time systems are notorious for memory leaks and hanging processes.
 
-In-Memory Persistence: Chosen to demonstrate the Repository Pattern's ability to abstract data-access. The system is designed to be "DB-Agnostic."
+- I implemented a central LifecycleManager to handle SIGTERM.
+- It ensures all SSE connections are closed, background timers are cleared, and hydration AbortControllers are triggered. This ensures the 2GB VPS remains stable even after multiple deployments.
 
-Custom Bus over Libraries: Implemented to prove deep knowledge of Generic Types and Module Augmentation. While NestJS or MediatR provide these out of the box, this implementation ensures zero "magic" and full transparency.
+---
 
-Synchronous Event Broker: Currently executes events in-process for simplicity. The interface is designed to be swapped for actual message broker (RabbitMQ, Kafka, Redis Pub/Sub etc.) without changing the Core Domain.
+## System Flow
+
+Write Side: `Request -> Command Bus -> Handler -> Domain Logic -> Batch Buffer -> Snapping Adapter -> Projection`
+
+Read Side: `Query Bus -> Projection Snapshot -> Express Response`
+
+Real-Time Side: `Event Reactor -> Event Broker -> SSE Stream -> UI`
+
+---
+
+## Developer Tools
+
+### The Fleet Simulator
+
+To demonstrate the real-time reactive capabilities of the dashboard without needing a live GPS hardware integration, I built a custom **Stochastic Fleet Simulator**.
+
+This isn't just a simple loop; it is a "Smart Simulator" integrated directly into the application's Command Bus.
+
+#### How it Works
+
+The simulator follows a **Reactive Activation** pattern. To save CPU cycles and API quota, it remains dormant until the `FleetObserverService` detects an active SSE (Server-Sent Events) connection.
+
+1. **Wake-up:** As soon as you open the browser dashboard, the simulator "wakes up."
+2. **Telemetry Generation:** It generates `UpdateVehicleLocationCommand` intents for the seeded fleet.
+3. **Chaos Engine:** It randomly fluctuates vehicle statuses (e.g., flipping a vehicle to `delayed`) to verify that the frontend's "Red Highlight" logic and the backend's aggregate statistics update correctly.
+4. **Watchdog Shutdown:** If you close the dashboard, a 30-second watchdog timer triggers, automatically shutting down the simulator to prevent "ghost" API calls to OpenRouteService.
+
+#### Customizing the "Fluidity" (Turbo Mode)
+
+If you want to see the dashboard updating at high-frequency (sub-second latency), you can tune the following constants in the source code.
+
+| Component      | File                   | Variable            | Default  | Impact                                           |
+| :------------- | :--------------------- | :------------------ | :------- | :----------------------------------------------- |
+| **Generator**  | `FleetSimulator.ts`    | `setInterval`       | `5000ms` | How often a vehicle "ticks" and moves.           |
+| **Processor**  | `FleetDataService.ts`  | `BATCH_INTERVAL_MS` | `500ms`  | The window for batching geo-snapping API calls.  |
+| **Dispatcher** | `FleetEventReactor.ts` | `TICK_RATE`         | `500ms`  | How often the system broadcasts state to the UI. |
+
+> **Note:** For the most "fluid" visual experience in a demo, set the Simulator to `1000ms` and the Batch/Tick rates to `200ms`. This creates a high-density data stream that demonstrates the efficiency of the memoized React components on the frontend.
+
+---
+
+## Trade-offs & Future Scaling
+
+- Synchronous Broker: Currently, events execute in-process. If we needed to scale to multiple backend instances, we would simply replace the internal Broker with a Redis/PubSub implementation so all nodes stay in sync.
+- Zero-library philosophy: aside from express and zod, every core component like the Bus, the DI container, in memory db and cache and the snapping logic—is hand-coded. This was a conscious choice to demonstrate a deep understanding of design patterns over relying on framework/library magic, plus it makes it cheaper for my tiny VPS :D.
