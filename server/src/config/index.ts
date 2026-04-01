@@ -14,11 +14,11 @@ const envSchema = z.object({
     .transform((val) => val.toLowerCase() === "true")
     .default(false),
 
+  OPEN_ROUTE_SERVICE_API_KEY: z.string().min(1, "ORS API Key is required"),
   SIMULATOR_TICK_INTERVAL: z.coerce.number().default(2000),
   SIMULATOR_WATCHDOG_TIMEOUT: z.coerce.number().default(30000),
   FLEET_BATCH_INTERVAL_MS: z.coerce.number().default(1000),
   FLEET_HYDRATION_TIMEOUT: z.coerce.number().default(30000),
-  OPEN_ROUTE_SERVICE_API_KEY: z.string().min(1, "ORS API Key is required"),
 });
 
 const _env = envSchema.safeParse(process.env);
@@ -45,12 +45,12 @@ export const config = {
       seedMockData: env.ENABLE_FLEET_SIMULATOR,
     },
     fleet: {
+      orsApiKey: env.OPEN_ROUTE_SERVICE_API_KEY,
       enableFleetSimulator: env.ENABLE_FLEET_SIMULATOR,
       simulatorTickInterval: env.SIMULATOR_TICK_INTERVAL,
       watchdogTimeout: env.SIMULATOR_WATCHDOG_TIMEOUT,
       batchIntervalMs: env.FLEET_BATCH_INTERVAL_MS,
       hydrationTimeout: env.FLEET_HYDRATION_TIMEOUT,
-      orsApiKey: env.OPEN_ROUTE_SERVICE_API_KEY,
     },
   },
 } as const;
