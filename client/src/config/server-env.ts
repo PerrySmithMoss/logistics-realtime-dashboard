@@ -3,7 +3,9 @@
 import { z } from "zod";
 
 const serverEnvSchema = z.object({
-  FLEET_API_BASE_URL: z.string().min(1, "FLEET_API_BASE_URL is required"),
+  FLEET_API_BASE_URL: z
+    .url({ error: "NEXT_PUBLIC_FLEET_API_BASE_URL must be a valid URL" })
+    .default("http://localhost:5500"),
   // FLEET_INTERNAL_API_KEY: z
   //   .string()
   //   .min(1, "FLEET_INTERNAL_API_KEY is required"),
