@@ -1,51 +1,63 @@
+type SseErrorHandler = () => void;
+
 export class SseClient {
   private eventSource: EventSource | null = null;
   private listeners: Map<string, (event: MessageEvent) => void> = new Map();
 
   constructor(
     private readonly url: string,
-    private readonly onError?: () => void,
+    private readonly onError?: SseErrorHandler,
   ) {}
 
   private connect() {
-    if (this.eventSource) return;
+    if (this.eventSource?.readyState === EventSource.OPEN) return;
 
     this.eventSource = new EventSource(this.url);
 
-    this.listeners.forEach((wrapper, eventName) => {
-      this.eventSource?.addEventListener(eventName, wrapper);
+    this.listeners.forEach((handler, eventName) => {
+      this.eventSource?.addEventListener(eventName, handler);
     });
 
     this.eventSource.onerror = () => {
-      console.error("SSE Connection Lost. Cleaning up for retry...");
+      console.error("[SseClient] Connection lost. Cleaning up for retry.");
       this.disconnect();
       this.onError?.();
     };
   }
 
-  public subscribe<T>(eventName: string, onData: (data: T) => void) {
-    this.connect();
+  public subscribe<T>(eventName: string, onData: (data: T) => void): void {
+    if (this.listeners.has(eventName)) {
+      console.warn(
+        `[SseClient] Already subscribed to "${eventName}". Skipping.`,
+      );
+      return;
+    }
 
-    const wrapper = (event: MessageEvent) => {
+    const handler = (event: MessageEvent): void => {
       try {
-        const parsedData = JSON.parse(event.data);
-        onData(parsedData);
+        onData(JSON.parse(event.data) as T);
       } catch (err) {
-        console.error(`Failed to parse SSE [${eventName}] data:`, err);
+        console.error(`[SseClient] Failed to parse event "${eventName}":`, err);
       }
     };
 
-    this.listeners.set(eventName, wrapper);
-    this.eventSource?.addEventListener(eventName, wrapper);
+    this.listeners.set(eventName, handler);
+
+    if (this.eventSource) {
+      this.eventSource.addEventListener(eventName, handler);
+    } else {
+      this.connect();
+    }
   }
 
-  public disconnect() {
-    if (this.eventSource) {
-      this.listeners.forEach((wrapper, eventName) => {
-        this.eventSource?.removeEventListener(eventName, wrapper);
-      });
-      this.eventSource.close();
-      this.eventSource = null;
-    }
+  public disconnect(): void {
+    if (!this.eventSource) return;
+
+    this.listeners.forEach((handler, eventName) => {
+      this.eventSource!.removeEventListener(eventName, handler);
+    });
+
+    this.eventSource.close();
+    this.eventSource = null;
   }
 }
