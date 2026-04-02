@@ -1,4 +1,4 @@
-import { Vehicle } from "../types";
+import { FleetVehicle } from "../types";
 
 export const buildVehicleSvg = (fill: string): string => `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130" width="100" height="130">
@@ -23,7 +23,7 @@ export const loadVehicleIcon = (fill: string): Promise<HTMLImageElement> =>
   });
 
 export const buildPopupHtml = (
-  vehicle: Pick<Vehicle, "id" | "status">,
+  vehicle: Pick<FleetVehicle, "id" | "status">,
 ): string => `
   <div class="p-2 font-sans min-w-[9rem] text-black">
     <div class="flex items-center gap-2 mb-1 border-b border-slate-100 pb-1">
