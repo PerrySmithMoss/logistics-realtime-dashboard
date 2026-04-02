@@ -1,9 +1,28 @@
 import { SseClient } from "@/shared/infrastructure/sse-client";
 import { throttle } from "@/shared/utils/throttle.util";
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FleetSnapshot } from "../types";
 
-export const useFleetSSE = (onUpdate: (data: any) => void) => {
-  const [reconnectAttempt, triggerReconnect] = useReducer((s) => s + 1, 0);
+export type SseConnectionStatus = "connecting" | "connected" | "error";
+
+interface UseFleetSseResult {
+  status: SseConnectionStatus;
+}
+
+const THROTTLE_MS = 500;
+
+export const useFleetSSE = (
+  onUpdate: (data: FleetSnapshot) => void,
+): UseFleetSseResult => {
+  const [retryCount, setRetryCount] = useState(0);
+  const [status, setStatus] = useState<SseConnectionStatus>("connecting");
+
+  /*
+   * Using the onUpdateRef ref below to keep the SSE stream alive while ensuring
+   * we still use the most up-to-date version of the update logic. If we put
+   * onUpdate in the effect dependencies, the socket would disconnect then
+   * reconnect on every parent re-render causing connection losses.
+   */
   const onUpdateRef = useRef(onUpdate);
 
   useEffect(() => {
@@ -11,24 +30,31 @@ export const useFleetSSE = (onUpdate: (data: any) => void) => {
   }, [onUpdate]);
 
   useEffect(() => {
-    const throttledUpdate = throttle((data: any) => {
-      onUpdateRef.current?.(data);
-    }, 500);
+    const throttledUpdate = throttle((data: FleetSnapshot) => {
+      onUpdateRef.current(data);
+    }, THROTTLE_MS);
 
     const client = new SseClient("/api/proxy/fleet/stream", () => {
-      console.log("Scheduling reconnect in 3s...");
-      setTimeout(() => {
-        triggerReconnect(); // Call the reducer dispatch
-      }, 3000);
+      setStatus("error");
+
+      // exponential backoff
+      const delay = Math.min(1000 * 2 ** retryCount, 30_000);
+
+      setTimeout(() => setRetryCount((c) => c + 1), delay);
     });
 
-    client.subscribe("stats-update", (data: any) => {
+    client.subscribe<FleetSnapshot>("stats-update", (data) => {
+      setStatus("connected");
       throttledUpdate(data);
     });
 
     return () => {
       client.disconnect();
       throttledUpdate.cancel();
+
+      setStatus("connecting");
     };
-  }, [reconnectAttempt]);
+  }, [retryCount]);
+
+  return { status };
 };

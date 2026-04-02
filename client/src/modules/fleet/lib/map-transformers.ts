@@ -1,8 +1,10 @@
+import { Vehicle } from "../types";
+
 export const transformToGeoJSON = (
   vehicles: Vehicle[],
 ): GeoJSON.FeatureCollection => ({
   type: "FeatureCollection",
-  features: vehicles?.map((v) => ({
+  features: vehicles.map((v) => ({
     type: "Feature",
     geometry: {
       type: "Point",
