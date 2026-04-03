@@ -6,16 +6,22 @@ import { FleetSnapshot, FleetVehicle } from "../types";
 
 const http = createHttpClient({
   baseUrl: serverEnv.FLEET_API_BASE_URL,
-  // TODO: Add this
-  // baseUrl: serverEnv.FLEET_INTERNAL_API_KEY,
   timeout: 8000,
   retries: 2,
+  defaultHeaders: {
+    "X-Internal-Secret": serverEnv.FLEET_API_INTERNAL_KEY,
+  },
 });
 
 export const fleetRepository = {
   getSnapshot: (): Promise<FleetSnapshot> =>
-    http.get<FleetSnapshot>("/api/v1/fleet/snapshot", { cache: "no-store" }),
+    http.get<FleetSnapshot>("/api/v1/fleet/snapshot", {
+      cache: "no-store",
+      label: "Fleet_Snapshot",
+    }),
 
   getVehicleById: (id: string): Promise<FleetVehicle> =>
-    http.get<FleetVehicle>(`/api/v1/fleet/vehicles/${id}`),
+    http.get<FleetVehicle>(`/api/v1/fleet/vehicles/${id}`, {
+      label: "Fleet_VehicleById",
+    }),
 };

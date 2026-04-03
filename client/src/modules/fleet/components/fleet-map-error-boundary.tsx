@@ -1,5 +1,6 @@
 "use client";
 
+import { clientEnv } from "@/config/client-env";
 import { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
@@ -9,6 +10,7 @@ interface State {
   hasError: boolean;
 }
 
+const isDev = clientEnv.NEXT_PUBLIC_NODE_ENV === "development";
 export class FleetMapErrorBoundary extends Component<Props, State> {
   public state: State = { hasError: false };
 
@@ -17,7 +19,17 @@ export class FleetMapErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Map Engine Crash:", error, errorInfo);
+    if (error.message.includes("Loading chunk")) {
+      // force a refresh to get new JS assets if error is related to JS chunk.
+      window.location.reload();
+      return;
+    }
+
+    // Ideally we would be logging this to external logger (Sentry/Rollbar).
+    // Here we just log in development to prevent leaking anything.
+    if (isDev) {
+      console.error("Map Engine Crash:", error, errorInfo);
+    }
   }
 
   render() {

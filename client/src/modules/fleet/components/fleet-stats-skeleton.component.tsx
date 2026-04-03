@@ -22,7 +22,7 @@ export const FleetStatsSkeleton = () => {
         {/* Central Loading Message */}
         <div className="flex items-center justify-center h-full">
           <p className="text-slate-400 font-medium">
-            Initializing Map Engine...
+            Initialising Map Engine...
           </p>
         </div>
       </section>
