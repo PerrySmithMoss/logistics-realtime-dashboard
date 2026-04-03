@@ -1,8 +1,8 @@
-import { ILogger } from "@shared/interfaces/logger.interface";
+import { ILogger } from "@/shared/interface";
 import { LOG_LEVEL_PRIORITY, LOGGER_COLORS } from "./logger.constants";
-import { ILoggerOptions, LogLevelName } from "./logger.types";
+import { ILoggerOptions, LogLevel } from "./logger.types";
 
-export class ConsoleLogger implements ILogger {
+export class ServerConsoleLogger implements ILogger {
   private readonly minLevelPriority: number;
   private readonly isDev: boolean;
 
@@ -15,10 +15,13 @@ export class ConsoleLogger implements ILogger {
   }
 
   public withContext(newContext: string): ILogger {
-    return new ConsoleLogger(this.options, `${this.context}:${newContext}`);
+    return new ServerConsoleLogger(
+      this.options,
+      `${this.context}:${newContext}`,
+    );
   }
 
-  private write(level: LogLevelName, message: string, data?: unknown) {
+  private write(level: LogLevel, message: string, data?: unknown) {
     if (LOG_LEVEL_PRIORITY[level] < this.minLevelPriority) return;
 
     if (!this.isDev && (level === "DEBUG" || level === "INFO")) return;
@@ -46,7 +49,7 @@ export class ConsoleLogger implements ILogger {
     }
   }
 
-  private format(level: LogLevelName, message: string, data?: unknown): string {
+  private format(level: LogLevel, message: string, data?: unknown): string {
     const timestamp = new Date().toISOString();
     const ctx = this.context.toUpperCase();
 
@@ -75,7 +78,7 @@ export class ConsoleLogger implements ILogger {
       : header;
   }
 
-  private getLevelColor(level: LogLevelName): string {
+  private getLevelColor(level: LogLevel): string {
     switch (level) {
       case "DEBUG":
         return LOGGER_COLORS.magenta;

@@ -1,5 +1,5 @@
-import { SseClient } from "@/shared/infrastructure/sse-client";
-import { throttle } from "@/shared/utils/throttle.util";
+import { SseClient } from "@/shared/infrastructure";
+import { throttle } from "@/shared/utils";
 import { useEffect, useRef, useState } from "react";
 import { FleetSnapshot } from "../types";
 
