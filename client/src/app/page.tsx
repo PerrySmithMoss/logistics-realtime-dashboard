@@ -3,6 +3,8 @@ import { FleetStatsSkeleton } from "@/modules/fleet/components/fleet-stats-skele
 import { fleetService } from "@/modules/fleet/services/fleet.service";
 import { Suspense } from "react";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   const fleetSnapshotPromise = fleetService.getSnapshot();
   return (

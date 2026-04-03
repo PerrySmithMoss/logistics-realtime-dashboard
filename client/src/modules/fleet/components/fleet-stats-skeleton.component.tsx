@@ -1,8 +1,8 @@
 export const FleetStatsSkeleton = () => {
   return (
-    <div className="p-6 space-y-8 animate-pulse">
+    <div className="p-6 h-full flex flex-col space-y-4 bg-slate-50 animate-pulse">
       {/* Header Stat Cards Skeleton */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
@@ -12,7 +12,7 @@ export const FleetStatsSkeleton = () => {
       </section>
 
       {/* Map Area Skeleton */}
-      <section className="relative h-150 w-full bg-slate-200 rounded-2xl border-2 border-slate-100 shadow-inner">
+      <section className="flex-1 relative w-full bg-slate-200 rounded-2xl border-2 border-slate-100 shadow-inner overflow-hidden">
         {/* Mock Map Controls */}
         <div className="absolute top-4 right-4 space-y-2">
           <div className="w-10 h-10 bg-slate-300 rounded-md" />

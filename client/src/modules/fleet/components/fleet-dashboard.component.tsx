@@ -19,9 +19,7 @@ export const FleetDashboard = ({ initialDataPromise }: FleetDashboardProps) => {
   const mapRef = useRef<FleetMapHandle>(null);
   const [data, setData] = useState<FleetSnapshot>(initialData);
 
-  const { status: sseStatus } = useFleetSSE(
-    useCallback((next: FleetSnapshot) => setData(next), []),
-  );
+  const { status: sseStatus } = useFleetSSE(setData);
 
   const { geoJSON, delayedVehicles } = useMemo(() => {
     return {
