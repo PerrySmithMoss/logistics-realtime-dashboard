@@ -1,9 +1,6 @@
 "server-only";
 
-import { createLogger } from "@/shared/infrastructure";
 import { z } from "zod";
-
-const logger = createLogger("Server Config");
 
 const serverEnvSchema = z
   .object({
@@ -44,7 +41,7 @@ const parsed = serverEnvSchema.safeParse({
 });
 
 if (!parsed.success) {
-  logger.error(
+  console.error(
     "Invalid server environment configuration.",
     z.prettifyError(parsed.error),
   );

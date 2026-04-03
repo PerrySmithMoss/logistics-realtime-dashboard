@@ -28,10 +28,20 @@ export class ServerConsoleLogger implements ILogger {
 
     const formatted = this.format(level, message, data);
 
-    if (level === "ERROR" || level === "CRITICAL") {
-      process.stderr.write(formatted + "\n");
+    console.log("process.stdout?.write: ", process.stdout?.write);
+    // console.log("process: ", process)
+    if (typeof process !== "undefined" && process.stdout?.write) {
+      // node.js environment
+      if (level === "ERROR" || level === "CRITICAL") {
+        process.stderr.write(formatted + "\n");
+      } else {
+        process.stdout.write(formatted + "\n");
+      }
     } else {
-      process.stdout.write(formatted + "\n");
+      // edge/middleware runtime
+      const method =
+        level === "ERROR" || level === "CRITICAL" ? "error" : "log";
+      console[method](formatted);
     }
   }
 

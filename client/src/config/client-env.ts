@@ -1,7 +1,4 @@
-import { createLogger } from "@/shared/infrastructure";
 import { z } from "zod";
-
-const logger = createLogger("Client Config");
 
 const clientEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z
@@ -18,7 +15,7 @@ const parsed = clientEnvSchema.safeParse({
 });
 
 if (!parsed.success) {
-  logger.error(
+  console.error(
     "Invalid client environment configuration",
     z.prettifyError(parsed.error),
   );
