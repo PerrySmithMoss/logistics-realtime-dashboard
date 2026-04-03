@@ -6,6 +6,12 @@ export const dynamic = "force-dynamic";
 const STREAM_URL = `${serverEnv.FLEET_API_BASE_URL}/api/v1/fleet/stats/stream`;
 
 export async function GET(req: NextRequest) {
+  const userRole = req.headers.get("x-user-role");
+
+  if (!userRole) {
+    return new Response("Unauthorised", { status: 401 });
+  }
+
   const traceId = req.headers.get("x-trace-id") || crypto.randomUUID();
 
   try {
@@ -13,17 +19,16 @@ export async function GET(req: NextRequest) {
       headers: {
         Accept: "text/event-stream",
         "X-Trace-Id": traceId,
-        // "Authorization": `Bearer ${serverEnv.INTERNAL_FLEET_API_TOKEN}`,
+        "X-Internal-secret": serverEnv.FLEET_API_INTERNAL_KEY,
+        "X-User-Role": userRole,
       },
       cache: "no-store",
       signal: req.signal,
     });
 
     if (!response.ok) {
-      console.error(
-        `[SSE Proxy] Backend Error: ${response.status} | Trace: ${traceId}`,
-      );
-      return new Response("Upstream Fleet Service Error", { status: 502 });
+      console.error(`Upstream Error: ${response.status} | Trace: ${traceId}`);
+      return new Response("Upstream Error", { status: 502 });
     }
 
     if (!response.body) {
@@ -44,7 +49,7 @@ export async function GET(req: NextRequest) {
       return new Response(null, { status: 499 });
     }
 
-    console.error(`[SSE Proxy Critical] Trace: ${traceId}`, error);
-    return new Response("Stream Proxy Failure", { status: 500 });
+    console.error(`Proxy Stream error.`, { error, traceId });
+    return new Response("Proxy Stream Failure", { status: 500 });
   }
 }

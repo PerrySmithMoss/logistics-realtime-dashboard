@@ -10,7 +10,6 @@ export interface HttpClientOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
-// Per-instance defaults set at creation time
 export interface HttpClientConfig {
   baseUrl: string;
   timeout?: number;
