@@ -17,6 +17,10 @@ interface FleetMapProps {
   data: GeoJSON.FeatureCollection;
 }
 
+interface TrackedFleetMapPopup extends maplibregl.Popup {
+  _vehicleId?: string;
+}
+
 export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
   ({ data }, ref) => {
     const mapContainer = useRef<HTMLDivElement>(null);
@@ -28,14 +32,19 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
       if (!map.current || !isMapReady.current) return;
 
       activePopup.current?.remove();
-      activePopup.current = new maplibregl.Popup({
+
+      const popup = new maplibregl.Popup({
         closeButton: false,
         offset: 15,
         className: "custom-fleet-popup",
       })
         .setLngLat([vehicle.lng, vehicle.lat])
         .setHTML(buildPopupHtml(vehicle))
-        .addTo(map.current);
+        .addTo(map.current) as TrackedFleetMapPopup;
+
+      // add vehicleId to popup obj so we can track/move it
+      popup._vehicleId = vehicle.id;
+      activePopup.current = popup;
     }, []);
 
     useImperativeHandle(
@@ -103,7 +112,6 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
 
           const props = e.features[0].properties as FleetVehicle;
           const geometry = e.features[0].geometry as GeoJSON.Point;
-
           const [lng, lat] = geometry.coordinates;
 
           openPopup({ ...props, lng, lat });
@@ -124,18 +132,44 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
         mapInstance.remove();
         map.current = null;
       };
-
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // live fleet data updates
     useEffect(() => {
-      const source = map.current?.getSource("vehicles") as
-        | maplibregl.GeoJSONSource
-        | undefined;
+      const mapInstance = map.current;
+      if (!mapInstance || !isMapReady.current) return;
 
-      if (source && isMapReady.current) {
-        source.setData(data);
+      const source = mapInstance.getSource(
+        "vehicles",
+      ) as maplibregl.GeoJSONSource;
+      if (!source) return;
+
+      source.setData(data);
+
+      // update popup position to make sure it follows the vehicle as it moves.
+      const currentPopup = activePopup.current;
+
+      if (
+        currentPopup &&
+        currentPopup.isOpen() &&
+        (currentPopup as TrackedFleetMapPopup)._vehicleId
+      ) {
+        const vehicleId = (currentPopup as TrackedFleetMapPopup)._vehicleId;
+
+        const updatedFeature = data.features.find(
+          (f) => f.properties?.id === vehicleId,
+        );
+
+        if (updatedFeature && updatedFeature.geometry.type === "Point") {
+          const [lng, lat] = updatedFeature.geometry.coordinates;
+
+          currentPopup.setLngLat([lng, lat]);
+
+          currentPopup.setHTML(
+            buildPopupHtml(updatedFeature.properties as FleetVehicle),
+          );
+        }
       }
     }, [data]);
 
