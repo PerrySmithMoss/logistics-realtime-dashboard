@@ -22,9 +22,10 @@ export class Application {
       this.logger = this.container.appLogger;
 
       const expressApp = express();
+      expressApp.set("trust proxy", true);
       expressApp.use(express.json({ limit: "1mb" }));
       // app.use(requestIdMiddleware);
-      expressApp.use("/api/v1", createApiRouter(this.container.controllers));
+      expressApp.use("/api/v1", createApiRouter(this.container));
       expressApp.use(notFoundHandler);
 
       expressApp.use(createErrorHandler(this.container.errorLogger));

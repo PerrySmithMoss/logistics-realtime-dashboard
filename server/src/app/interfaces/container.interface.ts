@@ -1,3 +1,4 @@
+import { IAppConfig } from "@config/index";
 import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller.interface";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { IVehicleController } from "@modules/vehicle/api/interfaces/vehicle-controller.interface";
@@ -10,6 +11,7 @@ import { IHealthController } from "@shared/interfaces/health-controller.interfac
 import { ILogger } from "@shared/interfaces/logger.interface";
 
 export interface IAppContainer {
+  readonly config: IAppConfig;
   readonly logger: ILogger;
   readonly appLogger: ILogger;
   readonly serverLogger: ILogger;

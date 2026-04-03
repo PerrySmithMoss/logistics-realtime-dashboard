@@ -29,6 +29,7 @@ export class AppContainer implements IAppContainer {
       database: IDatabase;
       eventBroker: IEventBroker;
       logger: ILogger;
+      config: IAppConfig;
     },
     public readonly controllers: {
       readonly health: IHealthController;
@@ -40,6 +41,10 @@ export class AppContainer implements IAppContainer {
     public readonly serverLogger: ILogger,
     public readonly errorLogger: ILogger,
   ) {}
+
+  public get config() {
+    return this.dependencies.config;
+  }
 
   public get logger() {
     return this.dependencies.logger;
@@ -114,6 +119,7 @@ export class AppContainer implements IAppContainer {
         database,
         eventBroker,
         lifecycle,
+        config,
       },
       controllers,
       fleetDataService,

@@ -1,12 +1,15 @@
-import { Router } from "express";
+import { RequestHandler, Router } from "express";
 import { IFleetController } from "./interfaces/fleet-controller.interface";
 
-export const createFleetRoutes = (controller: IFleetController) => {
+export const createFleetRoutes = (
+  controller: IFleetController,
+  authGuard: RequestHandler,
+) => {
   const fleetRouter = Router();
 
   fleetRouter.get(
     "/snapshot",
-    // authmiddleware
+    authGuard,
     //  snapshotRateLimit,
     //     validateFleetSnapshotRequest,
     controller.getSnapshot,
@@ -14,7 +17,7 @@ export const createFleetRoutes = (controller: IFleetController) => {
 
   fleetRouter.get(
     "/stats/stream",
-    // authmiddleware
+    authGuard,
     // streamRateLimit,       // ✅ stop reconnect storms
     //   sseConnectionLimiter,  // ✅ stop tab-farming a single IP
     //   validateFleetStatsStreamRequest,

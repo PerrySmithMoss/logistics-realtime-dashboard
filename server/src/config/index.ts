@@ -1,25 +1,43 @@
-// @config/index.ts
 import { z } from "zod";
 
-const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  PORT: z.coerce.number().default(5500),
-  HOST: z.string().default("localhost"),
-  MIN_LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("DEBUG"),
+const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    PORT: z.coerce.number().default(5500),
+    HOST: z.string().default("localhost"),
+    MIN_LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("DEBUG"),
 
-  ENABLE_FLEET_SIMULATOR: z
-    .string()
-    .transform((val) => val.toLowerCase() === "true")
-    .default(false),
+    INTERNAL_AUTH_SECRET: z.string().optional(),
 
-  OPEN_ROUTE_SERVICE_API_KEY: z.string().min(1, "ORS API Key is required"),
-  SIMULATOR_TICK_INTERVAL: z.coerce.number().default(2000),
-  SIMULATOR_WATCHDOG_TIMEOUT: z.coerce.number().default(30000),
-  FLEET_BATCH_INTERVAL_MS: z.coerce.number().default(1000),
-  FLEET_HYDRATION_TIMEOUT: z.coerce.number().default(30000),
-});
+    ENABLE_FLEET_SIMULATOR: z
+      .string()
+      .transform((val) => val.toLowerCase() === "true")
+      .default(false),
+
+    OPEN_ROUTE_SERVICE_API_KEY: z.string().min(1, "ORS API Key is required"),
+    SIMULATOR_TICK_INTERVAL: z.coerce.number().default(2000),
+    SIMULATOR_WATCHDOG_TIMEOUT: z.coerce.number().default(30000),
+    FLEET_BATCH_INTERVAL_MS: z.coerce.number().default(1000),
+    FLEET_HYDRATION_TIMEOUT: z.coerce.number().default(30000),
+  })
+  .refine(
+    (data) => {
+      if (data.NODE_ENV === "production") {
+        // check for at least 32 characters to ensure high entropy
+        return (
+          !!data.INTERNAL_AUTH_SECRET && data.INTERNAL_AUTH_SECRET.length >= 32
+        );
+      }
+      return true;
+    },
+    {
+      message:
+        "INTERNAL_AUTH_SECRET must be at least 32 characters in production",
+      path: ["INTERNAL_AUTH_SECRET"],
+    },
+  );
 
 const _env = envSchema.safeParse(process.env);
 
@@ -30,6 +48,8 @@ if (!_env.success) {
 }
 
 const env = _env.data;
+const internalAuthSecret =
+  env.INTERNAL_AUTH_SECRET ?? "random_32_byte_string-do_not_use_in_prod";
 
 export const config = {
   server: {
@@ -39,6 +59,7 @@ export const config = {
     isProd: env.NODE_ENV === "production",
     isDev: env.NODE_ENV === "development",
     minLogLevel: env.MIN_LOG_LEVEL,
+    internalAuthSecret,
   },
   modules: {
     vehicle: {
