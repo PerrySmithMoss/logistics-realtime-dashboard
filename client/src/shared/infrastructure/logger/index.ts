@@ -13,5 +13,5 @@ export const createLogger = (context: string): ILogger => {
   }
 
   // browser
-  return new ClientConsoleLogger({ isDev, level: minLogLevel });
+  return new ClientConsoleLogger({ isDev, level: minLogLevel }, context);
 };

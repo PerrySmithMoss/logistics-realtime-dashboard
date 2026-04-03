@@ -1,7 +1,10 @@
 import { serverEnv } from "@/config/server-env";
+import { createLogger } from "@/shared/infrastructure";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+const logger = createLogger("Fleet Stream Proxy");
 
 const STREAM_URL = `${serverEnv.FLEET_API_BASE_URL}/api/v1/fleet/stats/stream`;
 
@@ -27,7 +30,11 @@ export async function GET(req: NextRequest) {
     });
 
     if (!response.ok) {
-      console.error(`Upstream Error: ${response.status} | Trace: ${traceId}`);
+      logger.error("Upstream stream request failed", {
+        status: response.status,
+        traceId,
+        url: STREAM_URL,
+      });
       return new Response("Upstream Error", { status: 502 });
     }
 
@@ -49,7 +56,7 @@ export async function GET(req: NextRequest) {
       return new Response(null, { status: 499 });
     }
 
-    console.error(`Proxy Stream error.`, { error, traceId });
+    logger.error(`Proxy Stream error.`, { error, traceId });
     return new Response("Proxy Stream Failure", { status: 500 });
   }
 }

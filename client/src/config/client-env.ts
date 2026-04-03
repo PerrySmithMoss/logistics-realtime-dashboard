@@ -1,4 +1,7 @@
+import { createLogger } from "@/shared/infrastructure";
 import { z } from "zod";
+
+const logger = createLogger("Client Config");
 
 const clientEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z
@@ -9,21 +12,19 @@ const clientEnvSchema = z.object({
     .default("http://localhost:5500"),
 });
 
-const _env = clientEnvSchema.safeParse(process.env);
+const parsed = clientEnvSchema.safeParse({
+  NEXT_PUBLIC_NODE_ENV: process.env.NEXT_PUBLIC_NODE_ENV,
+  NEXT_PUBLIC_FLEET_API_BASE_URL: process.env.NEXT_PUBLIC_FLEET_API_BASE_URL,
+});
 
-if (!_env.success) {
-  console.error(
-    "Invalid client environment configuration:\n",
-    z.prettifyError(_env.error),
+if (!parsed.success) {
+  logger.error(
+    "Invalid client environment configuration",
+    z.prettifyError(parsed.error),
   );
   throw new Error("Invalid client environment variables.");
 }
 
-const env = _env.data;
+export const clientEnv = { ...parsed.data } as const;
 
-export type IClientEnv = typeof env;
-
-export const clientEnv: IClientEnv = {
-  NEXT_PUBLIC_NODE_ENV: env.NEXT_PUBLIC_NODE_ENV,
-  NEXT_PUBLIC_FLEET_API_BASE_URL: env.NEXT_PUBLIC_FLEET_API_BASE_URL,
-} as const;
+export type IClientEnv = typeof clientEnv;

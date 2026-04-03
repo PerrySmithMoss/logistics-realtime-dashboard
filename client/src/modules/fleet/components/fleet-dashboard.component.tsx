@@ -38,11 +38,10 @@ export const FleetDashboard = ({ initialDataPromise }: FleetDashboardProps) => {
       const vehicle = data.vehicles.find(
         (v) => v.id.toLowerCase() === vehicleId.toLowerCase(),
       );
-      if (vehicle) {
-        focusOnVehicle(vehicle);
-      } else {
-        console.warn(`[FleetDashboard] Vehicle not found: ${vehicleId}`);
-      }
+
+      if (!vehicle) return;
+
+      focusOnVehicle(vehicle);
     },
     [data.vehicles, focusOnVehicle],
   );

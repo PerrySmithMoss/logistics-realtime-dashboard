@@ -24,7 +24,6 @@ export const useFleetSSE = (
    * reconnect on every parent re-render causing connection losses.
    */
   const onUpdateRef = useRef(onUpdate);
-
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
@@ -40,19 +39,22 @@ export const useFleetSSE = (
       // exponential backoff
       const delay = Math.min(1000 * 2 ** retryCount, 30_000);
 
-      setTimeout(() => setRetryCount((c) => c + 1), delay);
+      // retry
+      setTimeout(() => {
+        setStatus("connecting");
+        setRetryCount((c) => c + 1);
+      }, delay);
     });
 
     client.subscribe<FleetSnapshot>("stats-update", (data) => {
-      setStatus("connected");
+      setStatus((prev) => (prev !== "connected" ? "connected" : prev));
+      setRetryCount(0);
       throttledUpdate(data);
     });
 
     return () => {
       client.disconnect();
       throttledUpdate.cancel();
-
-      setStatus("connecting");
     };
   }, [retryCount]);
 

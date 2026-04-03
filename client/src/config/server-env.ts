@@ -1,6 +1,9 @@
 "server-only";
 
+import { createLogger } from "@/shared/infrastructure";
 import { z } from "zod";
+
+const logger = createLogger("Server Config");
 
 const serverEnvSchema = z
   .object({
@@ -33,27 +36,28 @@ const serverEnvSchema = z
     },
   );
 
-const _env = serverEnvSchema.safeParse(process.env);
+const parsed = serverEnvSchema.safeParse({
+  NODE_ENV: process.env.NODE_ENV,
+  SESSION_SIGNING_SECRET: process.env.SESSION_SIGNING_SECRET,
+  FLEET_API_BASE_URL: process.env.FLEET_API_BASE_URL,
+  FLEET_API_INTERNAL_KEY: process.env.FLEET_API_INTERNAL_KEY,
+});
 
-if (!_env.success) {
-  console.error(
-    "Invalid server environment configuration:\n",
-    z.prettifyError(_env.error),
+if (!parsed.success) {
+  logger.error(
+    "Invalid server environment configuration.",
+    z.prettifyError(parsed.error),
   );
   throw new Error("Invalid server environment variables.");
 }
 
-const env = _env.data;
+const data = parsed.data;
 
-// use fallback only for dev/test
-const signingSecret =
-  env.SESSION_SIGNING_SECRET ?? "random_32_byte_string-do_not_use_in_prod";
-
-export type IServerEnv = typeof env;
-
-export const serverEnv: IServerEnv = {
-  NODE_ENV: env.NODE_ENV,
-  SESSION_SIGNING_SECRET: signingSecret,
-  FLEET_API_BASE_URL: env.FLEET_API_BASE_URL,
-  FLEET_API_INTERNAL_KEY: env.FLEET_API_INTERNAL_KEY,
+export const serverEnv = {
+  ...data,
+  // use fallback only for dev/test
+  SESSION_SIGNING_SECRET:
+    data.SESSION_SIGNING_SECRET ?? "dev_secret_fallback_32_chars_long_min",
 } as const;
+
+export type IServerEnv = typeof serverEnv;

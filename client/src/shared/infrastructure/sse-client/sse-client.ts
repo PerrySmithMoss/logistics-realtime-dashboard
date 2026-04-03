@@ -1,4 +1,8 @@
+import { createLogger } from "../logger";
+
 type SseErrorHandler = () => void;
+
+const logger = createLogger("SSeClient");
 
 export class SseClient {
   private eventSource: EventSource | null = null;
@@ -10,26 +14,37 @@ export class SseClient {
   ) {}
 
   private connect() {
-    if (this.eventSource?.readyState === EventSource.OPEN) return;
+    if (this.eventSource) {
+      if (
+        this.eventSource.readyState === EventSource.OPEN ||
+        this.eventSource.readyState === EventSource.CONNECTING
+      )
+        return;
+    }
 
+    logger.debug("Initializing SSE connection", { url: this.url });
     this.eventSource = new EventSource(this.url);
 
     this.listeners.forEach((handler, eventName) => {
       this.eventSource?.addEventListener(eventName, handler);
     });
 
+    this.eventSource.onopen = () => {
+      logger.debug("SSE Connection established");
+    };
+
     this.eventSource.onerror = () => {
-      console.error("[SseClient] Connection lost. Cleaning up for retry.");
-      this.disconnect();
+      logger.error("SSE Connection error/interruption", {
+        readyState: this.eventSource?.readyState,
+      });
+
       this.onError?.();
     };
   }
 
   public subscribe<T>(eventName: string, onData: (data: T) => void): void {
     if (this.listeners.has(eventName)) {
-      console.warn(
-        `[SseClient] Already subscribed to "${eventName}". Skipping.`,
-      );
+      logger.warn(`Already subscribed to "${eventName}".`);
       return;
     }
 
@@ -37,13 +52,16 @@ export class SseClient {
       try {
         onData(JSON.parse(event.data) as T);
       } catch (err) {
-        console.error(`[SseClient] Failed to parse event "${eventName}":`, err);
+        logger.error(`Failed to parse "${eventName}" payload`, {
+          err,
+          raw: event.data,
+        });
       }
     };
 
     this.listeners.set(eventName, handler);
 
-    if (this.eventSource) {
+    if (this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
       this.eventSource.addEventListener(eventName, handler);
     } else {
       this.connect();
@@ -53,8 +71,10 @@ export class SseClient {
   public disconnect(): void {
     if (!this.eventSource) return;
 
+    logger.debug("Manually closing SSE connection");
+
     this.listeners.forEach((handler, eventName) => {
-      this.eventSource!.removeEventListener(eventName, handler);
+      this.eventSource?.removeEventListener(eventName, handler);
     });
 
     this.eventSource.close();
