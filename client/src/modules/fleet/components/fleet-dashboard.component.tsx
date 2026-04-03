@@ -2,13 +2,15 @@
 
 import { use, useCallback, useMemo, useRef, useState } from "react";
 import { useFleetSSE } from "../hooks";
-import { transformToGeoJSON } from "../lib/map-transformers";
+import { transformToGeoJSON } from "../lib";
 import { FleetMapHandle, FleetSnapshot, FleetVehicle } from "../types";
-import { FleetDashboardStatCard } from "./fleet-dashboard-stat-card.component";
-import { FleetMapErrorBoundary } from "./fleet-map-error-boundary";
-import { FleetMapOverlay } from "./fleet-map-overlay.component";
-import { FleetMapSearch } from "./fleet-map-search.component";
-import { FleetMap } from "./fleet-map.component";
+import {
+  FleetDashboardStatCard,
+  FleetMap,
+  FleetMapErrorBoundary,
+  FleetMapOverlay,
+  FleetMapSearch,
+} from "./";
 
 interface FleetDashboardProps {
   initialDataPromise: Promise<FleetSnapshot>;

@@ -1,5 +1,4 @@
-import { FleetDashboard } from "@/modules/fleet/components";
-import { FleetStatsSkeleton } from "@/modules/fleet/components/fleet-stats-skeleton.component";
+import { FleetDashboard, FleetStatsSkeleton } from "@/modules/fleet/components";
 import { fleetService } from "@/modules/fleet/services/fleet.service";
 import { Suspense } from "react";
 
