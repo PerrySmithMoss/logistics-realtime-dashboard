@@ -30,15 +30,23 @@ export const FleetMapSearch = ({ onSearch, vehicles }: FleetMapSearchProps) => {
 
   const suggestions = useMemo(() => {
     const trimmed = debouncedQuery.trim().toLowerCase();
-    if (!trimmed) return [];
+
+    if (!trimmed) {
+      // If search is empty we would ideally show list of recent searches
+      // or vehicles they have interacted with. However, for now, we will
+      // just show first 5 vehicles in array.
+      return vehicles.slice(0, 5);
+    }
+
     return vehicles
       .filter((v) => v.id.toLowerCase().includes(trimmed))
       .slice(0, FLEET_MAP_SEARCH_MAX_SUGGESTIONS);
   }, [debouncedQuery, vehicles]);
 
-  const [lastSuggestions, setLastSuggestions] = useState(suggestions);
-  if (suggestions !== lastSuggestions) {
-    setLastSuggestions(suggestions);
+  const [prevSuggestions, setPrevSuggestions] = useState(suggestions);
+
+  if (suggestions !== prevSuggestions) {
+    setPrevSuggestions(suggestions);
     setActiveIndex(-1);
   }
 
@@ -68,20 +76,29 @@ export const FleetMapSearch = ({ onSearch, vehicles }: FleetMapSearchProps) => {
           break;
         case "Enter":
           e.preventDefault();
+
+          const hasTypedQuery = query.trim().length > 0;
+
           if (activeIndex >= 0) {
+            // user highlighted an item with arrows
             handleSelect(suggestions[activeIndex].id);
-          } else if (suggestions.length > 0) {
-            // default to first vehicle in array
+          } else if (hasTypedQuery) {
+            // if user has typed something, we auto pick the top match
             handleSelect(suggestions[0].id);
           }
+          // prevent accidental navigation on focus
           break;
         case "Escape":
           setIsOpen(false);
           break;
       }
     },
-    [isOpen, suggestions, activeIndex, handleSelect],
+    [isOpen, suggestions, activeIndex, handleSelect, query],
   );
+
+  const shouldShowMenu =
+    isOpen &&
+    (debouncedQuery.length > 0 || (query.length === 0 && vehicles.length > 0));
 
   return (
     <div className="absolute top-6 left-6 z-20 w-72">
@@ -103,7 +120,7 @@ export const FleetMapSearch = ({ onSearch, vehicles }: FleetMapSearchProps) => {
           className="block w-full pl-9 pr-3 py-2.5 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-900 transition-all"
         />
 
-        {isOpen && query.trim().length > 0 && (
+        {shouldShowMenu && (
           <ul
             role="listbox"
             className="absolute mt-2 w-full bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-2xl py-1 overflow-hidden"
@@ -118,7 +135,7 @@ export const FleetMapSearch = ({ onSearch, vehicles }: FleetMapSearchProps) => {
                   <button
                     type="button"
                     onMouseDown={() => handleSelect(v.id)}
-                    className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors ${
+                    className={`cursor-pointer w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors ${
                       index === activeIndex
                         ? "bg-indigo-50 text-indigo-700"
                         : "hover:bg-slate-50 text-slate-700"
