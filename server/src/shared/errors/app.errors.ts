@@ -1,11 +1,14 @@
 export enum AppErrorCodes {
   NotFound = "NOT_FOUND",
   BadRequest = "BAD_REQUEST",
+  Unauthorised = "UNAUTHORISED",
   UnprocessableEntity = "UNPROCESSABLE_ENTITY",
   FetchError = "FETCH_ERROR",
-  HYDRATION_FAILED = "HYDRATION_FAILED",
+  HydrationFailed = "HYDRATION_FAILED",
   InternalServerError = "INTERNAL_SERVER_ERROR",
   ExternalServiceError = "EXTERNAL_SERVICE_ERROR",
+  MissingIdentifier = "MISSING_IDENTIFIER",
+  TooManyRequests = "TooManyRequests",
 }
 
 interface AppErrorDetails {
