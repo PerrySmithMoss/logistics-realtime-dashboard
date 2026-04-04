@@ -1,5 +1,5 @@
-import { ILogger } from "@/shared/interface";
 import { LOG_LEVEL_PRIORITY, LOGGER_COLORS } from "./logger.constants";
+import { ILogger } from "./logger.interface";
 import { ILoggerOptions, LogLevel } from "./logger.types";
 
 export class ServerConsoleLogger implements ILogger {
@@ -28,8 +28,6 @@ export class ServerConsoleLogger implements ILogger {
 
     const formatted = this.format(level, message, data);
 
-    console.log("process.stdout?.write: ", process.stdout?.write);
-    // console.log("process: ", process)
     if (typeof process !== "undefined" && process.stdout?.write) {
       // node.js environment
       if (level === "ERROR" || level === "CRITICAL") {

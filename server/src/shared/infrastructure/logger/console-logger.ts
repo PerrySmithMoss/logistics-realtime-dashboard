@@ -48,7 +48,7 @@ export class ConsoleLogger implements ILogger {
 
   private format(level: LogLevelName, message: string, data?: unknown): string {
     const timestamp = new Date().toISOString();
-    const ctx = this.context.toUpperCase();
+    const ctx = this.context;
 
     if (!this.isDev) {
       const logEntry: Record<string, unknown> = {

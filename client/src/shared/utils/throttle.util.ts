@@ -1,35 +1,44 @@
-export function throttle<T extends (...args: any[]) => void>(
-  func: T,
-  limit: number,
-) {
-  let lastFunc: ReturnType<typeof setTimeout> | null = null;
-  let lastRan: number | null = null;
+export interface ThrottledFn<TArgs extends unknown[]> {
+  (...args: TArgs): void;
+  cancel: () => void;
+}
 
-  const throttled = function (this: any, ...args: Parameters<T>) {
-    if (!lastRan) {
-      func.apply(this, args);
-      lastRan = Date.now();
-    } else {
-      if (lastFunc) clearTimeout(lastFunc);
-      lastFunc = setTimeout(
-        () => {
-          if (Date.now() - (lastRan || 0) >= limit) {
-            func.apply(this, args);
-            lastRan = Date.now();
-          }
-        },
-        limit - (Date.now() - lastRan),
-      );
+export const throttle = <TArgs extends unknown[]>(
+  fn: (...args: TArgs) => void,
+  limitMs: number,
+): ThrottledFn<TArgs> => {
+  let trailingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let lastCalledAt: number | null = null;
+
+  const throttled = (...args: TArgs): void => {
+    const now = Date.now();
+
+    if (lastCalledAt === null) {
+      // fire first call immediately
+      fn(...args);
+      lastCalledAt = now;
+      return;
     }
+
+    // clear any trailing calls, will be rescheduled with latest args
+    if (trailingTimeoutId !== null) clearTimeout(trailingTimeoutId);
+
+    const remaining = limitMs - (now - lastCalledAt);
+
+    trailingTimeoutId = setTimeout(() => {
+      fn(...args);
+      lastCalledAt = Date.now();
+      trailingTimeoutId = null;
+    }, remaining);
   };
 
-  throttled.cancel = () => {
-    if (lastFunc) {
-      clearTimeout(lastFunc);
-      lastFunc = null;
+  throttled.cancel = (): void => {
+    if (trailingTimeoutId !== null) {
+      clearTimeout(trailingTimeoutId);
+      trailingTimeoutId = null;
     }
-    lastRan = null;
+    lastCalledAt = null;
   };
 
   return throttled;
-}
+};
