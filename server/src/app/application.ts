@@ -1,5 +1,5 @@
 import { createErrorHandler, notFoundHandler } from "@api/middleware";
-import { config } from "@config/index";
+import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { consoleLogger } from "@shared/infrastructure/logger";
 import { ILogger } from "@shared/interfaces/logger.interface";
@@ -15,31 +15,36 @@ export class Application {
   private container?: IAppContainer;
   private logger?: ILogger;
 
+  constructor(private readonly config: IAppConfig) {}
+
   public async start() {
     try {
-      this.container = await AppContainer.create(config);
-
+      this.container = await AppContainer.create(this.config);
       this.logger = this.container.appLogger;
 
       const expressApp = express();
+
       expressApp.set("trust proxy", true);
       expressApp.use(express.json({ limit: "1mb" }));
+
       // app.use(requestIdMiddleware);
       expressApp.use("/api/v1", createApiRouter(this.container));
-      expressApp.use(notFoundHandler);
 
+      expressApp.use(notFoundHandler);
       expressApp.use(createErrorHandler(this.container.errorLogger));
 
       this.runBackgroundHydration(this.container.fleetDataService);
 
       this.server = new HttpServer(expressApp, this.container.serverLogger);
-      await this.server.start(config.server);
+      await this.server.start(this.config.server);
 
       this.logStartupStatus();
-
       return this;
     } catch (err) {
-      consoleLogger.error("CRITICAL: Failed to start application:", err);
+      (this.logger ?? console).error(
+        "CRITICAL: Failed to start application:",
+        err,
+      );
       process.exit(1);
     }
   }
@@ -56,10 +61,10 @@ export class Application {
   }
 
   private logStartupStatus() {
-    const { port, env, host, isDev } = config.server;
+    const { port, env, host, isDev } = this.config.server;
     const protocol = isDev ? "http" : "https";
 
-    this.logger.info("System Online:", {
+    (this.logger ?? console).info("System Online:", {
       PID: process.pid,
       URL: `${protocol}://${host}:${port}`,
       ENV: `${env.toUpperCase()}`,
@@ -79,7 +84,7 @@ export class Application {
 
     this.container.lifecycle.prepareForShutdown();
 
-    const forceExitTimeout = config.server.isDev ? 3000 : 10000;
+    const forceExitTimeout = this.config.server.isDev ? 3000 : 10000;
     const forceExit = setTimeout(() => {
       activeLogger.error(
         `Cleanup timed out after ${forceExitTimeout}ms. Forcing exit.`,
@@ -87,7 +92,7 @@ export class Application {
       process.exit(1);
     }, forceExitTimeout);
 
-    if (!config.server.isDev) {
+    if (!this.config.server.isDev) {
       activeLogger.info("Waiting 3s for resources to drain...");
       await new Promise((r) => setTimeout(r, 3000));
     }

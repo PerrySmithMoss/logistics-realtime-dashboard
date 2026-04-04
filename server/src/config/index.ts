@@ -21,6 +21,8 @@ const envSchema = z
     SIMULATOR_WATCHDOG_TIMEOUT: z.coerce.number().default(30000),
     FLEET_BATCH_INTERVAL_MS: z.coerce.number().default(1000),
     FLEET_HYDRATION_TIMEOUT: z.coerce.number().default(30000),
+    FLEET_SSE_MAX_CONCURRENT: z.coerce.number().default(3),
+    FLEET_SSE_MIN_RETRY_MS: z.coerce.number().default(2000),
   })
   .refine(
     (data) => {
@@ -72,6 +74,10 @@ export const config = {
       watchdogTimeout: env.SIMULATOR_WATCHDOG_TIMEOUT,
       batchIntervalMs: env.FLEET_BATCH_INTERVAL_MS,
       hydrationTimeout: env.FLEET_HYDRATION_TIMEOUT,
+      sse: {
+        maxConcurrent: env.FLEET_SSE_MAX_CONCURRENT,
+        minRetryMs: env.FLEET_SSE_MIN_RETRY_MS,
+      },
     },
   },
 } as const;

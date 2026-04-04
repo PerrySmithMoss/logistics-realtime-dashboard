@@ -1,7 +1,8 @@
 import { Application } from "@app/application";
 import { consoleLogger } from "@shared/infrastructure/logger";
+import { config } from "./config";
 
-const app = new Application();
+const app = new Application(config);
 
 app.start().catch((err) => {
   consoleLogger.error("FAILED TO START SERVER:", err);

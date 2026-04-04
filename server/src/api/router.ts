@@ -1,6 +1,5 @@
 import { IAppContainer } from "@app/interfaces/container.interface";
 import { createFleetRoutes } from "@modules/fleet/api/fleet.router";
-import { verifyServiceSecret } from "@shared/api/middleware";
 import { Router } from "express";
 
 export const createApiRouter = (appContainer: IAppContainer): Router => {
@@ -9,13 +8,13 @@ export const createApiRouter = (appContainer: IAppContainer): Router => {
   rootRouter.get("/health/live", appContainer.controllers.health.live);
   rootRouter.get("/health/ready", appContainer.controllers.health.ready);
 
-  const authGuard = verifyServiceSecret(appContainer.logger, {
-    internalAuthSecret: appContainer.config.server.internalAuthSecret,
-  });
-
   rootRouter.use(
     "/fleet",
-    createFleetRoutes(appContainer.controllers.fleet, authGuard),
+    createFleetRoutes(appContainer.controllers.fleet, appContainer.logger, {
+      internalAuthSecret: appContainer.config.server.internalAuthSecret,
+      maxConcurrent: appContainer.config.modules.fleet.sse.maxConcurrent,
+      minRetryMs: appContainer.config.modules.fleet.sse.minRetryMs,
+    }),
   );
 
   return rootRouter;

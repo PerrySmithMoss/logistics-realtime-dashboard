@@ -19,8 +19,8 @@ export const verifyServiceSecret = (
         data: null,
         error: {
           message: "Unauthorised",
-          code: AppErrorCodes.InternalServerError,
-          statusCode: 500,
+          code: AppErrorCodes.Unauthorised,
+          statusCode: 401,
         },
         meta: {
           timestamp: new Date().toISOString(),
