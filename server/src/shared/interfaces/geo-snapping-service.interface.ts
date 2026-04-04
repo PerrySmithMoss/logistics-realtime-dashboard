@@ -11,5 +11,8 @@ export interface SnapResponse {
 }
 
 export interface IGeoSnappingService {
-  snapBatch(points: SnapRequest[]): Promise<SnapResponse[]>;
+  snapBatch(
+    points: SnapRequest[],
+    options?: { signal?: AbortSignal },
+  ): Promise<SnapResponse[]>;
 }

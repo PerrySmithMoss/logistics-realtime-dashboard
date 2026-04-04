@@ -27,7 +27,15 @@ export class QueryBus implements IQueryBus {
   async ask<K extends keyof GlobalQueryRegistry>(
     queryName: K,
     params: GlobalQueryRegistry[K]["request"],
+    options?: { signal?: AbortSignal },
   ): Promise<GlobalQueryRegistry[K]["response"]> {
+    if (options?.signal?.aborted) {
+      throw new InternalServerError(
+        `Query ${queryName} cancelled: Signal already aborted.`,
+        false,
+      );
+    }
+
     const handler = this.handlers.get(queryName);
 
     if (!handler) {

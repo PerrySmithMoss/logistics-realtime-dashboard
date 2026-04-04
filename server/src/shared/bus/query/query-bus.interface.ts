@@ -7,6 +7,7 @@ export interface IQueryBus {
   ask<K extends keyof GlobalQueryRegistry>(
     queryName: K,
     params: GlobalQueryRegistry[K]["request"],
+    options?: { signal?: AbortSignal },
   ): Promise<GlobalQueryRegistry[K]["response"]>;
 
   register<K extends keyof GlobalQueryRegistry>(

@@ -26,7 +26,15 @@ export class CommandBus implements ICommandBus {
   public async execute<K extends keyof GlobalCommandRegistry>(
     commandName: K,
     request: GlobalCommandRegistry[K],
+    options?: { signal?: AbortSignal },
   ): Promise<void> {
+    if (options?.signal?.aborted) {
+      throw new InternalServerError(
+        `Command ${commandName} cancelled: Signal already aborted.`,
+        false,
+      );
+    }
+
     const handler = this.handlers.get(commandName);
     if (!handler) {
       throw new InternalServerError(
