@@ -1,7 +1,7 @@
 import { UpdateVehicleLocationCommand } from "@modules/vehicle/core/commands/update-location/update-vehicle-location";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { AppError } from "@shared/errors/app.errors";
-import { ISimulator } from "@shared/interfaces";
+import { ILifecycleManager, ISimulator } from "@shared/interfaces";
 import { ILogger } from "@shared/interfaces/logger.interface";
 
 export class FleetSimulator implements ISimulator {
@@ -16,11 +16,16 @@ export class FleetSimulator implements ISimulator {
   constructor(
     private readonly commandBus: ICommandBus,
     private readonly logger: ILogger,
+    private readonly lifecycle: ILifecycleManager,
     private readonly settings: {
       tickInterval: number;
       watchdogTimeout: number;
     },
-  ) {}
+  ) {
+    this.lifecycle.onShutdown(async () => {
+      this.stop();
+    });
+  }
 
   public initialise(ids: string[]) {
     this.vehicleIds = ids;
@@ -35,7 +40,7 @@ export class FleetSimulator implements ISimulator {
   }
 
   public start() {
-    if (this.interval) return;
+    if (this.interval || this.lifecycle.isShuttingDown) return;
 
     this.logger.info("[FleetSimulator] Waking up - Active listeners detected.");
 
@@ -52,6 +57,11 @@ export class FleetSimulator implements ISimulator {
   }
 
   private async tick() {
+    if (this.lifecycle.isShuttingDown) {
+      this.stop();
+      return;
+    }
+
     const now = Date.now();
     const diff = now - this.lastHeartbeat;
 
@@ -63,7 +73,11 @@ export class FleetSimulator implements ISimulator {
       return;
     }
 
+    const signal = this.lifecycle.getShutdownSignal();
+
     for (const id of this.vehicleIds) {
+      if (signal.aborted) break;
+
       try {
         let state = this.vehicleStates.get(id);
         if (!state) {
@@ -89,8 +103,11 @@ export class FleetSimulator implements ISimulator {
         await this.commandBus.execute(
           UpdateVehicleLocationCommand.type,
           new UpdateVehicleLocationCommand(id, state.lat, state.lng, status),
+          { signal },
         );
       } catch (err) {
+        if (signal.aborted) return;
+
         this.logger.error(
           `[FleetSimulator] Failed to update vehicle ${id}`,
           err,
