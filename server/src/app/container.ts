@@ -2,7 +2,6 @@ import { IAppConfig } from "@config/index";
 import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller.interface";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { FleetModule } from "@modules/fleet/fleet.module";
-import { IVehicleController } from "@modules/vehicle/api/interfaces/vehicle-controller.interface";
 import { VehicleModule } from "@modules/vehicle/vehicle.module";
 import { HealthController } from "@shared/api/health.controller";
 import { CommandBus } from "@shared/bus/command/command-bus";
@@ -33,7 +32,6 @@ export class AppContainer implements IAppContainer {
     },
     public readonly controllers: {
       readonly health: IHealthController;
-      readonly vehicle: IVehicleController;
       readonly fleet: IFleetController;
     },
     public readonly fleetDataService: IFleetDataService,
@@ -84,7 +82,7 @@ export class AppContainer implements IAppContainer {
     const database = new InMemoryDatabase(lifecycle);
     const eventBroker = new InMemoryEventBroker(lifecycle, eventBrokerLogger);
 
-    const vehicleController = VehicleModule.init(
+    VehicleModule.init(
       commandBus,
       queryBus,
       eventBroker,
@@ -105,7 +103,6 @@ export class AppContainer implements IAppContainer {
 
     const controllers = {
       health: new HealthController(lifecycle, fleetDataService),
-      vehicle: vehicleController,
       fleet: fleetController,
     };
 

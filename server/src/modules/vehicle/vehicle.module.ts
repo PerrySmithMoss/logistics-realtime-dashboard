@@ -4,8 +4,6 @@ import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import { IVehicleController } from "./api/interfaces/vehicle-controller.interface";
-import { VehicleController } from "./api/vehicle.controller";
 import {
   UpdateVehicleLocationCommand,
   UpdateVehicleLocationHandler,
@@ -28,7 +26,7 @@ export class VehicleModule {
     db: IDatabase,
     logger: ILogger,
     config: IAppConfig["modules"]["vehicle"],
-  ): IVehicleController {
+  ): void {
     const repository = new InMemoryVehicleRepository(db);
 
     if (config.seedMockData) {
@@ -37,8 +35,6 @@ export class VehicleModule {
 
     this.registerCommands(commandBus, repository, broker);
     this.registerQueries(queryBus, repository);
-
-    return new VehicleController(commandBus, queryBus);
   }
 
   private static seedRepository(
