@@ -1,4 +1,5 @@
 import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { VehicleStatus } from "../entities/vehicle.entity";
 
 export const VehicleEvents = {
   LOCATION_UPDATED: "VEHICLE.LOCATION_UPDATED",
@@ -11,8 +12,10 @@ export class VehicleLocationUpdatedEvent implements IStatusChangeEvent {
 
   constructor(
     public readonly vehicleId: string,
-    public readonly status: string,
+    public readonly status: VehicleStatus,
+    public readonly plateNumber: string,
     public readonly lat: number,
     public readonly lng: number,
+    public readonly timestamp: string,
   ) {}
 }

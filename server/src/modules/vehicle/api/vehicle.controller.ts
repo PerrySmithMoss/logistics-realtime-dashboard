@@ -16,18 +16,6 @@ export class VehicleController
     super();
   }
 
-  public create = async (req: Request, res: Response) => {
-    const { plateNumber } = req.body;
-    // await this.commandBus.execute(...)
-    // this.created(res);
-  };
-
-  public getDetails = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    // const result = await this.queryBus.ask(...)
-    this.ok(res, { id });
-  };
-
   public updateLocation = async (req: Request, res: Response) => {
     const { vehicleId, lat, lng, status } = req.body;
 
