@@ -1,9 +1,9 @@
+import { InternalServerError } from "@shared/errors/app.errors";
+import { IBroadcastScheduler, ISimulator } from "@shared/interfaces";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 import { Response } from "express";
 import { FleetStatsUpdatedEvent } from "../events/fleet-events";
-
-import { IBroadcastScheduler, ISimulator } from "@shared/interfaces";
-import { ILogger } from "@shared/interfaces/logger.interface";
 import { IFleetObserverService } from "../interfaces/fleet-observer-service.interface";
 
 interface Observer {
@@ -34,8 +34,19 @@ export class FleetObserverService implements IFleetObserverService {
     res: Response,
     callback: (stats: unknown) => void,
   ): void {
+    if (!this.reactor || !this.simulator) {
+      this.logger.error(
+        "[FleetObserverService] Attempted to add observer, but reactor and simulator are missing.",
+      );
+      throw new InternalServerError(
+        "Fleet Tracking Pipeline is not initialised.",
+        false,
+      );
+    }
+
     const isFirst = this.observers.size === 0;
     this.observers.set(id, { callback, res });
+
     this.logger.info(
       `[FleetObserverService] Observer joined: ${id} | Total: ${this.observers.size}`,
     );
@@ -60,13 +71,32 @@ export class FleetObserverService implements IFleetObserverService {
   }
 
   private broadcastToObservers = (event: FleetStatsUpdatedEvent): void => {
-    for (const [id, observer] of this.observers.entries()) {
+    if (this.observers.size === 0) return;
+
+    // snapshot observer IDs to avoid issues if the map is mutated during iteration
+    const observerIds = Array.from(this.observers.keys());
+
+    for (const id of observerIds) {
+      const observer = this.observers.get(id);
+      if (!observer) continue;
+
       if (observer.res.writableEnded || !observer.res.writable) {
         this.observers.delete(id);
+        this.logger.debug(
+          `[FleetObserverService] Cleaned up stale observer: ${id}`,
+        );
         continue;
       }
 
-      observer.callback(event.payload);
+      try {
+        observer.callback(event.payload);
+      } catch (err) {
+        this.logger.error(
+          `[FleetObserverService] Failed to send to ${id}:`,
+          err,
+        );
+        this.observers.delete(id);
+      }
     }
 
     if (this.observers.size === 0) {
