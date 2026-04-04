@@ -1,4 +1,5 @@
 import { BaseController } from "@shared/api/base.controller";
+import { ILifecycleManager } from "@shared/interfaces";
 import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { IFleetDataService } from "../core/interfaces/fleet-data-service.interface";
@@ -14,6 +15,7 @@ export class FleetController
   constructor(
     private readonly observerService: IFleetObserverService,
     private readonly dataService: IFleetDataService,
+    private readonly lifecycle: ILifecycleManager,
   ) {
     super();
   }
@@ -29,6 +31,8 @@ export class FleetController
 
   public stream = async (req: Request, res: Response) => {
     const connectionId = randomUUID();
+    const shutdownSignal = this.lifecycle.getShutdownSignal();
+
     let heartbeatTimer: NodeJS.Timeout | null = null;
 
     res.writeHead(200, {
@@ -49,6 +53,7 @@ export class FleetController
         heartbeatTimer = null;
       }
       this.observerService.removeObserver(connectionId);
+      shutdownSignal.removeEventListener("abort", cleanup);
       if (!res.writableEnded) res.end();
     };
 
@@ -57,7 +62,13 @@ export class FleetController
     req.on("error", cleanup);
 
     const initialSnapshot = await this.dataService.getCurrentSnapshot();
+
+    // exit early if the user disconnected while we are getting the snapshot
+    if (res.writableEnded) return;
+
     sendSse("stats-update", initialSnapshot);
+
+    shutdownSignal.addEventListener("abort", cleanup, { once: true });
 
     this.observerService.addObserver(connectionId, res, (data) => {
       sendSse("stats-update", data);

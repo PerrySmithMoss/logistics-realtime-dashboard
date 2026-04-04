@@ -49,15 +49,10 @@ export class FleetModule {
     const observerService = new FleetObserverService(eventBroker, logger);
 
     if (config.enableFleetSimulator) {
-      const simulator = new FleetSimulator(
-        commandBus,
-        logger,
-
-        {
-          tickInterval: config.simulatorTickInterval,
-          watchdogTimeout: config.watchdogTimeout,
-        },
-      );
+      const simulator = new FleetSimulator(commandBus, logger, lifecycle, {
+        tickInterval: config.simulatorTickInterval,
+        watchdogTimeout: config.watchdogTimeout,
+      });
       simulator.initialise(mockVehicles.map((v) => v.id));
 
       const reactor = new FleetEventReactor(dataService, eventBroker, logger);
@@ -85,7 +80,7 @@ export class FleetModule {
     }
 
     return {
-      controller: new FleetController(observerService, dataService),
+      controller: new FleetController(observerService, dataService, lifecycle),
       dataService,
     };
   }
