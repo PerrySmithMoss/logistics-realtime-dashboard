@@ -11,12 +11,29 @@ export class FleetStatsProjection implements IFleetStatsProjection {
    */
   private readonly hotCache = new Map<string, VehicleSnapshot>();
 
+  private stats = {
+    total: 0,
+    delayed: 0,
+  };
+
   public get totalCount(): number {
     return this.hotCache.size;
   }
 
   public handleUpdate(event: IStatusChangeEvent): void {
     const existing = this.hotCache.get(event.vehicleId);
+
+    if (!existing) {
+      this.stats.total++;
+    }
+
+    // If status changed to delayed => increment,
+    // If it was delayed and changed back => decrement.
+    if (existing?.status !== "delayed" && event.status === "delayed") {
+      this.stats.delayed++;
+    } else if (existing?.status === "delayed" && event.status !== "delayed") {
+      this.stats.delayed--;
+    }
 
     this.hotCache.set(event.vehicleId, {
       id: event.vehicleId,
@@ -31,8 +48,8 @@ export class FleetStatsProjection implements IFleetStatsProjection {
 
   public getCurrentSnapshot(): IFleetSnapshot {
     const vehicles = Array.from(this.hotCache.values());
-    const total = vehicles.length;
-    const delayedCount = vehicles.filter((v) => v.status === "delayed").length;
+    const total = this.stats.total;
+    const delayedCount = this.stats.delayed;
     const activeCount = total - delayedCount;
 
     return {
