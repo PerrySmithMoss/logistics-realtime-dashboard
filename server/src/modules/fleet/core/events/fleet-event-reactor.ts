@@ -32,21 +32,35 @@ export class FleetEventReactor implements IBroadcastScheduler {
     }
   }
 
-  public start() {
-    if (this.publishInterval) return;
+  private async broadcast() {
+    if (!this.needsPublish) return;
 
-    this.logger.info("[FleetEventReactor] Activating broadcast loop...");
-    this.publishInterval = setInterval(async () => {
-      if (!this.needsPublish) return;
-
+    try {
       const snapshot = await this.dataService.getCurrentSnapshot();
       this.broker.publish(
         FleetStatsUpdatedEvent.type,
         new FleetStatsUpdatedEvent(snapshot),
       );
-
       this.needsPublish = false;
-    }, 1000);
+    } catch (err) {
+      this.logger.error("[FleetEventReactor] Broadcast failed", err);
+    }
+  }
+
+  public start() {
+    if (this.publishInterval) return;
+
+    this.logger.info("[FleetEventReactor] Activating broadcast loop...");
+
+    const run = async () => {
+      await this.broadcast();
+
+      if (this.publishInterval) {
+        this.publishInterval = setTimeout(run, 1000);
+      }
+    };
+
+    this.publishInterval = setTimeout(run, 1000);
   }
 
   public stop(): void {
