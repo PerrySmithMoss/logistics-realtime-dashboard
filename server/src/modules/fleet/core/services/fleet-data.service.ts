@@ -15,6 +15,7 @@ import { FleetStatsProjection } from "../projections/fleet-stats.projection";
 
 export class FleetDataService implements IFleetDataService {
   private _isHydrated = false;
+  private isProcessing = false;
   private snapBuffer = new Map<string, IStatusChangeEvent>();
   private batchInterval: NodeJS.Timeout | null = null;
 
@@ -37,24 +38,28 @@ export class FleetDataService implements IFleetDataService {
   }
 
   public async hydrate(): Promise<void> {
-    const controller = new AbortController();
+    const globalSignal = this.lifecycle.getShutdownSignal();
+    const hydrationController = new AbortController();
     const timeoutId = setTimeout(
-      () => controller.abort(),
+      () => hydrationController.abort(),
       this.settings.hydrationTimeout,
     );
+
+    const onAbort = () => hydrationController.abort();
+    globalSignal.addEventListener("abort", onAbort);
 
     try {
       this.logger.info("[FleetDataService] Starting hydration...");
 
       const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {
-        signal: controller.signal,
+        signal: hydrationController.signal,
       });
 
       for (const v of vehicles) {
-        if (controller.signal.aborted) {
+        if (hydrationController.signal.aborted) {
           throw new AppError(
             "Hydration timed out",
-            AppErrorCodes.HYDRATION_FAILED,
+            AppErrorCodes.HydrationFailed,
             500,
             false,
           );
@@ -77,6 +82,7 @@ export class FleetDataService implements IFleetDataService {
       throw new InternalServerError("Fleet hydration failed", err, false);
     } finally {
       clearTimeout(timeoutId);
+      globalSignal.removeEventListener("abort", onAbort);
     }
   }
 
@@ -89,23 +95,34 @@ export class FleetDataService implements IFleetDataService {
   }
 
   private async flushSnapBuffer(): Promise<void> {
-    if (this.snapBuffer.size === 0) return;
+    if (this.snapBuffer.size === 0 || this.isProcessing) return;
 
-    const events = Array.from(this.snapBuffer.values());
-    this.snapBuffer.clear();
+    this.isProcessing = true;
 
-    const points = events.map((e) => ({ lat: e.lat, lng: e.lng }));
-    const results = await this.snappingService.snapBatch(points);
+    try {
+      const events = Array.from(this.snapBuffer.values());
+      this.snapBuffer.clear();
 
-    events.forEach((event, index) => {
-      const snapped = results[index];
-      this.projection.handleUpdate({
-        ...event,
-        lat: snapped.lat,
-        lng: snapped.lng,
-        isSnapped: snapped.success,
+      const points = events.map((e) => ({ lat: e.lat, lng: e.lng }));
+
+      const results = await this.snappingService.snapBatch(points, {
+        signal: this.lifecycle.getShutdownSignal(),
       });
-    });
+
+      events.forEach((event, index) => {
+        const snapped = results[index];
+        this.projection.handleUpdate({
+          ...event,
+          lat: snapped.lat,
+          lng: snapped.lng,
+          isSnapped: snapped.success,
+        });
+      });
+    } catch (err) {
+      this.logger.error("Batch flush failed:", err);
+    } finally {
+      this.isProcessing = false;
+    }
   }
 
   private startBatching(): void {
