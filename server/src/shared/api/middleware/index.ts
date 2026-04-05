@@ -1,2 +1,3 @@
 export * from "./auth.middleware";
-export * from "./sse-rate-limiter";
+export * from "./rate-limiter.middleware";
+export * from "./sse-rate-limiter.middleware";

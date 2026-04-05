@@ -1,4 +1,8 @@
-import { sseRateLimiter, verifyServiceSecret } from "@shared/api/middleware";
+import {
+  rateLimiter,
+  sseRateLimiter,
+  verifyServiceSecret,
+} from "@shared/api/middleware";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { Router } from "express";
@@ -28,10 +32,16 @@ export const createFleetRoutes = (
     },
   });
 
+  const snapshotRateLimit = rateLimiter(cache, {
+    windowMs: 60000,
+    maxRequests: 30,
+    keyPrefix: "rl:fleet:snapshot",
+  });
+
   fleetRouter.get(
     "/snapshot",
     authGuard,
-    //  snapshotRateLimit,
+    snapshotRateLimit,
     //     validateFleetSnapshotRequest,
     controller.getSnapshot,
   );

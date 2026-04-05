@@ -1,6 +1,8 @@
 import { createErrorHandler, notFoundHandler } from "@api/middleware";
 import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
+import { createHealthRouter } from "@shared/api/health.router";
+import { rateLimiter } from "@shared/api/middleware";
 import { consoleLogger } from "@shared/infrastructure/logger";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { createApiRouter } from "api/router";
@@ -29,6 +31,19 @@ export class Application {
 
       // TODO: add this middleware
       // app.use(requestIdMiddleware);
+
+      expressApp.use(
+        "/health",
+        createHealthRouter(this.container.controllers.health),
+      );
+
+      const globalRateLimit = rateLimiter(this.container.cache, {
+        windowMs: 60000,
+        maxRequests: 100,
+        keyPrefix: "rl:global",
+      });
+
+      expressApp.use(globalRateLimit);
 
       expressApp.use("/api/v1", createApiRouter(this.container));
 

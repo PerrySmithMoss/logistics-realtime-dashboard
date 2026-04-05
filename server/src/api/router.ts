@@ -3,11 +3,9 @@ import { createFleetRoutes } from "@modules/fleet/api/fleet.router";
 import { Router } from "express";
 
 export const createApiRouter = (appContainer: IAppContainer): Router => {
-  const { controllers, logger, cache, config } = appContainer;
   const rootRouter = Router();
 
-  rootRouter.get("/health/live", controllers.health.live);
-  rootRouter.get("/health/ready", controllers.health.ready);
+  const { controllers, logger, cache, config } = appContainer;
 
   rootRouter.use(
     "/fleet",
