@@ -24,12 +24,12 @@ export interface FleetModuleResult {
 
 export class FleetModule {
   public static async init(
+    config: IAppConfig["modules"]["fleet"],
+    lifecycle: ILifecycleManager,
     commandBus: ICommandBus,
     queryBus: IQueryBus,
     eventBroker: IEventBroker,
     logger: ILogger,
-    config: IAppConfig["modules"]["fleet"],
-    lifecycle: ILifecycleManager,
   ): Promise<FleetModuleResult> {
     const projection = new FleetStatsProjection();
     const orsClient = new OpenRouteServiceClient(config.orsApiKey, logger);

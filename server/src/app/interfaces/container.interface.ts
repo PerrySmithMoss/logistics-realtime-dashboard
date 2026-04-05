@@ -5,6 +5,7 @@ import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { ILifecycleManager } from "@shared/interfaces";
+import { ICache } from "@shared/interfaces/cache.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
@@ -18,6 +19,7 @@ export interface IAppContainer {
   readonly commandBus: ICommandBus;
   readonly queryBus: IQueryBus;
   readonly database: IDatabase;
+  readonly cache: ICache;
   readonly eventBroker: IEventBroker;
   readonly lifecycle: ILifecycleManager;
   readonly controllers: {

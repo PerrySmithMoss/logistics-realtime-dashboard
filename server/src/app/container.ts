@@ -8,11 +8,13 @@ import { CommandBus } from "@shared/bus/command/command-bus";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { QueryBus } from "@shared/bus/query/query-bus";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
+import { InMemoryCache } from "@shared/infrastructure/cache/in-memory-cache";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { InMemoryEventBroker } from "@shared/infrastructure/events/in-memory-event-broker";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
 import { ConsoleLogger } from "@shared/infrastructure/logger";
 import { InMemoryDatabase } from "@shared/infrastructure/persistence/in-memory-database";
+import { ICache } from "@shared/interfaces/cache.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
@@ -22,13 +24,14 @@ import { IAppContainer } from "./interfaces/container.interface";
 export class AppContainer implements IAppContainer {
   private constructor(
     public readonly dependencies: {
+      config: IAppConfig;
       lifecycle: ILifecycleManager;
       commandBus: ICommandBus;
       queryBus: IQueryBus;
       database: IDatabase;
+      cache: ICache;
       eventBroker: IEventBroker;
       logger: ILogger;
-      config: IAppConfig;
     },
     public readonly controllers: {
       readonly health: IHealthController;
@@ -56,6 +59,9 @@ export class AppContainer implements IAppContainer {
   public get database() {
     return this.dependencies.database;
   }
+  public get cache() {
+    return this.dependencies.cache;
+  }
   public get eventBroker() {
     return this.dependencies.eventBroker;
   }
@@ -80,6 +86,7 @@ export class AppContainer implements IAppContainer {
     const commandBus = new CommandBus();
     const queryBus = new QueryBus();
     const database = new InMemoryDatabase(lifecycle);
+    const cache = new InMemoryCache();
     const eventBroker = new InMemoryEventBroker(lifecycle, eventBrokerLogger);
 
     VehicleModule.init(
@@ -93,12 +100,12 @@ export class AppContainer implements IAppContainer {
 
     const { controller: fleetController, dataService: fleetDataService } =
       await FleetModule.init(
+        config.modules.fleet,
+        lifecycle,
         commandBus,
         queryBus,
         eventBroker,
         fleetLogger,
-        config.modules.fleet,
-        lifecycle,
       );
 
     const controllers = {
@@ -110,13 +117,14 @@ export class AppContainer implements IAppContainer {
 
     return new AppContainer(
       {
+        config,
+        lifecycle,
         logger: baseLogger,
         commandBus,
         queryBus,
         database,
+        cache,
         eventBroker,
-        lifecycle,
-        config,
       },
       controllers,
       fleetDataService,

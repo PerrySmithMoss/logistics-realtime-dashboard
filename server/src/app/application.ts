@@ -27,7 +27,9 @@ export class Application {
       expressApp.set("trust proxy", true);
       expressApp.use(express.json({ limit: "1mb" }));
 
+      // TODO: add this middleware
       // app.use(requestIdMiddleware);
+
       expressApp.use("/api/v1", createApiRouter(this.container));
 
       expressApp.use(notFoundHandler);
