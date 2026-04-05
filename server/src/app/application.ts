@@ -1,4 +1,8 @@
-import { createErrorHandler, notFoundHandler } from "@api/middleware";
+import {
+  createErrorHandler,
+  notFoundHandler,
+  requestIdMiddleware,
+} from "@api/middleware";
 import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { createHealthRouter } from "@shared/api/health.router";
@@ -26,11 +30,9 @@ export class Application {
 
       const expressApp = express();
 
+      expressApp.use(requestIdMiddleware);
       expressApp.set("trust proxy", true);
       expressApp.use(express.json({ limit: "1mb" }));
-
-      // TODO: add this middleware
-      // app.use(requestIdMiddleware);
 
       expressApp.use(
         "/health",

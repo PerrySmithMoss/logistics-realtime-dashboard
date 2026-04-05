@@ -13,22 +13,27 @@ export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
     const code = isOperational ? error.code : AppErrorCodes.InternalServerError;
     const message = isOperational ? error.message : "Internal Server Error";
     const details = isOperational ? error.details : undefined;
+    const retryAfter =
+      error instanceof AppError ? error.retryAfterSeconds : undefined;
 
     if (!isOperational) {
       logger.error(`[Unexpected Error] ${req.method} ${req.path}`, {
+        requestId: req.id,
         message: error.message,
         stack: error.stack,
-        body: req.body,
       });
-    } else {
-      logger.warn(`[Operational Error] ${message}`, {
+    } else if (statusCode === 429 || statusCode === 403 || statusCode === 401) {
+      logger.warn(`[Security/Limit] ${message}`, {
+        requestId: req.id,
         code,
         path: req.path,
+        ip: req.ip,
       });
     }
 
     return res.status(statusCode).json(
       createErrorResponse(
+        req.id,
         {
           message,
           code,
@@ -37,6 +42,7 @@ export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
           stack: config.server.isDev ? error.stack : undefined,
         },
         req.path,
+        retryAfter,
       ),
     );
   };

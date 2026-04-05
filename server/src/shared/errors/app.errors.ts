@@ -26,6 +26,7 @@ export class AppError extends Error {
     public readonly statusCode: number = 500,
     public readonly isOperational: boolean = true,
     public readonly details?: AppErrorDetails[],
+    public readonly retryAfterSeconds?: number,
     options?: ErrorOptions,
   ) {
     super(message, options);
@@ -72,6 +73,7 @@ export class InternalServerError extends AppError {
       500,
       isOperational,
       undefined,
+      undefined,
       { cause: normalizedCause },
     );
 
@@ -89,6 +91,7 @@ export class ExternalServiceError extends AppError {
       AppErrorCodes.ExternalServiceError,
       502,
       isOperational,
+      undefined,
       undefined,
       { cause: normalizedCause },
     );
@@ -139,9 +142,14 @@ export class TooManyRequestsError extends AppError {
     message: string = "Too many requests, please try again later.",
     public readonly retryAfter?: number,
   ) {
-    super(message, AppErrorCodes.TooManyRequests, 429, true, undefined, {
-      cause: { retryAfter },
-    });
+    super(
+      message,
+      AppErrorCodes.TooManyRequests,
+      429,
+      true,
+      undefined,
+      retryAfter,
+    );
     this.name = "TooManyRequestsError";
   }
 }

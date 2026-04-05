@@ -14,7 +14,7 @@ export interface ApiResponseError {
 }
 
 export interface ApiResponseMeta {
-  requestId?: string;
+  requestId: string;
   timestamp: string;
   pagination?: {
     total: number;

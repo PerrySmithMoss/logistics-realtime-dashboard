@@ -18,6 +18,7 @@ export const createSuccessResponse = <T>(
 });
 
 export const createErrorResponse = (
+  reqId: string,
   error: ApiResponseError,
   path?: string,
   retryAfter?: number,
@@ -26,6 +27,7 @@ export const createErrorResponse = (
   data: null,
   error,
   meta: {
+    requestId: reqId,
     timestamp: new Date().toISOString(),
     path,
     ...(retryAfter && { retryAfterSeconds: retryAfter }),
