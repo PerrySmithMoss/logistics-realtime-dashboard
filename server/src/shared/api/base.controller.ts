@@ -1,8 +1,11 @@
-import { ApiResponse } from "@shared/types/response.types";
+import { ApiResponse, ApiResponseMeta } from "@shared/types/response.types";
 import { Response } from "express";
 
 export abstract class BaseController {
-  private envelope<T>(data: T, meta?: any): ApiResponse<T> {
+  private envelope<T, M extends ApiResponseMeta>(
+    data: T,
+    meta?: M,
+  ): ApiResponse<T> {
     return {
       success: true,
       data,
@@ -16,11 +19,19 @@ export abstract class BaseController {
     };
   }
 
-  public ok<T>(res: Response, data: T, meta?: any): Response {
+  public ok<T, M extends ApiResponseMeta>(
+    res: Response,
+    data: T,
+    meta?: M,
+  ): Response {
     return res.status(200).json(this.envelope(data, meta));
   }
 
-  public created<T>(res: Response, data: T, meta?: any): Response {
+  public created<T, M extends ApiResponseMeta>(
+    res: Response,
+    data: T,
+    meta?: M,
+  ): Response {
     return res.status(201).json(this.envelope(data, meta));
   }
 

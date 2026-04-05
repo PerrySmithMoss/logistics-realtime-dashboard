@@ -22,11 +22,7 @@ export class FleetController
 
   public getSnapshot = async (_req: Request, res: Response) => {
     const snapshot = await this.dataService.getCurrentSnapshot();
-
-    return res.status(200).json({
-      ...snapshot,
-      timestamp: new Date().toISOString(),
-    });
+    return this.ok(res, snapshot);
   };
 
   public stream = async (req: Request, res: Response) => {

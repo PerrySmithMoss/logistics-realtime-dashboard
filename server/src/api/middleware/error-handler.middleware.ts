@@ -1,54 +1,43 @@
 import { config } from "@config/index";
 import { AppError, AppErrorCodes } from "@shared/errors/app.errors";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import { createErrorResponse } from "@shared/utils/response.utils";
 import { ErrorRequestHandler } from "express";
 
 export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
   return (err, req, res, _next) => {
-    const isOperational = err instanceof AppError;
+    const error = err instanceof Error ? err : new Error(String(err));
+    const isOperational = error instanceof AppError;
+
+    const statusCode = isOperational ? error.statusCode : 500;
+    const code = isOperational ? error.code : AppErrorCodes.InternalServerError;
+    const message = isOperational ? error.message : "Internal Server Error";
+    const details = isOperational ? error.details : undefined;
 
     if (!isOperational) {
-      logger.error(`Unexpected Error: ${req.method} ${req.path}`, {
-        message: err.message,
-        stack: err.stack,
+      logger.error(`[Unexpected Error] ${req.method} ${req.path}`, {
+        message: error.message,
+        stack: error.stack,
+        body: req.body,
       });
-
-      res.status(500).json({
-        success: false,
-        data: null,
-        error: {
-          message: "Internal Server Error",
-          code: AppErrorCodes.InternalServerError,
-          statusCode: 500,
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          path: req.path,
-        },
+    } else {
+      logger.warn(`[Operational Error] ${message}`, {
+        code,
+        path: req.path,
       });
-
-      return;
     }
 
-    logger.warn(`Operational Error: ${err.message}`, {
-      code: err.code,
-      path: req.path,
-    });
-
-    return res.status(err.statusCode).json({
-      success: false,
-      data: null,
-      error: {
-        message: err.message,
-        code: err.code,
-        statusCode: err.statusCode,
-        ...(err.details?.length && { details: err.details }),
-        ...(config.server.isDev && { stack: err.stack }),
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        path: req.path,
-      },
-    });
+    return res.status(statusCode).json(
+      createErrorResponse(
+        {
+          message,
+          code,
+          statusCode,
+          details: details?.length ? details : undefined,
+          stack: config.server.isDev ? error.stack : undefined,
+        },
+        req.path,
+      ),
+    );
   };
 };

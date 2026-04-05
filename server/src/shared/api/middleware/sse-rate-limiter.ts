@@ -1,7 +1,9 @@
-import { AppErrorCodes } from "@shared/errors/app.errors";
+import {
+  InternalServerError,
+  TooManyRequestsError,
+} from "@shared/errors/app.errors";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import { createErrorResponse } from "@shared/utils/response.utils";
 import { RequestHandler } from "express";
 
 const DEFAULT_MESSAGES = {
@@ -43,17 +45,7 @@ export const sseRateLimiter = (
     const ip = req.ip;
 
     if (!ip) {
-      logger.error(`[sseRateLimiter] Missing IP for ${req.path}`);
-      return res.status(500).json(
-        createErrorResponse(
-          {
-            message: invalidIpErrMsg,
-            code: AppErrorCodes.InternalServerError,
-            statusCode: 500,
-          },
-          req.path,
-        ),
-      );
+      throw new InternalServerError(invalidIpErrMsg);
     }
 
     const countKey = `sse:count:${req.path}:${ip}`;
@@ -62,39 +54,24 @@ export const sseRateLimiter = (
     const isThrottled = await cache.get(retryKey);
     const currentCount = (await cache.get<number>(countKey)) || 0;
 
-    const remaining = Math.max(0, maxConcurrent - currentCount);
-
+    const resetSeconds = Math.ceil(minRetryMs / 1000);
     res.setHeader("X-RateLimit-Limit", maxConcurrent);
-    res.setHeader("X-RateLimit-Remaining", remaining);
-    res.setHeader("X-RateLimit-Reset", Math.ceil(minRetryMs / 1000));
+    res.setHeader("X-RateLimit-Reset", resetSeconds);
 
     // frequency check (rate limit)
     if (isThrottled) {
-      return res.status(429).json(
-        createErrorResponse(
-          {
-            message: freqErrMsg,
-            code: AppErrorCodes.TooManyRequests,
-            statusCode: 429,
-          },
-          req.path,
-        ),
-      );
+      res.setHeader("X-RateLimit-Remaining", 0);
+      throw new TooManyRequestsError(freqErrMsg, resetSeconds);
     }
 
+    // concurrency check (connection limit)
     if (currentCount >= maxConcurrent) {
       res.setHeader("X-RateLimit-Remaining", 0);
-      return res.status(429).json(
-        createErrorResponse(
-          {
-            message: concErrMsg,
-            code: AppErrorCodes.TooManyRequests,
-            statusCode: 429,
-          },
-          req.path,
-        ),
-      );
+      throw new TooManyRequestsError(concErrMsg);
     }
+
+    const remaining = Math.max(0, maxConcurrent - (currentCount + 1)); // +1 because this req is about to connect
+    res.setHeader("X-RateLimit-Remaining", remaining);
 
     await cache.set(retryKey, true, minRetryMs);
     await cache.increment(countKey, 86400000);

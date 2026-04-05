@@ -2,13 +2,14 @@ export enum AppErrorCodes {
   NotFound = "NOT_FOUND",
   BadRequest = "BAD_REQUEST",
   Unauthorised = "UNAUTHORISED",
+  Forbidden = "FORBIDDEN",
   UnprocessableEntity = "UNPROCESSABLE_ENTITY",
   FetchError = "FETCH_ERROR",
   HydrationFailed = "HYDRATION_FAILED",
   InternalServerError = "INTERNAL_SERVER_ERROR",
   ExternalServiceError = "EXTERNAL_SERVICE_ERROR",
   MissingIdentifier = "MISSING_IDENTIFIER",
-  TooManyRequests = "TooManyRequests",
+  TooManyRequests = "TOO_MANY_REQUESTS",
 }
 
 interface AppErrorDetails {
@@ -75,7 +76,6 @@ export class InternalServerError extends AppError {
     );
 
     this.name = "InternalServerError";
-
     this.cause = cause;
   }
 }
@@ -94,7 +94,6 @@ export class ExternalServiceError extends AppError {
     );
 
     this.name = "ExternalServiceError";
-
     this.cause = cause;
   }
 }
@@ -118,5 +117,31 @@ export class FetchError extends AppError {
       data: this.data,
       stack: this.stack,
     };
+  }
+}
+
+export class UnauthorisedError extends AppError {
+  constructor(message: string = "Unauthorised access") {
+    super(message, AppErrorCodes.Unauthorised, 401);
+    this.name = "UnauthorizedError";
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string = "Permission denied") {
+    super(message, AppErrorCodes.Forbidden, 403);
+    this.name = "ForbiddenError";
+  }
+}
+
+export class TooManyRequestsError extends AppError {
+  constructor(
+    message: string = "Too many requests, please try again later.",
+    public readonly retryAfter?: number,
+  ) {
+    super(message, AppErrorCodes.TooManyRequests, 429, true, undefined, {
+      cause: { retryAfter },
+    });
+    this.name = "TooManyRequestsError";
   }
 }
