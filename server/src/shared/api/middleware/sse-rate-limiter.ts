@@ -4,10 +4,17 @@ import { ILogger } from "@shared/interfaces/logger.interface";
 import { createErrorResponse } from "@shared/utils/response.utils";
 import { RequestHandler } from "express";
 
+const DEFAULT_MESSAGES = {
+  invalidIp: "Unable to verify client identity. Connection refused.",
+  frequency: "Connection attempt throttled. Please wait a moment.",
+  concurrency: "Maximum concurrent sessions reached for this resource.",
+};
+
 interface SseShieldOptions {
   maxConcurrent?: number;
   minRetryMs?: number;
   errorMessageResponses?: {
+    invalidIp?: string;
     frequencyErrorMessage?: string;
     concurrencyErrorMessage?: string;
   };
@@ -21,25 +28,26 @@ export const sseRateLimiter = (
   const {
     maxConcurrent = 3,
     minRetryMs = 2000,
-    errorMessageResponses = {
-      frequencyErrorMessage:
-        "Connection attempt throttled. Please wait a moment.",
-      concurrencyErrorMessage:
-        "Maximum concurrent sessions reached for this resource.",
-    },
+    errorMessageResponses = {},
   } = options;
+
+  const freqErrMsg =
+    errorMessageResponses.frequencyErrorMessage ?? DEFAULT_MESSAGES.frequency;
+  const concErrMsg =
+    errorMessageResponses.concurrencyErrorMessage ??
+    DEFAULT_MESSAGES.concurrency;
+  const invalidIpErrMsg =
+    errorMessageResponses.invalidIp ?? DEFAULT_MESSAGES.invalidIp;
 
   return async (req, res, next) => {
     const ip = req.ip;
 
     if (!ip) {
-      logger.error(
-        `[sseRateLimiter] Execution blocked: Missing IP for ${req.path}`,
-      );
+      logger.error(`[sseRateLimiter] Missing IP for ${req.path}`);
       return res.status(500).json(
         createErrorResponse(
           {
-            message: "Unable to verify client identity. Connection refused.",
+            message: invalidIpErrMsg,
             code: AppErrorCodes.InternalServerError,
             statusCode: 500,
           },
@@ -51,13 +59,21 @@ export const sseRateLimiter = (
     const countKey = `sse:count:${req.path}:${ip}`;
     const retryKey = `sse:retry:${req.path}:${ip}`;
 
-    // frequency check (rate limit)
     const isThrottled = await cache.get(retryKey);
+    const currentCount = (await cache.get<number>(countKey)) || 0;
+
+    const remaining = Math.max(0, maxConcurrent - currentCount);
+
+    res.setHeader("X-RateLimit-Limit", maxConcurrent);
+    res.setHeader("X-RateLimit-Remaining", remaining);
+    res.setHeader("X-RateLimit-Reset", Math.ceil(minRetryMs / 1000));
+
+    // frequency check (rate limit)
     if (isThrottled) {
       return res.status(429).json(
         createErrorResponse(
           {
-            message: errorMessageResponses.frequencyErrorMessage,
+            message: freqErrMsg,
             code: AppErrorCodes.TooManyRequests,
             statusCode: 429,
           },
@@ -66,13 +82,12 @@ export const sseRateLimiter = (
       );
     }
 
-    // concurrency check (connection limit)
-    const currentCount = (await cache.get<number>(countKey)) || 0;
     if (currentCount >= maxConcurrent) {
+      res.setHeader("X-RateLimit-Remaining", 0);
       return res.status(429).json(
         createErrorResponse(
           {
-            message: errorMessageResponses.concurrencyErrorMessage,
+            message: concErrMsg,
             code: AppErrorCodes.TooManyRequests,
             statusCode: 429,
           },
@@ -93,10 +108,10 @@ export const sseRateLimiter = (
     };
 
     res.on("close", () =>
-      cleanup().catch((e) => logger.error("SSE Cleanup Error", e)),
+      cleanup().catch((e) => logger.error("SSE Cleanup Close Error", e)),
     );
     res.on("finish", () =>
-      cleanup().catch((e) => logger.error("SSE Cleanup Error", e)),
+      cleanup().catch((e) => logger.error("SSE Cleanup Finish Error", e)),
     );
 
     next();

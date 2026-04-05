@@ -99,6 +99,10 @@ Server-Sent Events (SSE) keep connections open indefinitely, which can quickly e
 
 Both layers consume the unified `ICache` instance. This shared "Source of Truth" allows the system to identify an IP's behaviour across different protocols (REST vs. SSE), providing a holistic view of client demand and preventing resource exhaustion on the 2GB VPS.
 
+#### API Observability
+
+Automatically injects `X-RateLimit-*` headers into every response, providing clients with real-time metadata on connection quotas and cooldown windows.
+
 ---
 
 ## System Flow
