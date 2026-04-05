@@ -8,16 +8,7 @@ interface ICacheEntry {
 export class InMemoryCache implements ICache {
   private readonly cache = new Map<string, ICacheEntry>();
 
-  public async set<T>(
-    key: string,
-    value: T,
-    ttlMs: number = 60000,
-  ): Promise<void> {
-    const expiresAt = Date.now() + ttlMs;
-    this.cache.set(key, { value, expiresAt });
-  }
-
-  public async get<T>(key: string): Promise<T | null> {
+  private getCacheEntry<T>(key: string): T | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
 
@@ -29,19 +20,48 @@ export class InMemoryCache implements ICache {
     return entry.value as T;
   }
 
-  public async increment(key: string, ttlMs: number = 60000): Promise<number> {
-    const existing = await this.get<number>(key);
-    const newValue = (typeof existing === "number" ? existing : 0) + 1;
+  public async set<T>(
+    key: string,
+    value: T,
+    ttlMs: number = 60000,
+  ): Promise<void> {
+    const expiresAt = Date.now() + ttlMs;
+    this.cache.set(key, { value, expiresAt });
+  }
 
-    await this.set(key, newValue, ttlMs);
+  public async get<T>(key: string): Promise<T | null> {
+    return this.getCacheEntry<T>(key);
+  }
+
+  public async increment(key: string, ttlMs: number = 60000): Promise<number> {
+    const existing = this.getCacheEntry<number>(key);
+    const currentValue = typeof existing === "number" ? existing : 0;
+    const newValue = currentValue + 1;
+
+    const entry = this.cache.get(key);
+    const expiresAt =
+      entry && Date.now() <= entry.expiresAt
+        ? entry.expiresAt
+        : Date.now() + ttlMs;
+
+    this.cache.set(key, { value: newValue, expiresAt });
+
     return newValue;
   }
 
   public async decrement(key: string, ttlMs: number = 60000): Promise<number> {
-    const existing = await this.get<number>(key);
-    const newValue = (typeof existing === "number" ? existing : 0) - 1;
+    const existing = this.getCacheEntry<number>(key);
+    const currentValue = typeof existing === "number" ? existing : 0;
+    const newValue = currentValue - 1;
 
-    await this.set(key, newValue, ttlMs);
+    const entry = this.cache.get(key);
+    const expiresAt =
+      entry && Date.now() <= entry.expiresAt
+        ? entry.expiresAt
+        : Date.now() + ttlMs;
+
+    this.cache.set(key, { value: newValue, expiresAt });
+
     return newValue;
   }
 
