@@ -16,26 +16,22 @@ export const rateLimiter = (
     if (!ip) throw new InternalServerError("IP verification failed.");
 
     const key = `${keyPrefix}:${req.path}:${ip}`;
-    const currentUsage = (await cache.get<number>(key)) || 0;
 
+    const currentUsage = await cache.increment(key, windowMs);
+
+    const resetSeconds = Math.ceil(windowMs / 1000);
     res.setHeader("X-RateLimit-Limit", maxRequests);
-    res.setHeader(
-      "X-RateLimit-Remaining",
-      Math.max(0, maxRequests - (currentUsage + 1)),
-    );
+    res.setHeader("X-RateLimit-Reset", resetSeconds);
 
-    if (currentUsage >= maxRequests) {
+    const remaining = Math.max(0, maxRequests - currentUsage);
+    res.setHeader("X-RateLimit-Remaining", remaining);
+
+    if (currentUsage > maxRequests) {
       res.setHeader("X-RateLimit-Remaining", 0);
       throw new TooManyRequestsError(
         "Too many requests. Please slow down.",
-        Math.ceil(windowMs / 1000),
+        resetSeconds,
       );
-    }
-
-    if (currentUsage === 0) {
-      await cache.set(key, 1, windowMs);
-    } else {
-      await cache.increment(key, windowMs);
     }
 
     next();
