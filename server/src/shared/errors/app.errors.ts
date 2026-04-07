@@ -1,4 +1,5 @@
 export enum AppErrorCodes {
+  // app
   NotFound = "NOT_FOUND",
   BadRequest = "BAD_REQUEST",
   Unauthorised = "UNAUTHORISED",
@@ -10,7 +11,13 @@ export enum AppErrorCodes {
   ExternalServiceError = "EXTERNAL_SERVICE_ERROR",
   MissingIdentifier = "MISSING_IDENTIFIER",
   TooManyRequests = "TOO_MANY_REQUESTS",
+
+  // cache
+  CacheTypeMismatch = "CACHE_TYPE_MISMATCH",
+  CacheKeyNotFound = "CACHE_KEY_NOT_FOUND",
 }
+
+// App errors
 
 interface AppErrorDetails {
   field: string | null;
@@ -151,5 +158,18 @@ export class TooManyRequestsError extends AppError {
       retryAfter,
     );
     this.name = "TooManyRequestsError";
+  }
+}
+
+// Cache errors
+
+export class CacheTypeError extends AppError {
+  constructor(key: string, expected: string, actual: string) {
+    super(
+      `Cache type mismatch for key "${key}": expected ${expected}, but found ${actual}`,
+      AppErrorCodes.CacheTypeMismatch,
+      500,
+    );
+    this.name = "CacheTypeError";
   }
 }

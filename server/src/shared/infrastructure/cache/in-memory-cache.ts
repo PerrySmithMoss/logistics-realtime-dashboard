@@ -1,4 +1,6 @@
+import { CacheTypeError } from "@shared/errors/app.errors";
 import { ICache } from "@shared/interfaces/cache.interface";
+import { ILogger } from "@shared/interfaces/logger.interface";
 
 interface ICacheEntry {
   value: unknown;
@@ -7,6 +9,31 @@ interface ICacheEntry {
 
 export class InMemoryCache implements ICache {
   private readonly cache = new Map<string, ICacheEntry>();
+  private lastCleanupTime = Date.now();
+  private readonly CLEANUP_INTERVAL_MS = 3600000; // 1 hour
+  private readonly SIZE_THRESHOLD = 50;
+
+  constructor(private readonly logger: ILogger) {}
+
+  private lazyCleanup(): void {
+    const now = Date.now();
+
+    // only clean if an hour has passed and there is actually data to clean
+    if (
+      now - this.lastCleanupTime > this.CLEANUP_INTERVAL_MS &&
+      this.cache.size > this.SIZE_THRESHOLD
+    ) {
+      for (const [key, entry] of this.cache) {
+        if (now > entry.expiresAt) {
+          this.cache.delete(key);
+        }
+      }
+      this.lastCleanupTime = now;
+      this.logger.info(
+        `Lazy cleanup performed. Current size: ${this.cache.size}`,
+      );
+    }
+  }
 
   private getCacheEntry<T>(key: string): T | null {
     const entry = this.cache.get(key);
@@ -20,45 +47,68 @@ export class InMemoryCache implements ICache {
     return entry.value as T;
   }
 
-  public async set<T>(
-    key: string,
-    value: T,
-    ttlMs: number = 60000,
-  ): Promise<void> {
-    const expiresAt = Date.now() + ttlMs;
-    this.cache.set(key, { value, expiresAt });
-  }
-
   public async get<T>(key: string): Promise<T | null> {
     return this.getCacheEntry<T>(key);
   }
 
+  /**
+   * Increments a numeric value in the cache.
+   * @param key - The unique identifier for the cache entry.
+   * @param ttlMs - Time to live in milliseconds (default 60s).
+   * @returns The new incremented value.
+   * @throws {CacheTypeError} If the key exists but the value is not a number.
+   */
   public async increment(key: string, ttlMs: number = 60000): Promise<number> {
-    const existing = this.getCacheEntry<number>(key);
-    const currentValue = typeof existing === "number" ? existing : 0;
+    const existingValue = this.getCacheEntry<unknown>(key);
+
+    if (existingValue !== null && typeof existingValue !== "number") {
+      throw new CacheTypeError(key, "number", typeof existingValue);
+    }
+
+    const currentValue = (existingValue as number) ?? 0;
     const newValue = currentValue + 1;
 
-    const entry = this.cache.get(key);
-    const expiresAt =
-      entry && Date.now() <= entry.expiresAt
-        ? entry.expiresAt
-        : Date.now() + ttlMs;
+    const currentEntry = this.cache.get(key);
+    const expiresAt = currentEntry
+      ? currentEntry.expiresAt
+      : Date.now() + ttlMs;
 
     this.cache.set(key, { value: newValue, expiresAt });
 
     return newValue;
   }
 
+  public async set<T>(
+    key: string,
+    value: T,
+    ttlMs: number = 60000,
+  ): Promise<void> {
+    this.lazyCleanup();
+    const expiresAt = Date.now() + ttlMs;
+    this.cache.set(key, { value, expiresAt });
+  }
+
+  /**
+   * Decrements a numeric value in the cache.
+   * @param key - The unique identifier for the cache entry.
+   * @param ttlMs - Time to live in milliseconds (default 60s).
+   * @returns The new decremented value.
+   * @throws {CacheTypeError} If the key exists but the value is not a number.
+   */
   public async decrement(key: string, ttlMs: number = 60000): Promise<number> {
-    const existing = this.getCacheEntry<number>(key);
-    const currentValue = typeof existing === "number" ? existing : 0;
+    const existingValue = this.getCacheEntry<unknown>(key);
+
+    if (existingValue !== null && typeof existingValue !== "number") {
+      throw new CacheTypeError(key, "number", typeof existingValue);
+    }
+
+    const currentValue = (existingValue as number) ?? 0;
     const newValue = currentValue - 1;
 
-    const entry = this.cache.get(key);
-    const expiresAt =
-      entry && Date.now() <= entry.expiresAt
-        ? entry.expiresAt
-        : Date.now() + ttlMs;
+    const currentEntry = this.cache.get(key);
+    const expiresAt = currentEntry
+      ? currentEntry.expiresAt
+      : Date.now() + ttlMs;
 
     this.cache.set(key, { value: newValue, expiresAt });
 

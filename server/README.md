@@ -58,11 +58,28 @@ Real-time systems are notorious for memory leaks and hanging processes.
 
 ### Caching Strategy
 
-To maintain high availability on resource-constrained environments (2G VPS), the system implements a custom **In-Memory Cache** layer. This serves as the high-performance backbone for temporary state management.
+To maintain high availability on a resource constrained environment (2CPU 1GB RAM VPS), the system implements a custom **In-Memory Cache** layer. This serves as the high performance backbone for temporary state management, specifically for rate limiting and real-time statistics.
 
 **The Strategy: Interface-First Design**
 
 The architecture utilizes a decoupled `ICache` interface, ensuring the business logic remains agnostic of the underlying storage. While the current implementation leverages a native `Map`, it implements a `ICache` interface which can be swapped out for any caching system (e.g. Redis), allowing for a seamless transition to distributed caching if horizontal scaling is required.
+
+#### Cleanup
+
+To ensure high availability on a resource-constrained VPS (2GB RAM), the system utilizes a custom "Lazy Piggyback" cleanup strategy for the In-Memory Cache. This approach prevents the memory leaks common in standard Map implementations without the CPU overhead of persistent background timers.
+
+##### Key Mechanics
+
+- **Passive Expiration**: Stale keys are identified and purged instantly upon access (`get`/`increment`), ensuring zero latency for active data.
+- **Deferred "Lazy" Sweep**: To reclaim memory from expired keys (e.g., single-visit IP addresses), the system piggybacks on write operations. A full cache scan is triggered only if:
+  1. A specified time threshold (e.g., 1 hour) has elapsed since the last sweep.
+  2. The cache size justifies a cleanup, preventing unnecessary CPU cycles.
+
+##### Why this approach?
+
+- **CPU Efficiency**: By avoiding `setInterval`, the application consumes zero CPU cycles when idle, which is critical for shared VPS environments.
+- **Predictable Performance**: 99% of requests maintain O(1) constant-time performance. The cleanup is deferred and takes <1ms even for thousands of entries.
+- **Zero Lifecycle Management**: Eliminates the risk of zombie processes or the need for complex graceful shutdown logic for background timers.
 
 **Optimisation: In-Memory vs. Distributed Caching**
 

@@ -75,19 +75,20 @@ export class AppContainer implements IAppContainer {
       isDev: config.server.isDev,
     });
     const appLogger = baseLogger.withContext("App");
+    const lifecycleLogger = baseLogger.withContext("LifecycleManager");
+    const cacheLogger = baseLogger.withContext("InMemoryCache");
     const serverLogger = baseLogger.withContext("HttpServer");
     const errorLogger = baseLogger.withContext("ErrorHandler");
-    const eventBrokerLogger = baseLogger.withContext("InMemoryEventBroker");
     const vehicleLogger = baseLogger.withContext("Vehicle");
     const fleetLogger = baseLogger.withContext("Fleet");
-    const lifecycleLogger = baseLogger.withContext("LifecycleManager");
+    const eventBrokerLogger = baseLogger.withContext("InMemoryEventBroker");
 
     const lifecycle = new LifecycleManager(lifecycleLogger);
+    const database = new InMemoryDatabase(lifecycle);
+    const cache = new InMemoryCache(cacheLogger);
+    const eventBroker = new InMemoryEventBroker(lifecycle, eventBrokerLogger);
     const commandBus = new CommandBus();
     const queryBus = new QueryBus();
-    const database = new InMemoryDatabase(lifecycle);
-    const cache = new InMemoryCache();
-    const eventBroker = new InMemoryEventBroker(lifecycle, eventBrokerLogger);
 
     VehicleModule.init(
       commandBus,
