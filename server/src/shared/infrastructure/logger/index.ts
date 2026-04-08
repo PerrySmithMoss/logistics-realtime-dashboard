@@ -9,4 +9,3 @@ export const consoleLogger = new ConsoleLogger({
 export * from "./console-logger";
 export * from "./logger.constants";
 export * from "./logger.types";
-export * from "./no-op-logger";

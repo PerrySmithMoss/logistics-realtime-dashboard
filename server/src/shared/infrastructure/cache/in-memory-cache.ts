@@ -2,6 +2,12 @@ import { CacheTypeError } from "@shared/errors/app.errors";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 
+interface InMemoryCacheOptions {
+  cleanupIntervalMs?: number;
+  sizeThreshold?: number;
+  defaultTtlMs?: number;
+}
+
 interface ICacheEntry {
   value: unknown;
   expiresAt: number;
@@ -9,11 +15,21 @@ interface ICacheEntry {
 
 export class InMemoryCache implements ICache {
   private readonly cache = new Map<string, ICacheEntry>();
-  private lastCleanupTime = Date.now();
-  private readonly CLEANUP_INTERVAL_MS = 3600000; // 1 hour
-  private readonly SIZE_THRESHOLD = 50;
 
-  constructor(private readonly logger: ILogger) {}
+  private lastCleanupTime = Date.now();
+
+  private readonly CLEANUP_INTERVAL_MS: number;
+  private readonly SIZE_THRESHOLD: number;
+  private readonly DEFAULT_TTL_MS: number;
+
+  constructor(
+    private readonly logger: ILogger,
+    options: InMemoryCacheOptions = {},
+  ) {
+    this.CLEANUP_INTERVAL_MS = options.cleanupIntervalMs ?? 3_600_000;
+    this.SIZE_THRESHOLD = options.sizeThreshold ?? 50;
+    this.DEFAULT_TTL_MS = options.defaultTtlMs ?? 60_000;
+  }
 
   private lazyCleanup(): void {
     const now = Date.now();
@@ -51,6 +67,16 @@ export class InMemoryCache implements ICache {
     return this.getCacheEntry<T>(key);
   }
 
+  public async set<T>(
+    key: string,
+    value: T,
+    ttlMs: number = this.DEFAULT_TTL_MS,
+  ): Promise<void> {
+    this.lazyCleanup();
+    const expiresAt = Date.now() + ttlMs;
+    this.cache.set(key, { value, expiresAt });
+  }
+
   /**
    * Increments a numeric value in the cache.
    * @param key - The unique identifier for the cache entry.
@@ -58,7 +84,10 @@ export class InMemoryCache implements ICache {
    * @returns The new incremented value.
    * @throws {CacheTypeError} If the key exists but the value is not a number.
    */
-  public async increment(key: string, ttlMs: number = 60000): Promise<number> {
+  public async increment(
+    key: string,
+    ttlMs: number = this.DEFAULT_TTL_MS,
+  ): Promise<number> {
     const existingValue = this.getCacheEntry<unknown>(key);
 
     if (existingValue !== null && typeof existingValue !== "number") {
@@ -78,16 +107,6 @@ export class InMemoryCache implements ICache {
     return newValue;
   }
 
-  public async set<T>(
-    key: string,
-    value: T,
-    ttlMs: number = 60000,
-  ): Promise<void> {
-    this.lazyCleanup();
-    const expiresAt = Date.now() + ttlMs;
-    this.cache.set(key, { value, expiresAt });
-  }
-
   /**
    * Decrements a numeric value in the cache.
    * @param key - The unique identifier for the cache entry.
@@ -95,7 +114,10 @@ export class InMemoryCache implements ICache {
    * @returns The new decremented value.
    * @throws {CacheTypeError} If the key exists but the value is not a number.
    */
-  public async decrement(key: string, ttlMs: number = 60000): Promise<number> {
+  public async decrement(
+    key: string,
+    ttlMs: number = this.DEFAULT_TTL_MS,
+  ): Promise<number> {
     const existingValue = this.getCacheEntry<unknown>(key);
 
     if (existingValue !== null && typeof existingValue !== "number") {
@@ -116,6 +138,6 @@ export class InMemoryCache implements ICache {
   }
 
   public async delete(key: string): Promise<void> {
-    this.cache.delete(key);
+    await this.cache.delete(key);
   }
 }

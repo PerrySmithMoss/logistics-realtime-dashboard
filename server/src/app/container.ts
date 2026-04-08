@@ -8,7 +8,7 @@ import { CommandBus } from "@shared/bus/command/command-bus";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { QueryBus } from "@shared/bus/query/query-bus";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
-import { InMemoryCache } from "@shared/infrastructure/cache/in-memory-cache";
+import { InMemoryCache } from "@shared/infrastructure/cache";
 import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { InMemoryEventBroker } from "@shared/infrastructure/events/in-memory-event-broker";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
