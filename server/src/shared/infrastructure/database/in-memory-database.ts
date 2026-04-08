@@ -1,6 +1,6 @@
 import { Vehicle } from "@modules/vehicle/core/entities/vehicle.entity";
 import { InternalServerError } from "@shared/errors/app.errors";
-import { IDatabase } from "@shared/infrastructure/database/database.interface";
+import { IDatabase } from "@shared/interfaces/database.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 
 export class InMemoryDatabase implements IDatabase {

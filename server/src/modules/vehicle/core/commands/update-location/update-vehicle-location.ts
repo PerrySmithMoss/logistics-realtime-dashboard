@@ -1,6 +1,6 @@
 import { NotFoundError } from "@shared/errors/app.errors";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
-import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { VehicleStatus } from "../../entities/vehicle.entity";
 import { VehicleEvents } from "../../events/vehicle.events";
 import { IVehicleReadRepository } from "../../interfaces/vehicle-read-repository.interface";
@@ -45,7 +45,7 @@ export class UpdateVehicleLocationHandler {
 
     const snapshot = vehicle.toSnapshot();
 
-    const event: IStatusChangeEvent = {
+    const event: IVehicleStatusChangeEvent = {
       vehicleId: snapshot.id,
       plateNumber: snapshot.plateNumber,
       status: snapshot.status,

@@ -1,41 +1,43 @@
 import { VehicleSnapshot } from "@modules/vehicle/core/dtos/vehicle-snapshot.dto";
-import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 import { IFleetStatsProjection } from "../interfaces/fleet-stats-projection.interface";
 
 export class FleetStatsProjection implements IFleetStatsProjection {
   /**
-   * The hotCache acts as in in-memory cache.
-   * In a distributed system, the map would be replaced by Redis.
-   * It provides O(1) access to the latest state of the fleet.
+   * Materialised view of the current vehicle states.
+   * Maintained incrementally via handleUpdate() as events arrive.
+   * In a distributed system this would be replaced by a shared store (e.g. Redis)
+   * to allow multiple instances to share projection state.
    */
-  private readonly hotCache = new Map<string, VehicleSnapshot>();
+  private readonly vehicleStates = new Map<string, VehicleSnapshot>();
 
   private stats = {
-    total: 0,
-    delayed: 0,
+    delayedCount: 0,
   };
 
   public get totalCount(): number {
-    return this.hotCache.size;
+    return this.vehicleStates.size;
   }
 
-  public handleUpdate(event: IStatusChangeEvent): void {
-    const existing = this.hotCache.get(event.vehicleId);
+  public handleUpdate(event: IVehicleStatusChangeEvent): void {
+    const existing = this.vehicleStates.get(event.vehicleId);
 
-    if (!existing) {
-      this.stats.total++;
+    // guard against any events which have been received out of order
+    if (existing && event.timestamp && event.timestamp < existing.lastUpdated) {
+      return;
     }
 
-    // If status changed to delayed => increment,
-    // If it was delayed and changed back => decrement.
-    if (existing?.status !== "delayed" && event.status === "delayed") {
-      this.stats.delayed++;
-    } else if (existing?.status === "delayed" && event.status !== "delayed") {
-      this.stats.delayed--;
+    const wasDelayed = existing?.status === "delayed";
+    const isDelayed = event.status === "delayed";
+
+    if (!wasDelayed && isDelayed) {
+      this.stats.delayedCount++;
+    } else if (wasDelayed && !isDelayed) {
+      this.stats.delayedCount--;
     }
 
-    this.hotCache.set(event.vehicleId, {
+    this.vehicleStates.set(event.vehicleId, {
       id: event.vehicleId,
       plateNumber: event.plateNumber || existing?.plateNumber || "Unknown",
       status: event.status,
@@ -47,10 +49,10 @@ export class FleetStatsProjection implements IFleetStatsProjection {
   }
 
   public getCurrentSnapshot(): IFleetSnapshot {
-    const vehicles = Array.from(this.hotCache.values());
-    const total = this.stats.total;
-    const delayedCount = this.stats.delayed;
-    const activeCount = total - delayedCount;
+    const vehicles = Array.from(this.vehicleStates.values());
+    const total = this.totalCount;
+    const delayedCount = this.stats.delayedCount;
+    const activeCount = this.totalCount - delayedCount;
 
     return {
       summary: {

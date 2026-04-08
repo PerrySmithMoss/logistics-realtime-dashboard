@@ -138,6 +138,6 @@ export class InMemoryCache implements ICache {
   }
 
   public async delete(key: string): Promise<void> {
-    await this.cache.delete(key);
+    this.cache.delete(key);
   }
 }

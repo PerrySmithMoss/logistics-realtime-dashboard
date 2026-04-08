@@ -1,6 +1,6 @@
 import { VehicleStatus } from "@modules/vehicle/core/entities/vehicle.entity";
 
-export interface IStatusChangeEvent {
+export interface IVehicleStatusChangeEvent {
   readonly vehicleId: string;
   readonly plateNumber: string;
   readonly status: VehicleStatus;

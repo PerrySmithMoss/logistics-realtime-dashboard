@@ -1,6 +1,8 @@
-import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 
-export function isStatusChangeEvent(data: any): data is IStatusChangeEvent {
+export function isStatusChangeEvent(
+  data: any,
+): data is IVehicleStatusChangeEvent {
   return (
     !!data &&
     typeof data.vehicleId === "string" &&

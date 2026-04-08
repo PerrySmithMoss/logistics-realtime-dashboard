@@ -3,7 +3,7 @@ import { Vehicle } from "@modules/vehicle/core/entities/vehicle.entity";
 import { IVehicleReadRepository } from "@modules/vehicle/core/interfaces/vehicle-read-repository.interface";
 import { IVehicleWriteRepository } from "@modules/vehicle/core/interfaces/vehicle-write-repository.interface";
 import { GetVehicleDetailsResponse } from "@modules/vehicle/core/queries/get-vehicle-details.query";
-import { IDatabase } from "@shared/infrastructure/database/database.interface";
+import { IDatabase } from "@shared/interfaces/database.interface";
 
 export class InMemoryVehicleRepository
   implements IVehicleReadRepository, IVehicleWriteRepository

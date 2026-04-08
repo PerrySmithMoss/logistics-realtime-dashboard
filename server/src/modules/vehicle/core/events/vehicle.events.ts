@@ -1,4 +1,4 @@
-import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { VehicleStatus } from "../entities/vehicle.entity";
 
 export const VehicleEvents = {
@@ -7,7 +7,7 @@ export const VehicleEvents = {
   MAINTENANCE_STARTED: "VEHICLE.MAINTENANCE_STARTED",
 } as const;
 
-export class VehicleLocationUpdatedEvent implements IStatusChangeEvent {
+export class VehicleLocationUpdatedEvent implements IVehicleStatusChangeEvent {
   static readonly type = VehicleEvents.LOCATION_UPDATED;
 
   constructor(

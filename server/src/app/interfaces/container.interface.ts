@@ -3,9 +3,9 @@ import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { IQueryBus } from "@shared/bus/query/query-bus.interface";
-import { IDatabase } from "@shared/infrastructure/database/database.interface";
 import { ILifecycleManager } from "@shared/interfaces";
 import { ICache } from "@shared/interfaces/cache.interface";
+import { IDatabase } from "@shared/interfaces/database.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";

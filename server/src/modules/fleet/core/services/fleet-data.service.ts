@@ -8,7 +8,7 @@ import {
 import { ILifecycleManager } from "@shared/interfaces";
 import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import { IStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
+import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 import { IFleetDataService } from "../interfaces/fleet-data-service.interface";
 import { FleetStatsProjection } from "../projections/fleet-stats.projection";
@@ -16,7 +16,7 @@ import { FleetStatsProjection } from "../projections/fleet-stats.projection";
 export class FleetDataService implements IFleetDataService {
   private _isHydrated = false;
   private isProcessing = false;
-  private snapBuffer = new Map<string, IStatusChangeEvent>();
+  private snapBuffer = new Map<string, IVehicleStatusChangeEvent>();
   private batchInterval: NodeJS.Timeout | null = null;
 
   constructor(
@@ -70,7 +70,7 @@ export class FleetDataService implements IFleetDataService {
           vehicleId: v.id,
           timestamp: new Date().toISOString(),
           isSnapped: v.isSnapped ?? false,
-        } as IStatusChangeEvent);
+        } as IVehicleStatusChangeEvent);
       }
 
       this._isHydrated = true;
@@ -87,7 +87,7 @@ export class FleetDataService implements IFleetDataService {
   }
 
   public async processVehicleMovement(
-    event: IStatusChangeEvent,
+    event: IVehicleStatusChangeEvent,
   ): Promise<void> {
     if (this.lifecycle.isShuttingDown) return;
 
