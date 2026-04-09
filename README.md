@@ -1,4 +1,4 @@
-# 🚚 Real-Time Logistics Fleet Dashboard
+# Real-Time Logistics Fleet Dashboard
 
 A high-performance, full-stack monitoring system designed to track vehicle fleets with sub-second latency. This project solves the challenge of visualising high-frequency GPS data without UI jitter or server-side bottlenecks.
 
