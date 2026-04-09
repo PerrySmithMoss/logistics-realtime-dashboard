@@ -1,5 +1,5 @@
 import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
-import { VehicleStatus } from "../entities/vehicle.entity";
+import { VehicleStatus } from "@shared/types/vehicle.types";
 
 export const VehicleEvents = {
   LOCATION_UPDATED: "VEHICLE.LOCATION_UPDATED",

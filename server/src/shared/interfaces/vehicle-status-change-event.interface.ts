@@ -1,4 +1,4 @@
-import { VehicleStatus } from "@modules/vehicle/core/entities/vehicle.entity";
+import { VehicleStatus } from "@shared/types/vehicle.types";
 
 export interface IVehicleStatusChangeEvent {
   readonly vehicleId: string;

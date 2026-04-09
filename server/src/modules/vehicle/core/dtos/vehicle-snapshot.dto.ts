@@ -1,4 +1,4 @@
-import { VehicleStatus } from "../entities/vehicle.entity";
+import { VehicleStatus } from "@shared/types/vehicle.types";
 
 export interface VehicleSnapshot {
   readonly id: string;

@@ -2,24 +2,8 @@ import {
   BadRequestError,
   UnprocessableEntityError,
 } from "@shared/errors/app.errors";
+import { VehicleProps, VehicleStatus } from "@shared/types/vehicle.types";
 import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
-
-export const VehicleStatuses = [
-  "active",
-  "inactive",
-  "delayed",
-  "maintenance",
-] as const;
-export type VehicleStatus = (typeof VehicleStatuses)[number];
-
-export interface VehicleProps {
-  id: string;
-  plateNumber: string;
-  lat: number;
-  lng: number;
-  status: VehicleStatus;
-  lastUpdated: Date;
-}
 
 export class Vehicle {
   private constructor(private props: VehicleProps) {}
@@ -32,6 +16,10 @@ export class Vehicle {
   }
 
   public updatePosition(lat: number, lng: number): void {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new BadRequestError("Coordinates must be finite numbers.");
+    }
+
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       throw new BadRequestError("Invalid lat or lng coordinates provided.");
     }
@@ -48,14 +36,7 @@ export class Vehicle {
   }
 
   public updateStatus(status: VehicleProps["status"]): void {
-    const validStatuses: VehicleProps["status"][] = [
-      "active",
-      "inactive",
-      "delayed",
-      "maintenance",
-    ];
-
-    if (!validStatuses.includes(status)) {
+    if (!Object.values(VehicleStatus).includes(status)) {
       throw new BadRequestError(`Invalid status: ${status}`);
     }
 

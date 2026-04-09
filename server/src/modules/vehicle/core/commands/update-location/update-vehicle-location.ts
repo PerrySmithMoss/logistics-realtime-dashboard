@@ -1,7 +1,7 @@
 import { NotFoundError } from "@shared/errors/app.errors";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
-import { VehicleStatus } from "../../entities/vehicle.entity";
+import { VehicleStatus } from "@shared/types/vehicle.types";
 import { VehicleEvents } from "../../events/vehicle.events";
 import { IVehicleReadRepository } from "../../interfaces/vehicle-read-repository.interface";
 import { IVehicleWriteRepository } from "../../interfaces/vehicle-write-repository.interface";
