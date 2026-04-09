@@ -48,22 +48,22 @@ export const httpClient = async <T>(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg =
+          errorData?.message ?? `Request failed with ${response.status}`;
+
+        const fetchError = new FetchError(
+          `${label}: ${errorMsg}`,
+          response.status,
+          errorData,
+        );
+
         const isClientError = response.status < 500 && response.status !== 408;
-
         if (isClientError || attempt === retries || !canRetry) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData?.message
-            ? errorData?.message
-            : `Request failed with ${response.status}`;
-
-          throw new FetchError(
-            `${label}: ${errorMsg}`,
-            response.status,
-            errorData,
-          );
+          throw fetchError;
         }
 
-        throw new Error(`Server Error ${response.status}`);
+        throw fetchError;
       }
 
       const result =
@@ -81,7 +81,9 @@ export const httpClient = async <T>(
       const isLastAttempt = attempt === retries;
 
       if (isLastAttempt || !canRetry) {
-        if (err instanceof FetchError) throw err;
+        if (err instanceof FetchError || err?.name === "FetchError") {
+          throw err;
+        }
 
         if (isTimeout) {
           throw new FetchError(`${label}: Gateway Timeout`, 504, {
@@ -92,6 +94,7 @@ export const httpClient = async <T>(
         throw new ExternalServiceError(label, err);
       }
 
+      // exponential backoff
       const delay = initialRetryDelay * Math.pow(2, attempt);
       await new Promise((r) => setTimeout(r, delay));
     }
