@@ -59,10 +59,11 @@ export class ConsoleLogger implements ILogger {
       };
 
       if (data !== undefined) {
-        logEntry.data =
-          data instanceof Error
-            ? { name: data.name, message: data.message, stack: data.stack }
-            : data;
+        try {
+          logEntry.data = JSON.parse(this.safeStringify(data));
+        } catch {
+          logEntry.data = "[Circular Data or Stringify Error]";
+        }
       }
       return JSON.stringify(logEntry);
     }
@@ -70,7 +71,7 @@ export class ConsoleLogger implements ILogger {
     const color = this.getLevelColor(level);
     const header = `${LOGGER_COLORS.dim}${timestamp}${LOGGER_COLORS.reset} ${color}${LOGGER_COLORS.bright}${level.padEnd(5)}${LOGGER_COLORS.reset} ${LOGGER_COLORS.blue}[${ctx}]${LOGGER_COLORS.reset} ${message}`;
 
-    return data
+    return data !== undefined
       ? `${header}\n${LOGGER_COLORS.dim}${this.safeStringify(data)}${LOGGER_COLORS.reset}`
       : header;
   }
