@@ -1,44 +1,77 @@
-import { ApiResponse, ApiResponseMeta } from "@shared/types/response.types";
-import { Response } from "express";
+import {
+  ApiResponse,
+  ApiResponseMeta,
+  ApiResponsePaginationMeta,
+} from "@shared/types/response.types";
+import { createSuccessResponse } from "@shared/utils/response.utils";
+import { Request, Response } from "express";
+
+// omitting system-managed fields which are handled elsewhere
+type ResponseMeta = Omit<
+  Partial<ApiResponseMeta>,
+  "requestId" | "timestamp" | "pagination"
+>;
 
 export abstract class BaseController {
-  private envelope<T, M extends ApiResponseMeta>(
+  public ok<T>(
+    req: Request,
+    res: Response<ApiResponse<T>>,
     data: T,
-    meta?: M,
-  ): ApiResponse<T> {
-    return {
-      success: true,
-      data,
-      error: null,
-      ...(meta && {
-        meta: {
-          timestamp: new Date().toISOString(),
-          ...meta,
-        },
+    meta?: ResponseMeta,
+  ): Response<ApiResponse<T>> {
+    return res.status(200).json(
+      createSuccessResponse(data, {
+        ...meta,
+        requestId: req.id,
       }),
-    };
+    );
   }
 
-  public ok<T, M extends ApiResponseMeta>(
-    res: Response,
-    data: T,
-    meta?: M,
-  ): Response {
-    return res.status(200).json(this.envelope(data, meta));
+  public okPaginated<T>(
+    req: Request,
+    res: Response<ApiResponse<T[]>>,
+    data: T[],
+    pagination: ApiResponsePaginationMeta,
+    extraMeta?: ResponseMeta,
+  ): Response<ApiResponse<T[]>> {
+    return res.status(200).json(
+      createSuccessResponse(data, {
+        ...extraMeta,
+        pagination,
+        requestId: req.id,
+      }),
+    );
   }
 
-  public created<T, M extends ApiResponseMeta>(
-    res: Response,
+  public created<T>(
+    req: Request,
+    res: Response<ApiResponse<T>>,
     data: T,
-    meta?: M,
-  ): Response {
-    return res.status(201).json(this.envelope(data, meta));
+    meta?: ResponseMeta,
+  ): Response<ApiResponse<T>> {
+    return res.status(201).json(
+      createSuccessResponse(data, {
+        ...meta,
+        requestId: req.id,
+      }),
+    );
+  }
+
+  public noContent(res: Response): Response {
+    return res.sendStatus(204);
   }
 
   public accepted(res: Response, requestId?: string): Response {
-    if (requestId) {
-      res.setHeader("X-Request-Id", requestId);
+    const id = requestId || (res.req as Request).id;
+    if (id) {
+      res.setHeader("X-Request-Id", id);
     }
     return res.sendStatus(202);
+  }
+
+  public serviceUnavailable<T>(req: Request, res: Response, data: T): Response {
+    return res
+      .status(503)
+      .json(createSuccessResponse(data, { requestId: req.id }));
   }
 }

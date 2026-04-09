@@ -20,9 +20,9 @@ export class FleetController
     super();
   }
 
-  public getSnapshot = async (_req: Request, res: Response) => {
+  public getSnapshot = async (req: Request, res: Response) => {
     const snapshot = await this.dataService.getCurrentSnapshot();
-    return this.ok(res, snapshot);
+    return this.ok(req, res, snapshot);
   };
 
   public stream = async (req: Request, res: Response) => {

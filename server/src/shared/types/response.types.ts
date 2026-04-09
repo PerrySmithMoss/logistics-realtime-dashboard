@@ -13,14 +13,19 @@ export interface ApiResponseError {
   stack?: string;
 }
 
+export interface ApiResponsePaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface ApiResponseMeta {
   requestId: string;
   timestamp: string;
-  pagination?: {
-    total: number;
-    page: number;
-    limit: number;
-  };
+  retryAfter?: number;
+  path?: string;
+  pagination?: ApiResponsePaginationMeta;
   [key: string]: unknown;
 }
 
@@ -28,5 +33,5 @@ export interface ApiResponse<T> {
   success: boolean;
   data: T | null;
   error: ApiResponseError | null;
-  meta?: ApiResponseMeta;
+  meta: ApiResponseMeta;
 }

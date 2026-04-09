@@ -33,7 +33,6 @@ export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
 
     return res.status(statusCode).json(
       createErrorResponse(
-        req.id,
         {
           message,
           code,
@@ -41,8 +40,7 @@ export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
           details: details?.length ? details : undefined,
           stack: config.server.isDev ? error.stack : undefined,
         },
-        req.path,
-        retryAfter,
+        { requestId: req.id, path: req.path, retryAfter },
       ),
     );
   };
