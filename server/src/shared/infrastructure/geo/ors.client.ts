@@ -57,8 +57,8 @@ export class OpenRouteServiceClient implements IGeoSnappingService {
           streetName: item.name || undefined,
         };
       });
-    } catch (err) {
-      if (err.name === "AbortError") {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
         this.logger.info("[ORSClient] Request cancelled by Lifecycle Manager");
       } else {
         this.logger.error("[ORSClient] Batch snapping failed", err);
