@@ -1,9 +1,10 @@
 import { GlobalQueryRegistry } from "@shared/bus/query/query-registry";
 
+export interface IQueryBusOptions {
+  signal?: AbortSignal;
+}
+
 export interface IQueryBus {
-  /**
-   * Dispatches a query and returns a typed response.
-   */
   ask<K extends keyof GlobalQueryRegistry>(
     queryName: K,
     params: GlobalQueryRegistry[K]["request"],
@@ -15,6 +16,7 @@ export interface IQueryBus {
     handler: {
       handle(
         query: GlobalQueryRegistry[K]["request"],
+        options?: IQueryBusOptions,
       ): Promise<GlobalQueryRegistry[K]["response"]>;
     },
   ): void;

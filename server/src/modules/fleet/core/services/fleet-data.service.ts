@@ -39,24 +39,20 @@ export class FleetDataService implements IFleetDataService {
 
   public async hydrate(): Promise<void> {
     const globalSignal = this.lifecycle.getShutdownSignal();
-    const hydrationController = new AbortController();
-    const timeoutId = setTimeout(
-      () => hydrationController.abort(),
-      this.settings.hydrationTimeout,
-    );
-
-    const onAbort = () => hydrationController.abort();
-    globalSignal.addEventListener("abort", onAbort);
+    const timeoutSignal = AbortSignal.timeout(this.settings.hydrationTimeout);
+    const combinedSignal = AbortSignal.any([globalSignal, timeoutSignal]);
 
     try {
       this.logger.info("[FleetDataService] Starting hydration...");
 
-      const vehicles = await this.queryBus.ask(ListAllVehiclesQuery.type, {
-        signal: hydrationController.signal,
-      });
+      const vehicles = await this.queryBus.ask(
+        ListAllVehiclesQuery.type,
+        {},
+        { signal: combinedSignal },
+      );
 
       for (const v of vehicles) {
-        if (hydrationController.signal.aborted) {
+        if (combinedSignal.aborted) {
           throw new AppError(
             "Hydration timed out",
             AppErrorCodes.HydrationFailed,
@@ -77,12 +73,19 @@ export class FleetDataService implements IFleetDataService {
       this.logger.info("[FleetDataService] Hydration complete");
     } catch (err) {
       this._isHydrated = false;
+
+      if (combinedSignal.aborted) {
+        this.logger.warn(
+          `[FleetDataService] Hydration aborted. Reason: ${combinedSignal.reason}`,
+        );
+
+        if (globalSignal.aborted) return;
+      }
+
+      this.logger.error("Hydration failed", err);
       if (err instanceof AppError) throw err;
 
       throw new InternalServerError("Fleet hydration failed", err, false);
-    } finally {
-      clearTimeout(timeoutId);
-      globalSignal.removeEventListener("abort", onAbort);
     }
   }
 

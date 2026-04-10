@@ -1,3 +1,4 @@
+import { IQueryBusOptions } from "@shared/bus/query/query-bus.interface";
 import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
 import { IVehicleReadRepository } from "../interfaces/vehicle-read-repository.interface";
 
@@ -9,7 +10,10 @@ export class ListAllVehiclesQuery {
 export class ListAllVehiclesHandler {
   constructor(private readonly repo: IVehicleReadRepository) {}
 
-  async handle(_query: ListAllVehiclesQuery): Promise<VehicleSnapshot[]> {
+  async handle(
+    _query: ListAllVehiclesQuery,
+    _options?: IQueryBusOptions,
+  ): Promise<VehicleSnapshot[]> {
     return this.repo.listAll();
   }
 }

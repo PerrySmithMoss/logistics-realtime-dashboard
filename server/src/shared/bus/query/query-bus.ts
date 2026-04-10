@@ -1,11 +1,19 @@
 import { GlobalQueryRegistry } from "@shared/bus/query/query-registry";
 import { InternalServerError } from "@shared/errors/app.errors";
-import { IQueryBus } from "./query-bus.interface";
+import { IQueryBus, IQueryBusOptions } from "./query-bus.interface";
 
-type AnyHandler = { handle(query: unknown): Promise<unknown> };
+type QueryHandler = {
+  handle(
+    query: unknown,
+    options: IQueryBusOptions | undefined,
+  ): Promise<unknown>;
+};
 
 export class QueryBus implements IQueryBus {
-  private readonly handlers = new Map<keyof GlobalQueryRegistry, AnyHandler>();
+  private readonly handlers = new Map<
+    keyof GlobalQueryRegistry,
+    QueryHandler
+  >();
 
   register<K extends keyof GlobalQueryRegistry>(
     queryName: K,
@@ -27,7 +35,7 @@ export class QueryBus implements IQueryBus {
   async ask<K extends keyof GlobalQueryRegistry>(
     queryName: K,
     params: GlobalQueryRegistry[K]["request"],
-    options?: { signal?: AbortSignal },
+    options?: IQueryBusOptions,
   ): Promise<GlobalQueryRegistry[K]["response"]> {
     if (options?.signal?.aborted) {
       throw new InternalServerError(
@@ -37,7 +45,6 @@ export class QueryBus implements IQueryBus {
     }
 
     const handler = this.handlers.get(queryName);
-
     if (!handler) {
       throw new InternalServerError(
         `Missing Query Handler: No handler registered for "${String(queryName)}"`,
@@ -45,7 +52,7 @@ export class QueryBus implements IQueryBus {
       );
     }
 
-    return handler.handle(params) as Promise<
+    return handler.handle(params, options ?? {}) as Promise<
       GlobalQueryRegistry[K]["response"]
     >;
   }

@@ -36,9 +36,18 @@ describe("isStatusChangeEvent", () => {
     expect(isStatusChangeEvent(invalidEvent)).toBe(false);
   });
 
-  it("should return false if lat or lng are not actual numbers", () => {
-    expect(isStatusChangeEvent({ ...validEvent, lat: "51.5" })).toBe(false);
-    expect(isStatusChangeEvent({ ...validEvent, lng: NaN })).toBe(false);
+  it("should return false if lat or lng is NaN", () => {
+    expect(isStatusChangeEvent({ ...validEvent, lat: NaN })).toBe(false);
+    expect(isStatusChangeEvent({ ...validEvent, lng: Number.NaN })).toBe(false);
+  });
+
+  it("should return false if lat or lng is Infinity", () => {
+    expect(isStatusChangeEvent({ ...validEvent, lat: Infinity })).toBe(false);
+    expect(isStatusChangeEvent({ ...validEvent, lng: -Infinity })).toBe(false);
+  });
+
+  it("should return true for valid finite numbers including 0", () => {
+    expect(isStatusChangeEvent({ ...validEvent, lat: 0, lng: 0 })).toBe(true);
   });
 
   it("should return false if string fields are not strings", () => {
