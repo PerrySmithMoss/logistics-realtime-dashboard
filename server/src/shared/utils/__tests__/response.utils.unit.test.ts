@@ -75,6 +75,14 @@ describe("Response Utilities", () => {
       expect(response.meta.timestamp).toBe(mockDate.toISOString());
       expect(response.meta.timestamp).not.toBe("1970-01-01T00:00:00Z");
     });
+
+    it("should produce a valid JSON stringifyable object", () => {
+      const response = createSuccessResponse({ a: 1 }, mockContext);
+      const json = JSON.parse(JSON.stringify(response));
+
+      expect(json.success).toBe(true);
+      expect(json.meta.timestamp).toBe(mockDate.toISOString());
+    });
   });
 
   describe("createErrorResponse", () => {
@@ -82,11 +90,13 @@ describe("Response Utilities", () => {
       message: "Validation Failed",
       code: "VALIDATION_ERROR",
       statusCode: 400,
+      stack: "Error: at source.ts:10:5",
       details: [{ field: "email", issue: "invalid", message: "Invalid email" }],
     };
 
     it("should create a standard error response object", () => {
-      const response = createErrorResponse(mockError, mockContext);
+      // Pass 'true' so the matcher works with the stack trace included in mockError
+      const response = createErrorResponse(mockError, mockContext, true);
 
       expect(response).toEqual({
         success: false,
@@ -99,46 +109,82 @@ describe("Response Utilities", () => {
       });
     });
 
+    it("should hide the stack trace when isDev is false", () => {
+      const response = createErrorResponse(mockError, mockContext, false);
+      expect(response.error).not.toHaveProperty("stack");
+    });
+
+    it("should include the stack trace when isDev is true", () => {
+      const response = createErrorResponse(mockError, mockContext, true);
+      expect(response.error?.stack).toBe("Error: at source.ts:10:5");
+    });
+
     it("should include stack traces in meta or error when provided", () => {
       const errorWithStack = {
         ...mockError,
         stack: "Error: at source.ts:10:5",
       };
-      const response = createErrorResponse(errorWithStack, mockContext);
+      const response = createErrorResponse(errorWithStack, mockContext, true);
 
       expect(response.error?.stack).toBeDefined();
       expect(response.error?.stack).toContain("source.ts");
     });
 
     it("should handle custom error meta data like retryAfter", () => {
-      const response = createErrorResponse(mockError, {
-        ...mockContext,
-        retryAfter: 60,
-      });
+      const response = createErrorResponse(
+        mockError,
+        {
+          ...mockContext,
+          retryAfter: 60,
+        },
+        false,
+      );
 
       expect(response.meta.retryAfter).toBe(60);
     });
   });
 
-  describe("Type safety", () => {
-    it("should maintain immutability of the input objects", () => {
-      const meta = { requestId: "123" };
-      const data = { val: 1 };
+  describe("Immutability (Freeze)", () => {
+    it("should prevent mutation of the success response and its meta", () => {
+      const response = createSuccessResponse({ foo: "bar" }, mockContext);
 
-      const response = createSuccessResponse(data, meta);
+      // Top level freeze
+      expect(() => {
+        (response as any).success = false;
+      }).toThrow(TypeError);
 
-      // attempt to mutate response
-      (response.meta as any).requestId = "changed";
-
-      expect(meta.requestId).toBe("123");
+      // Nested level freeze (meta)
+      expect(() => {
+        (response.meta as any).requestId = "new-id";
+      }).toThrow(TypeError);
     });
 
-    it("should produce a valid JSON stringifyable object", () => {
-      const response = createSuccessResponse({ a: 1 }, mockContext);
-      const json = JSON.parse(JSON.stringify(response));
+    it("should prevent mutation of the error response and its error details", () => {
+      const mockError: ApiResponseError = {
+        message: "Fail",
+        code: "ERR",
+        statusCode: 500,
+      };
+      const response = createErrorResponse(mockError, mockContext, false);
 
-      expect(json.success).toBe(true);
-      expect(json.meta.timestamp).toBe(mockDate.toISOString());
+      expect(() => {
+        (response.error as any).message = "Hack";
+      }).toThrow(TypeError);
+
+      expect(() => {
+        (response.meta as any).requestId = "new-id";
+      }).toThrow(TypeError);
+    });
+
+    it("should not maintain a reference to the input meta object (Defensive Copying)", () => {
+      const inputMeta = { requestId: "123" };
+      const response = createSuccessResponse({ val: 1 }, inputMeta);
+
+      expect(response.meta).not.toBe(inputMeta);
+
+      expect(() => {
+        inputMeta.requestId = "changed";
+      }).not.toThrow();
     });
   });
 });

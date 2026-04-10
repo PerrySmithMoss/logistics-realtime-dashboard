@@ -1,6 +1,6 @@
 import { VehicleStatus } from "@shared/types/vehicle.types";
 
-export interface VehicleSnapshot {
+export type VehicleSnapshot = {
   readonly id: string;
   readonly plateNumber: string;
   readonly status: VehicleStatus;
@@ -9,4 +9,4 @@ export interface VehicleSnapshot {
   readonly lastUpdated: string;
   readonly isSnapped?: boolean;
   readonly metadata?: Record<string, any>;
-}
+};

@@ -26,7 +26,6 @@ export interface ApiResponseMeta {
   retryAfter?: number;
   path?: string;
   pagination?: ApiResponsePaginationMeta;
-  [key: string]: unknown;
 }
 
 export interface ApiResponse<T> {
@@ -35,3 +34,13 @@ export interface ApiResponse<T> {
   error: ApiResponseError | null;
   meta: ApiResponseMeta;
 }
+
+export type SerialisableApiResponseTypes =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: SerialisableApiResponseTypes }
+  | SerialisableApiResponseTypes[];
+
+export type ApiResponseContext = Omit<ApiResponseMeta, "timestamp">;

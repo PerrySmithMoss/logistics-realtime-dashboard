@@ -2,18 +2,20 @@ import {
   ApiResponse,
   ApiResponseMeta,
   ApiResponsePaginationMeta,
+  SerialisableApiResponseTypes,
 } from "@shared/types/response.types";
 import { createSuccessResponse } from "@shared/utils/response.utils";
 import { Request, Response } from "express";
 
-// omitting system-managed fields which are handled elsewhere
+// Omitting fields which are adding further
+// down the chain (middleware etc.).
 type ResponseMeta = Omit<
   Partial<ApiResponseMeta>,
   "requestId" | "timestamp" | "pagination"
 >;
 
 export abstract class BaseController {
-  public ok<T>(
+  public ok<T extends SerialisableApiResponseTypes>(
     req: Request,
     res: Response<ApiResponse<T>>,
     data: T,
@@ -27,7 +29,7 @@ export abstract class BaseController {
     );
   }
 
-  public okPaginated<T>(
+  public okPaginated<T extends SerialisableApiResponseTypes>(
     req: Request,
     res: Response<ApiResponse<T[]>>,
     data: T[],
@@ -43,7 +45,7 @@ export abstract class BaseController {
     );
   }
 
-  public created<T>(
+  public created<T extends SerialisableApiResponseTypes>(
     req: Request,
     res: Response<ApiResponse<T>>,
     data: T,
@@ -61,15 +63,18 @@ export abstract class BaseController {
     return res.sendStatus(204);
   }
 
-  public accepted(res: Response, requestId?: string): Response {
-    const id = requestId || (res.req as Request).id;
-    if (id) {
-      res.setHeader("X-Request-Id", id);
+  public accepted(req: Request, res: Response): Response {
+    if (req.id) {
+      res.setHeader("X-Request-Id", req.id);
     }
     return res.sendStatus(202);
   }
 
-  public serviceUnavailable<T>(req: Request, res: Response, data: T): Response {
+  public serviceUnavailable<T extends SerialisableApiResponseTypes>(
+    req: Request,
+    res: Response,
+    data: T,
+  ): Response {
     return res
       .status(503)
       .json(createSuccessResponse(data, { requestId: req.id }));

@@ -41,6 +41,7 @@ export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
           stack: config.server.isDev ? error.stack : undefined,
         },
         { requestId: req.id, path: req.path, retryAfter },
+        config.server.isDev,
       ),
     );
   };

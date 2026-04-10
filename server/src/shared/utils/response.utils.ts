@@ -1,37 +1,46 @@
 import {
   ApiResponse,
+  ApiResponseContext,
   ApiResponseError,
   ApiResponseMeta,
+  SerialisableApiResponseTypes,
 } from "../types/response.types";
 
-type Serialisable = object | any[] | string | number | boolean;
-
-export type RequiredContext = Partial<ApiResponseMeta> & { requestId: string };
-
-export const createSuccessResponse = <T extends Serialisable = null>(
-  data: T | null = null,
-  meta: RequiredContext,
+export const createSuccessResponse = <T extends SerialisableApiResponseTypes>(
+  data: T,
+  context: ApiResponseContext,
 ): ApiResponse<T> => {
-  return {
+  return Object.freeze({
     success: true,
-    data: data,
+    data,
     error: null,
-    meta: {
-      ...meta,
+    meta: Object.freeze({
+      ...context,
       timestamp: new Date().toISOString(),
-    },
-  };
+    }) as ApiResponseMeta,
+  });
 };
 
 export const createErrorResponse = (
   error: ApiResponseError,
-  meta: RequiredContext,
-): ApiResponse<null> => ({
-  success: false,
-  data: null,
-  error,
-  meta: {
-    ...meta,
-    timestamp: new Date().toISOString(),
-  },
-});
+  context: ApiResponseContext,
+  isDev: boolean,
+): ApiResponse<null> => {
+  const formattedError: ApiResponseError = Object.freeze({
+    code: error.code,
+    message: error.message,
+    statusCode: error.statusCode,
+    details: error.details,
+    ...(isDev && { stack: error.stack }),
+  });
+
+  return Object.freeze({
+    success: false,
+    data: null,
+    error: formattedError,
+    meta: Object.freeze({
+      ...context,
+      timestamp: new Date().toISOString(),
+    }) as ApiResponseMeta,
+  });
+};
