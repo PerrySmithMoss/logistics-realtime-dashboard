@@ -1,5 +1,5 @@
-import { Vehicle } from "@modules/vehicle/core/entities/vehicle.entity";
+import { VehicleProps } from "@shared/types/vehicle.types";
 
 export interface DatabaseSchema {
-  vehicles: Vehicle;
+  vehicles: VehicleProps;
 }

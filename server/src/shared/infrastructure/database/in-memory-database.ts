@@ -1,32 +1,40 @@
-import { Vehicle } from "@modules/vehicle/core/entities/vehicle.entity";
 import { InternalServerError } from "@shared/errors/app.errors";
 import { IDatabase } from "@shared/interfaces/database.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
+import { DatabaseSchema } from "./database.schema";
 
 export class InMemoryDatabase implements IDatabase {
-  public readonly vehicles = new Map<string, Vehicle[]>();
+  private readonly storage: {
+    [K in keyof DatabaseSchema]: Map<string, DatabaseSchema[K]>;
+  } = {
+    vehicles: new Map(),
+  };
 
-  constructor(_lifecycle: ILifecycleManager) {}
+  constructor(private readonly lifecycle: ILifecycleManager) {
+    this.lifecycle.onShutdown(async () => {
+      this.storage.vehicles.clear();
+    });
+  }
 
-  public getTable<K = string, V = any>(name: string): Map<K, V> {
-    const tables: Record<string, Map<any, any>> = {
-      vehicles: this.vehicles,
-    };
-
-    const table = tables[name];
+  public getTable<K extends keyof DatabaseSchema>(
+    tableName: K,
+  ): Map<string, DatabaseSchema[K]> {
+    const table = this.storage[tableName];
 
     if (!table) {
       throw new InternalServerError(
-        `Table ${name} does not exist in InMemoryDatabase.`,
+        `Table "${tableName}" does not exist in InMemoryDatabase.`,
         false,
       );
     }
 
-    return table as Map<K, V>;
+    return table;
   }
 
-  async query<T>(tableName: string): Promise<T[]> {
-    const table = this.getTable<string, T>(tableName);
+  public async query<K extends keyof DatabaseSchema>(
+    tableName: K,
+  ): Promise<DatabaseSchema[K][]> {
+    const table = this.getTable(tableName);
     return Array.from(table.values());
   }
 }
