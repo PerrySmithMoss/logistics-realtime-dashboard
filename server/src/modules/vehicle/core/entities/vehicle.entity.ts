@@ -8,11 +8,27 @@ import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
 export class Vehicle {
   private constructor(private props: VehicleProps) {}
 
+  public get id(): string {
+    return this.props.id;
+  }
+
+  public get status(): string {
+    return this.props.status;
+  }
+
   public static create(props: Omit<VehicleProps, "lastUpdated">): Vehicle {
     if (!props.plateNumber || props.plateNumber.length < 5) {
       throw new BadRequestError("Plate number must be at least 5 characters.");
     }
     return new Vehicle({ ...props, lastUpdated: new Date() });
+  }
+
+  public static hydrate(props: VehicleProps): Vehicle {
+    return new Vehicle(props);
+  }
+
+  public getProps(): VehicleProps {
+    return { ...this.props };
   }
 
   public updatePosition(lat: number, lng: number): void {
@@ -42,14 +58,6 @@ export class Vehicle {
 
     this.props.status = status;
     this.props.lastUpdated = new Date();
-  }
-
-  public get id(): string {
-    return this.props.id;
-  }
-
-  public get status(): string {
-    return this.props.status;
   }
 
   public toSnapshot(): Readonly<VehicleSnapshot> {

@@ -4,18 +4,20 @@ import { IVehicleReadRepository } from "@modules/vehicle/core/interfaces/vehicle
 import { IVehicleWriteRepository } from "@modules/vehicle/core/interfaces/vehicle-write-repository.interface";
 import { GetVehicleDetailsResponse } from "@modules/vehicle/core/queries/get-vehicle-details.query";
 import { IDatabase } from "@shared/interfaces/database.interface";
+import { VehicleProps } from "@shared/types/vehicle.types";
 
 export class InMemoryVehicleRepository
   implements IVehicleReadRepository, IVehicleWriteRepository
 {
-  private readonly table: Map<string, Vehicle>;
+  private readonly table: Map<string, VehicleProps>;
 
   constructor(private readonly db: IDatabase) {
     this.table = this.db.getTable("vehicles");
   }
 
   async save(vehicle: Vehicle): Promise<void> {
-    this.table.set(vehicle.id, vehicle);
+    const data = vehicle.getProps();
+    this.table.set(vehicle.id, { ...data });
   }
 
   async delete(id: string): Promise<void> {
@@ -23,7 +25,10 @@ export class InMemoryVehicleRepository
   }
 
   async findById(id: string): Promise<Vehicle | null> {
-    return this.table.get(id) || null;
+    const data = this.table.get(id);
+    if (!data) return null;
+
+    return Vehicle.hydrate(data);
   }
 
   async exists(id: string): Promise<boolean> {
@@ -32,16 +37,21 @@ export class InMemoryVehicleRepository
 
   async getDetails(id: string): Promise<GetVehicleDetailsResponse | null> {
     const vehicle = this.table.get(id);
-    return vehicle ? vehicle.toSnapshot() : null;
+    if (!vehicle) return null;
+
+    return Vehicle.hydrate(vehicle).toSnapshot();
   }
 
   async listAll(): Promise<VehicleSnapshot[]> {
-    return Array.from(this.table.values()).map((v) => v.toSnapshot());
+    return Array.from(this.table.values()).map((props) =>
+      Vehicle.hydrate(props).toSnapshot(),
+    );
   }
 
   async listAllActive(): Promise<GetVehicleDetailsResponse[]> {
     return Array.from(this.table.values())
-      .filter((v) => v.toSnapshot().status === "active")
-      .map((v) => v.toSnapshot());
+      .map((props) => Vehicle.hydrate(props))
+      .filter((vehicle) => vehicle.status === "active")
+      .map((vehicle) => vehicle.toSnapshot());
   }
 }

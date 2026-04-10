@@ -52,7 +52,7 @@ export class VehicleModule {
         ...data,
         lat: HUB_LAT + latOffset,
         lng: HUB_LNG + lngOffset,
-        status: data.status as any,
+        status: data.status,
       });
 
       repo.save(vehicle);
