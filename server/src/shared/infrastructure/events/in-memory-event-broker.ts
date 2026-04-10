@@ -6,14 +6,12 @@ type Handler = (data: unknown) => void | Promise<void>;
 
 export class InMemoryEventBroker implements IEventBroker {
   private readonly listeners = new Map<string, Handler[]>();
-  public readonly logger: ILogger;
 
-  constructor(lifecycle: ILifecycleManager, logger: ILogger) {
-    this.logger = logger;
-
-    lifecycle.onShutdown(async () => {
-      const eventCount = this.listeners.size;
-      const eventNames = Array.from(this.listeners.keys());
+  constructor(
+    private readonly lifecycle: ILifecycleManager,
+    private readonly logger: ILogger,
+  ) {
+    this.lifecycle.onShutdown(async () => {
       const handlerCount = Array.from(this.listeners.values()).reduce(
         (sum, handlers) => sum + handlers.length,
         0,
@@ -27,18 +25,6 @@ export class InMemoryEventBroker implements IEventBroker {
 
       this.listeners.clear();
     });
-  }
-
-  public publish(eventName: string, data: unknown): void {
-    const handlers = this.listeners.get(eventName) ?? [];
-    for (const handler of handlers) {
-      Promise.resolve(handler(data)).catch((err) =>
-        this.logger.error(
-          `[EventBroker] Unhandled error in listener for "${eventName}":`,
-          err,
-        ),
-      );
-    }
   }
 
   public subscribe(eventName: string, handler: Handler): void {
@@ -56,6 +42,18 @@ export class InMemoryEventBroker implements IEventBroker {
       this.listeners.delete(eventName);
     } else {
       this.listeners.set(eventName, filtered);
+    }
+  }
+
+  public publish(eventName: string, data: unknown): void {
+    const handlers = this.listeners.get(eventName) ?? [];
+    for (const handler of handlers) {
+      Promise.resolve(handler(data)).catch((err) =>
+        this.logger.error(
+          `[EventBroker] Unhandled error in listener for "${eventName}":`,
+          err,
+        ),
+      );
     }
   }
 }

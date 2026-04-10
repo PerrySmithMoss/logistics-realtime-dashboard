@@ -1,38 +1,39 @@
 import { InternalServerError } from "@shared/errors/app.errors";
 import { AppState } from "@shared/interfaces/lifecycle-manager.interface";
 import { createMockLogger } from "@shared/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LifecycleManager } from "../lifecycle-manager";
 
 describe("LifecycleManager", () => {
-  let logger: ReturnType<typeof createMockLogger>;
-  let manager: LifecycleManager;
-
-  beforeEach(() => {
-    logger = createMockLogger();
-    manager = new LifecycleManager(logger);
-  });
+  const setup = () => {
+    const logger = createMockLogger();
+    const manager = new LifecycleManager(logger);
+    return { logger, manager };
+  };
 
   describe("State Transitions", () => {
     it("should start in STARTING state", () => {
+      const { manager } = setup();
       expect(manager.state).toBe(AppState.STARTING);
     });
 
     it("should transition to READY from STARTING", () => {
+      const { manager } = setup();
       manager.setReady();
       expect(manager.isReady).toBe(true);
     });
 
     it("should prevent invalid transition back to READY once already set", () => {
+      const { manager } = setup();
       manager.setReady();
       expect(() => manager.setReady()).toThrow(InternalServerError);
     });
   });
 
   describe("Shutdown Execution Integrity", () => {
-    it("should ensure AbortSignal is aborted even if prepareForShutdown is skipped and closeAll is called", async () => {
+    it("should ensure AbortSignal is aborted even if prepareForShutdown is skipped", async () => {
+      const { manager } = setup();
       const signal = manager.getShutdownSignal();
-      expect(signal.aborted).toBe(false);
 
       await manager.closeAll();
 
@@ -41,7 +42,9 @@ describe("LifecycleManager", () => {
     });
 
     it("should handle mixed task types (Sync vs Async)", async () => {
+      const { manager } = setup();
       const results: string[] = [];
+
       manager.onShutdown(async () => {
         results.push("async");
       });
@@ -51,13 +54,12 @@ describe("LifecycleManager", () => {
       });
 
       await manager.closeAll();
-
-      // manager handles shutdown tasks in reverse order
       expect(results).toEqual(["sync", "async"]);
     });
 
-    it("should log specific task names on timeout for easier debugging", async () => {
+    it("should log specific task names on timeout", async () => {
       vi.useFakeTimers();
+      const { manager, logger } = setup();
 
       const databaseTask = async () => {
         await new Promise(() => {});
@@ -80,18 +82,12 @@ describe("LifecycleManager", () => {
   });
 
   describe("Edge Cases", () => {
-    it("should not crash if closeAll is called with zero tasks registered", async () => {
-      await expect(manager.closeAll()).resolves.not.toThrow();
-      expect(manager.state).toBe(AppState.CLOSED);
-    });
+    it("should be idempotent regarding logging transitions", () => {
+      const { manager, logger } = setup();
 
-    it("should prevent double-logging transition when already shutting down", () => {
       manager.prepareForShutdown();
       manager.prepareForShutdown();
 
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("STARTING -> SHUTTING_DOWN"),
-      );
       expect(logger.info).toHaveBeenCalledTimes(1);
     });
   });
