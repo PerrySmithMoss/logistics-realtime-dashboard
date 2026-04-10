@@ -5,20 +5,20 @@ import { FleetModule } from "@modules/fleet/fleet.module";
 import { VehicleModule } from "@modules/vehicle/vehicle.module";
 import { HealthController } from "@shared/api/health.controller";
 import { CommandBus } from "@shared/bus/command/command-bus";
-import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { QueryBus } from "@shared/bus/query/query-bus";
-import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { InMemoryCache } from "@shared/infrastructure/cache";
 import { InMemoryDatabase } from "@shared/infrastructure/database/in-memory-database";
 import { InMemoryEventBroker } from "@shared/infrastructure/events/in-memory-event-broker";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
 import { ConsoleLogger } from "@shared/infrastructure/logger";
 import { ICache } from "@shared/interfaces/cache.interface";
+import { ICommandBus } from "@shared/interfaces/command-bus.interface";
 import { IDatabase } from "@shared/interfaces/database.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import { IQueryBus } from "@shared/interfaces/query-bus.interface";
 import { IAppContainer } from "./interfaces/container.interface";
 
 export class AppContainer implements IAppContainer {

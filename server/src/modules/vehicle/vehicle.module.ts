@@ -1,9 +1,9 @@
 import { IAppConfig } from "@config/index";
-import { ICommandBus } from "@shared/bus/command/command-bus.interface";
-import { IQueryBus } from "@shared/bus/query/query-bus.interface";
+import { ICommandBus } from "@shared/interfaces/command-bus.interface";
 import { IDatabase } from "@shared/interfaces/database.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import { IQueryBus } from "@shared/interfaces/query-bus.interface";
 import {
   UpdateVehicleLocationCommand,
   UpdateVehicleLocationHandler,

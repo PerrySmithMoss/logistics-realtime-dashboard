@@ -1,7 +1,7 @@
 import { UpdateVehicleLocationCommand } from "@modules/vehicle/core/commands/update-location/update-vehicle-location";
-import { ICommandBus } from "@shared/bus/command/command-bus.interface";
 import { AppError } from "@shared/errors/app.errors";
 import { ILifecycleManager, ISimulator } from "@shared/interfaces";
+import { ICommandBus } from "@shared/interfaces/command-bus.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 
 export class FleetSimulator implements ISimulator {

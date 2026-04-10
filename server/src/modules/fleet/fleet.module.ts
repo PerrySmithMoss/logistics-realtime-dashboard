@@ -1,12 +1,12 @@
 import { IAppConfig } from "@config/index";
 import { VehicleEvents } from "@modules/vehicle/core/events/vehicle.events";
 import { mockVehicles } from "@modules/vehicle/data/mock-vehicles";
-import { ICommandBus } from "@shared/bus/command/command-bus.interface";
-import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import { OpenRouteServiceClient } from "@shared/infrastructure/geo";
+import { ICommandBus } from "@shared/interfaces/command-bus.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import { IQueryBus } from "@shared/interfaces/query-bus.interface";
 import { FleetController } from "./api/fleet.controller";
 import { IFleetController } from "./api/interfaces/fleet-controller.interface";
 import { FleetEventReactor } from "./core/events/fleet-event-reactor";

@@ -5,8 +5,8 @@ import { QueryBus } from "../query-bus";
 describe("QueryBus", () => {
   const setup = () => {
     const bus = new QueryBus();
-
     const TEST_QUERY = "test.query" as any;
+
     const mockHandler = {
       handle: vi.fn().mockResolvedValue({ data: "success" }),
     };

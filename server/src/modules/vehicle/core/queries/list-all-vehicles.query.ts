@@ -1,4 +1,4 @@
-import { IQueryBusOptions } from "@shared/bus/query/query-bus.interface";
+import { IQueryBusOptions } from "@shared/interfaces/query-bus.interface";
 import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
 import { IVehicleReadRepository } from "../interfaces/vehicle-read-repository.interface";
 

@@ -1,6 +1,9 @@
 import { GlobalQueryRegistry } from "@shared/bus/query/query-registry";
 import { InternalServerError } from "@shared/errors/app.errors";
-import { IQueryBus, IQueryBusOptions } from "./query-bus.interface";
+import {
+  IQueryBus,
+  IQueryBusOptions,
+} from "../../interfaces/query-bus.interface";
 
 type QueryHandler = {
   handle(

@@ -1,13 +1,18 @@
 import { InternalServerError } from "@shared/errors/app.errors";
-import { ICommandBus } from "./command-bus.interface";
+import {
+  ICommandBus,
+  ICommandBusOptions,
+} from "../../interfaces/command-bus.interface";
 import { GlobalCommandRegistry } from "./command-registry";
 
-type AnyCommandHandler = { handle(command: unknown): Promise<void> };
+type CommandHandler = {
+  handle(command: unknown, options?: ICommandBusOptions): Promise<void>;
+};
 
 export class CommandBus implements ICommandBus {
   private readonly handlers = new Map<
     keyof GlobalCommandRegistry,
-    AnyCommandHandler
+    CommandHandler
   >();
 
   public register<K extends keyof GlobalCommandRegistry>(
@@ -26,7 +31,7 @@ export class CommandBus implements ICommandBus {
   public async execute<K extends keyof GlobalCommandRegistry>(
     commandName: K,
     request: GlobalCommandRegistry[K],
-    options?: { signal?: AbortSignal },
+    options?: ICommandBusOptions,
   ): Promise<void> {
     if (options?.signal?.aborted) {
       throw new InternalServerError(
@@ -42,6 +47,7 @@ export class CommandBus implements ICommandBus {
         false,
       );
     }
-    await handler.handle(request);
+
+    await handler.handle(request, options ?? {});
   }
 }

@@ -1,5 +1,4 @@
 import { ListAllVehiclesQuery } from "@modules/vehicle/core/queries/list-all-vehicles.query";
-import { IQueryBus } from "@shared/bus/query/query-bus.interface";
 import {
   AppError,
   AppErrorCodes,
@@ -8,6 +7,7 @@ import {
 import { ILifecycleManager } from "@shared/interfaces";
 import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import { IQueryBus } from "@shared/interfaces/query-bus.interface";
 import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-change-event.interface";
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 import { IFleetDataService } from "../interfaces/fleet-data-service.interface";
