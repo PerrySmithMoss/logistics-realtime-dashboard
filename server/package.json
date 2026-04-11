@@ -2,13 +2,17 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/app/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx --watch $([ -f .env.local ] && echo '--env-file=.env.local') ./src/index.ts",
-    "build": "tsc",
-    "start": "node --env-file=.env ./dist/index.js",
+    "build": "rm -rf dist && npm run type-check && esbuild src/index.ts --bundle --platform=node --target=node24 --sourcemap --outdir=dist --external:express",
+    "start": "node --enable-source-maps ./dist/index.js",
+    "start:prod-local": "node --enable-source-maps --env-file=.env ./dist/index.js",
     "lint": "eslint 'src/**/*.ts'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "type-check": "tsc -p tsconfig.app.json --noEmit",
+    "type-check:test": "tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "express": "^5.2.1",
@@ -17,6 +21,7 @@
   "devDependencies": {
     "@fast-check/vitest": "^0.4.0",
     "@types/express": "^5.0.6",
+    "esbuild": "^0.28.0",
     "eslint": "^10.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
