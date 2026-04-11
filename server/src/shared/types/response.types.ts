@@ -1,9 +1,34 @@
 export interface ApiResponseErrorDetails {
-  field: string | null;
-  issue: string;
+  /**
+   * Internal error code.
+   * (e.g.'INVALID_FORMAT', 'REQUIRED_FIELD', 'SYSTEM_STATE')
+   */
+  code: string;
+
+  /**
+   * Human readable description of the specific issue.
+   * (e.g. 'The status is currently INITIALISING', 'Email is required')
+   */
   message: string;
+
+  /**
+   * Location of the error in the request.
+   * (Use dot-notation for nesting.)
+   * (e.g. 'status', 'user.email', 'metadata.fleetId')
+   */
+  path: string | null;
+
+  /**
+   * The value that caused the issue.
+   */
+  value?: unknown;
+
+  /**
+   * Extra context specific to this one detail.
+   */
   meta?: Record<string, unknown>;
 }
+
 export interface ApiResponseError {
   message: string;
   code: string;
@@ -20,20 +45,38 @@ export interface ApiResponsePaginationMeta {
   totalPages: number;
 }
 
-export interface ApiResponseMeta {
-  requestId: string;
-  timestamp: string;
-  retryAfter?: number;
-  path?: string;
-  pagination?: ApiResponsePaginationMeta;
+export interface ApiResponseOptions {
+  apiVersion: string;
+  environment: string;
+  isDev: boolean;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T | null;
-  error: ApiResponseError | null;
-  meta: ApiResponseMeta;
-}
+export type ApiResponseContext = {
+  requestId: string;
+  path?: string;
+  retryAfter?: number;
+  pagination?: ApiResponsePaginationMeta;
+};
+
+export type ApiResponseMeta = ApiResponseContext & {
+  apiVersion: string;
+  environment: string;
+  timestamp: string;
+};
+
+export type ApiResponse<T> =
+  | {
+      success: true;
+      data: T;
+      error: null;
+      meta: ApiResponseMeta;
+    }
+  | {
+      success: false;
+      data: null;
+      error: ApiResponseError;
+      meta: ApiResponseMeta;
+    };
 
 export type SerialisableApiResponseTypes =
   | string
@@ -42,5 +85,3 @@ export type SerialisableApiResponseTypes =
   | null
   | { [key: string]: SerialisableApiResponseTypes }
   | SerialisableApiResponseTypes[];
-
-export type ApiResponseContext = Omit<ApiResponseMeta, "timestamp">;

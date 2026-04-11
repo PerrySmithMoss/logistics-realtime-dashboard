@@ -3,13 +3,13 @@ import {
   notFoundHandler,
   requestIdMiddleware,
 } from "@api/middleware";
+import { createApiRouter } from "@api/router";
 import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { createHealthRouter } from "@shared/api/health.router";
 import { rateLimiter } from "@shared/api/middleware";
 import { consoleLogger } from "@shared/infrastructure/logger";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import { createApiRouter } from "api/router";
 import express from "express";
 import { AppContainer } from "./container";
 import { IAppContainer } from "./interfaces/container.interface";
@@ -50,7 +50,9 @@ export class Application {
       expressApp.use("/api/v1", createApiRouter(this.container));
 
       expressApp.use(notFoundHandler);
-      expressApp.use(createErrorHandler(this.container.errorLogger));
+      expressApp.use(
+        createErrorHandler(this.container.errorLogger, this.config),
+      );
 
       this.runBackgroundHydration(this.container.fleetDataService);
 
@@ -72,7 +74,7 @@ export class Application {
     try {
       await dataService.hydrate();
     } catch (err) {
-      this.logger.critical(
+      (this.logger || consoleLogger).critical(
         "Background Hydration failed. Fleet data will be unavailable.",
         err,
       );

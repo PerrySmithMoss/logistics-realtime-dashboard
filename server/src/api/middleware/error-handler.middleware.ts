@@ -1,35 +1,52 @@
-import { config } from "@config/index";
+import { IAppConfig } from "@config/index";
 import { AppError, AppErrorCodes } from "@shared/errors/app.errors";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import {
+  ApiResponseContext,
+  ApiResponseOptions,
+} from "@shared/types/response.types";
 import { createErrorResponse } from "@shared/utils/response.utils";
 import { ErrorRequestHandler } from "express";
 
-export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
+export const createErrorHandler = (
+  logger: ILogger,
+  config: IAppConfig,
+): ErrorRequestHandler => {
+  const options: ApiResponseOptions = {
+    apiVersion: config.app.version,
+    environment: config.server.env,
+    isDev: config.server.isDev,
+  };
+
   return (err, req, res, _next) => {
     const error = err instanceof Error ? err : new Error(String(err));
-    const isOperational = error instanceof AppError;
+    const isAppError = error instanceof AppError;
 
-    const statusCode = isOperational ? error.statusCode : 500;
-    const code = isOperational ? error.code : AppErrorCodes.InternalServerError;
-    const message = isOperational ? error.message : "Internal Server Error";
-    const details = isOperational ? error.details : undefined;
-    const retryAfter =
-      error instanceof AppError ? error.retryAfterSeconds : undefined;
+    const statusCode = isAppError ? error.statusCode : 500;
+    const code = isAppError ? error.code : AppErrorCodes.InternalServerError;
+    const message = isAppError ? error.message : "Internal Server Error";
 
-    if (!isOperational) {
-      logger.error(`[Unexpected Error] ${req.method} ${req.path}`, {
-        requestId: req.id,
-        message: error.message,
-        stack: error.stack,
-      });
-    } else if (statusCode === 429 || statusCode === 403 || statusCode === 401) {
-      logger.warn(`[Security/Limit] ${message}`, {
-        requestId: req.id,
-        code,
-        path: req.path,
-        ip: req.ip,
-      });
+    const details = isAppError ? error.details : undefined;
+    const retryAfter = isAppError ? error.retryAfterSeconds : undefined;
+
+    const logLevel = !isAppError || statusCode >= 500 ? "error" : "warn";
+    logger[logLevel](`[${code}] ${req.method} ${req.path}`, {
+      requestId: req.id,
+      message: error.message,
+      code,
+      stack: error.stack,
+      details,
+    });
+
+    if (retryAfter) {
+      res.setHeader("Retry-After", retryAfter.toString());
     }
+
+    const context: ApiResponseContext = {
+      requestId: req.id,
+      path: req.path,
+      retryAfter,
+    };
 
     return res.status(statusCode).json(
       createErrorResponse(
@@ -37,11 +54,11 @@ export const createErrorHandler = (logger: ILogger): ErrorRequestHandler => {
           message,
           code,
           statusCode,
-          details: details?.length ? details : undefined,
-          stack: config.server.isDev ? error.stack : undefined,
+          details,
+          stack: error.stack,
         },
-        { requestId: req.id, path: req.path, retryAfter },
-        config.server.isDev,
+        context,
+        options,
       ),
     );
   };

@@ -101,7 +101,7 @@ export class AppContainer implements IAppContainer {
 
     const { controller: fleetController, dataService: fleetDataService } =
       await FleetModule.init(
-        config.modules.fleet,
+        config,
         lifecycle,
         commandBus,
         queryBus,
@@ -110,7 +110,7 @@ export class AppContainer implements IAppContainer {
       );
 
     const controllers = {
-      health: new HealthController(lifecycle, fleetDataService),
+      health: new HealthController(config, lifecycle, fleetDataService),
       fleet: fleetController,
     };
 

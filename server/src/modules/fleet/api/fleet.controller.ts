@@ -1,3 +1,4 @@
+import { IAppConfig } from "@config/index";
 import { BaseController } from "@shared/api/base.controller";
 import { ILifecycleManager } from "@shared/interfaces";
 import { Request, Response } from "express";
@@ -13,11 +14,16 @@ export class FleetController
   private readonly HEARTBEAT_INTERVAL = 15000;
 
   constructor(
+    readonly config: IAppConfig,
     private readonly observerService: IFleetObserverService,
     private readonly dataService: IFleetDataService,
     private readonly lifecycle: ILifecycleManager,
   ) {
-    super();
+    super({
+      apiVersion: config.app.version,
+      environment: config.server.env,
+      isDev: config.server.isDev,
+    });
   }
 
   public getSnapshot = async (req: Request, res: Response) => {

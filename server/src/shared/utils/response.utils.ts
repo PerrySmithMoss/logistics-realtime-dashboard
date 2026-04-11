@@ -3,44 +3,53 @@ import {
   ApiResponseContext,
   ApiResponseError,
   ApiResponseMeta,
+  ApiResponseOptions,
   SerialisableApiResponseTypes,
 } from "../types/response.types";
+
+const getCommonMeta = (
+  context: ApiResponseContext,
+  options: ApiResponseOptions,
+): ApiResponseMeta => ({
+  apiVersion: options.apiVersion,
+  environment: options.environment,
+  ...context,
+  timestamp: new Date().toISOString(),
+});
 
 export const createSuccessResponse = <T extends SerialisableApiResponseTypes>(
   data: T,
   context: ApiResponseContext,
-): ApiResponse<T> => {
+  options: ApiResponseOptions,
+): Readonly<ApiResponse<T>> => {
   return Object.freeze({
     success: true,
-    data,
+    data: Object.freeze(structuredClone(data)),
     error: null,
-    meta: Object.freeze({
-      ...context,
-      timestamp: new Date().toISOString(),
-    }) as ApiResponseMeta,
+    meta: Object.freeze(getCommonMeta(context, options)),
   });
 };
 
 export const createErrorResponse = (
   error: ApiResponseError,
   context: ApiResponseContext,
-  isDev: boolean,
-): ApiResponse<null> => {
-  const formattedError: ApiResponseError = Object.freeze({
+  options: ApiResponseOptions,
+): Readonly<ApiResponse<null>> => {
+  const formattedError: ApiResponseError = {
     code: error.code,
     message: error.message,
     statusCode: error.statusCode,
-    details: error.details,
-    ...(isDev && { stack: error.stack }),
-  });
+    details: error.details?.length ? error.details : undefined,
+  };
+
+  if (options.isDev && error.stack) {
+    formattedError.stack = error.stack;
+  }
 
   return Object.freeze({
     success: false,
     data: null,
-    error: formattedError,
-    meta: Object.freeze({
-      ...context,
-      timestamp: new Date().toISOString(),
-    }) as ApiResponseMeta,
+    error: Object.freeze(formattedError),
+    meta: Object.freeze(getCommonMeta(context, options)),
   });
 };

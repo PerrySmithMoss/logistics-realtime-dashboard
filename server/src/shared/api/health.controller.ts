@@ -1,3 +1,4 @@
+import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
@@ -9,10 +10,15 @@ export class HealthController
   implements IHealthController
 {
   constructor(
+    readonly config: IAppConfig,
     private readonly lifecycle: ILifecycleManager,
     private readonly dataService: IFleetDataService,
   ) {
-    super();
+    super({
+      apiVersion: config.app.version,
+      environment: config.server.env,
+      isDev: config.server.isDev,
+    });
   }
 
   public live = (req: Request, res: Response) => {
@@ -21,15 +27,15 @@ export class HealthController
 
   public ready = async (req: Request, res: Response) => {
     if (this.lifecycle.isShuttingDown) {
-      return this.serviceUnavailable(req, res, { status: "SHUTTING_DOWN" });
+      return this.serviceUnavailable({ status: "SHUTTING_DOWN" });
     }
 
     if (!this.lifecycle.isReady) {
-      return this.serviceUnavailable(req, res, { status: "STARTING" });
+      return this.serviceUnavailable({ status: "STARTING" });
     }
 
     if (!this.dataService.isHydrated) {
-      return this.serviceUnavailable(req, res, {
+      return this.serviceUnavailable({
         status: "INITIALISING",
         reason: "Awaiting Hydration",
       });

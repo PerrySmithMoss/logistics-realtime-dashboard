@@ -1,4 +1,5 @@
 import { z } from "zod";
+import packageJson from "../../package.json";
 
 const envSchema = z
   .object({
@@ -41,7 +42,11 @@ const envSchema = z
     },
   );
 
-const _env = envSchema.safeParse(process.env);
+const _env = envSchema.safeParse({
+  ...process.env,
+  APP_VERSION: packageJson.version,
+  APP_NAME: packageJson.name,
+});
 
 if (!_env.success) {
   console.error("❌ Invalid Environment Configuration:");
@@ -54,6 +59,10 @@ const internalAuthSecret =
   env.INTERNAL_AUTH_SECRET ?? "random_32_byte_string-do_not_use_in_prod";
 
 export const config = {
+  app: {
+    version: packageJson.version,
+    name: packageJson.name,
+  },
   server: {
     port: env.PORT,
     host: env.HOST,

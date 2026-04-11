@@ -1,6 +1,10 @@
+import { ServiceUnavailableError } from "@shared/errors/app.errors";
 import {
   ApiResponse,
+  ApiResponseContext,
+  ApiResponseErrorDetails,
   ApiResponseMeta,
+  ApiResponseOptions,
   ApiResponsePaginationMeta,
   SerialisableApiResponseTypes,
 } from "@shared/types/response.types";
@@ -15,18 +19,23 @@ type ResponseMeta = Omit<
 >;
 
 export abstract class BaseController {
+  constructor(protected readonly responseOptions: ApiResponseOptions) {}
+
   public ok<T extends SerialisableApiResponseTypes>(
     req: Request,
     res: Response<ApiResponse<T>>,
     data: T,
     meta?: ResponseMeta,
   ): Response<ApiResponse<T>> {
-    return res.status(200).json(
-      createSuccessResponse(data, {
-        ...meta,
-        requestId: req.id,
-      }),
-    );
+    const context: ApiResponseContext = {
+      ...meta,
+      requestId: req.id,
+      path: req.path,
+    };
+
+    return res
+      .status(200)
+      .json(createSuccessResponse(data, context, this.responseOptions));
   }
 
   public okPaginated<T extends SerialisableApiResponseTypes>(
@@ -36,13 +45,16 @@ export abstract class BaseController {
     pagination: ApiResponsePaginationMeta,
     extraMeta?: ResponseMeta,
   ): Response<ApiResponse<T[]>> {
-    return res.status(200).json(
-      createSuccessResponse(data, {
-        ...extraMeta,
-        pagination,
-        requestId: req.id,
-      }),
-    );
+    const context: ApiResponseContext = {
+      ...extraMeta,
+      pagination,
+      requestId: req.id,
+      path: req.path,
+    };
+
+    return res
+      .status(200)
+      .json(createSuccessResponse(data, context, this.responseOptions));
   }
 
   public created<T extends SerialisableApiResponseTypes>(
@@ -51,32 +63,41 @@ export abstract class BaseController {
     data: T,
     meta?: ResponseMeta,
   ): Response<ApiResponse<T>> {
-    return res.status(201).json(
-      createSuccessResponse(data, {
-        ...meta,
-        requestId: req.id,
-      }),
-    );
+    const context: ApiResponseContext = {
+      ...meta,
+      requestId: req.id,
+      path: req.path,
+    };
+
+    return res
+      .status(201)
+      .json(createSuccessResponse(data, context, this.responseOptions));
+  }
+
+  public accepted(res: Response): Response {
+    return res.sendStatus(202);
   }
 
   public noContent(res: Response): Response {
     return res.sendStatus(204);
   }
 
-  public accepted(req: Request, res: Response): Response {
-    if (req.id) {
-      res.setHeader("X-Request-Id", req.id);
-    }
-    return res.sendStatus(202);
-  }
+  public serviceUnavailable(
+    data: string | Record<string, unknown>,
+    retryAfterSeconds?: number,
+  ): never {
+    const isString = typeof data === "string";
+    const message = isString ? data : "Service temporarily unavailable";
 
-  public serviceUnavailable<T extends SerialisableApiResponseTypes>(
-    req: Request,
-    res: Response,
-    data: T,
-  ): Response {
-    return res
-      .status(503)
-      .json(createSuccessResponse(data, { requestId: req.id }));
+    const details: ApiResponseErrorDetails[] = !isString
+      ? Object.entries(data).map(([key, value]) => ({
+          code: "SYSTEM_STATE",
+          path: key,
+          value: value,
+          message: `The ${key} is currently ${value}`,
+        }))
+      : [];
+
+    throw new ServiceUnavailableError(message, details, retryAfterSeconds);
   }
 }

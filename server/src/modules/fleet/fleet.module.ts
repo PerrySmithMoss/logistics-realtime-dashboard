@@ -24,15 +24,24 @@ export interface FleetModuleResult {
 
 export class FleetModule {
   public static async init(
-    config: IAppConfig["modules"]["fleet"],
+    config: IAppConfig,
     lifecycle: ILifecycleManager,
     commandBus: ICommandBus,
     queryBus: IQueryBus,
     eventBroker: IEventBroker,
     logger: ILogger,
   ): Promise<FleetModuleResult> {
+    const {
+      batchIntervalMs,
+      hydrationTimeout,
+      enableFleetSimulator,
+      simulatorTickInterval,
+      watchdogTimeout,
+      orsApiKey,
+    } = config.modules.fleet;
+
     const projection = new FleetStatsProjection();
-    const orsClient = new OpenRouteServiceClient(config.orsApiKey, logger);
+    const orsClient = new OpenRouteServiceClient(orsApiKey, logger);
 
     const dataService = new FleetDataService(
       queryBus,
@@ -41,17 +50,17 @@ export class FleetModule {
       logger,
       lifecycle,
       {
-        batchIntervalMs: config.batchIntervalMs,
-        hydrationTimeout: config.hydrationTimeout,
+        batchIntervalMs: batchIntervalMs,
+        hydrationTimeout: hydrationTimeout,
       },
     );
 
     const observerService = new FleetObserverService(eventBroker, logger);
 
-    if (config.enableFleetSimulator) {
+    if (enableFleetSimulator) {
       const simulator = new FleetSimulator(commandBus, logger, lifecycle, {
-        tickInterval: config.simulatorTickInterval,
-        watchdogTimeout: config.watchdogTimeout,
+        tickInterval: simulatorTickInterval,
+        watchdogTimeout: watchdogTimeout,
       });
       simulator.initialise(mockVehicles.map((v) => v.id));
 
@@ -80,7 +89,12 @@ export class FleetModule {
     }
 
     return {
-      controller: new FleetController(observerService, dataService, lifecycle),
+      controller: new FleetController(
+        config,
+        observerService,
+        dataService,
+        lifecycle,
+      ),
       dataService,
     };
   }
