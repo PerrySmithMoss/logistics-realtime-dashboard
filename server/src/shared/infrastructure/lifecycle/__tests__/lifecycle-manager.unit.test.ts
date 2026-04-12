@@ -1,6 +1,6 @@
 import { InternalServerError } from "@shared/errors/app.errors";
 import { AppState } from "@shared/interfaces/lifecycle-manager.interface";
-import { createMockLogger } from "@shared/test-utils";
+import { createMockLogger } from "@shared/testing/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { LifecycleManager } from "../lifecycle-manager";
 

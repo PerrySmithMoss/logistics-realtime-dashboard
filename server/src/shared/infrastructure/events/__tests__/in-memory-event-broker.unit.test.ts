@@ -1,7 +1,7 @@
 import {
   createMockLifecycleManager,
   createMockLogger,
-} from "@shared/test-utils";
+} from "@shared/testing/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { InMemoryEventBroker } from "../in-memory-event-broker";
 

@@ -1,8 +1,5 @@
-import {
-  AppState,
-  ILifecycleManager,
-} from "@shared/interfaces/lifecycle-manager.interface";
-import { vi, type Mocked } from "vitest";
+import { AppState, ILifecycleManager } from "@shared/interfaces";
+import { Mocked } from "vitest";
 
 export type MockLifecycleManager = Mocked<ILifecycleManager> & {
   triggerShutdown: () => Promise<void>;
@@ -16,10 +13,6 @@ export const createMockLifecycleManager = (
   const abortController = new AbortController();
 
   const mock = {
-    state: currentState,
-    isReady: initialState === AppState.READY,
-    isShuttingDown: initialState === AppState.SHUTTING_DOWN,
-
     getShutdownSignal: vi.fn().mockReturnValue(abortController.signal),
     setReady: vi.fn().mockImplementation(() => {
       currentState = AppState.READY;
@@ -32,22 +25,20 @@ export const createMockLifecycleManager = (
       shutdownTask = task;
     }),
     closeAll: vi.fn().mockResolvedValue(undefined),
-  } as Mocked<ILifecycleManager>;
+  } as unknown as MockLifecycleManager;
 
   Object.defineProperties(mock, {
     state: { get: () => currentState, enumerable: true },
     isReady: { get: () => currentState === AppState.READY, enumerable: true },
     isShuttingDown: {
       get: () => currentState === AppState.SHUTTING_DOWN,
-      // allow us to see the state props if they're ever console logged
       enumerable: true,
     },
   });
 
-  return {
-    ...mock,
-    triggerShutdown: async () => {
-      if (shutdownTask) await shutdownTask();
-    },
+  mock.triggerShutdown = async () => {
+    if (shutdownTask) await shutdownTask();
   };
+
+  return mock;
 };

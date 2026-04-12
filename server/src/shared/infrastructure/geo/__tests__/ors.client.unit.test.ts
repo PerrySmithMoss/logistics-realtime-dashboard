@@ -1,5 +1,5 @@
 import { httpClient } from "@shared/lib/http";
-import { createMockLogger } from "@shared/test-utils";
+import { createMockLogger } from "@shared/testing/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { OpenRouteServiceClient } from "../ors.client";
 

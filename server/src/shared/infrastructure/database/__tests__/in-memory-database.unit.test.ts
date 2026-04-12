@@ -1,5 +1,5 @@
 import { InternalServerError } from "@shared/errors/app.errors";
-import { createMockLifecycleManager } from "@shared/test-utils";
+import { createMockLifecycleManager } from "@shared/testing/test-utils";
 import { VehicleProps } from "@shared/types/vehicle.types";
 import { InMemoryDatabase } from "../in-memory-database";
 

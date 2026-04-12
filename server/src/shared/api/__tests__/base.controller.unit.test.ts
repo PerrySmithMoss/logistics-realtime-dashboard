@@ -2,6 +2,8 @@ import {
   AppErrorCodes,
   ServiceUnavailableError,
 } from "@shared/errors/app.errors";
+import { createMockRequest } from "@shared/testing/test-utils/request.utils";
+import { createMockResponse } from "@shared/testing/test-utils/response.utils";
 import { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -10,7 +12,7 @@ import {
 } from "../../types/response.types";
 import { BaseController } from "../base.controller";
 
-class MockController extends BaseController {
+class MockedBaseController extends BaseController {
   constructor(options: ApiResponseOptions) {
     super(options);
   }
@@ -48,30 +50,10 @@ class MockController extends BaseController {
   }
 }
 
-type MockResponse = Partial<Response> & {
-  status: any;
-  json: any;
-  setHeader: any;
-  sendStatus: any;
-};
-
-describe("BaseController (Internal Infrastructure)", () => {
+describe("BaseController", () => {
   const setup = (overrides: { req?: Partial<Request> } = {}) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-11T12:00:00Z"));
-
-    const mockReq = {
-      id: "test-request-id-123",
-      path: "/test-path",
-      ...overrides.req,
-    } as Request;
-
-    const mockRes: MockResponse = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-      setHeader: vi.fn().mockReturnThis(),
-      sendStatus: vi.fn().mockReturnThis(),
-    };
 
     const options: ApiResponseOptions = {
       apiVersion: "1.0.0",
@@ -79,12 +61,14 @@ describe("BaseController (Internal Infrastructure)", () => {
       isDev: true,
     };
 
-    const controller = new MockController(options);
+    const controller = new MockedBaseController(options);
 
     return {
       controller,
-      mockReq,
-      mockRes: mockRes as Response,
+      mockReq: createMockRequest({
+        ...overrides.req,
+      }),
+      mockRes: createMockResponse(),
       options,
     };
   };

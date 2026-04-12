@@ -1,7 +1,7 @@
 import { CacheTypeError } from "@shared/errors/app.errors";
 import { InMemoryCache } from "@shared/infrastructure/cache";
 import { ILogger } from "@shared/interfaces";
-import { createMockLogger } from "@shared/test-utils";
+import { createMockLogger } from "@shared/testing/test-utils";
 import { describe } from "vitest";
 
 const MOCK_DEFAULT_CACHE_TTL_MS = 60_000;
