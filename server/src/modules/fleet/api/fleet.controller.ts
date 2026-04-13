@@ -7,10 +7,7 @@ import { IFleetDataService } from "../core/interfaces/fleet-data-service.interfa
 import { IFleetObserverService } from "../core/interfaces/fleet-observer-service.interface";
 import { IFleetController } from "./interfaces/fleet-controller.interface";
 
-export class FleetController
-  extends BaseController
-  implements IFleetController
-{
+export class FleetController extends BaseController implements IFleetController {
   private readonly HEARTBEAT_INTERVAL = 15000;
 
   constructor(
@@ -34,8 +31,32 @@ export class FleetController
   public stream = async (req: Request, res: Response) => {
     const connectionId = randomUUID();
     const shutdownSignal = this.lifecycle.getShutdownSignal();
-
     let heartbeatTimer: NodeJS.Timeout | null = null;
+    let cleaned = false;
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+
+      if (heartbeatTimer) {
+        clearTimeout(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+
+      this.observerService.removeObserver(connectionId);
+      shutdownSignal.removeEventListener("abort", cleanup);
+
+      if (!res.writableEnded) res.end();
+    };
+
+    res.once("close", () => {
+      cleanup();
+    });
+
+    const initialSnapshot = await this.dataService.getCurrentSnapshot();
+
+    // exit early if the user disconnected while we are getting the snapshot
+    if (res.writableEnded) return;
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -44,50 +65,36 @@ export class FleetController
       "X-Accel-Buffering": "no",
     });
 
-    const sendSse = (event: string, data: any) => {
-      if (res.writableEnded) return;
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    };
-
-    const cleanup = () => {
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
+    const sendSse = (event: string, data: unknown) => {
+      if (cleaned || res.writableEnded) return;
+      try {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      } catch {
+        cleanup();
       }
-      this.observerService.removeObserver(connectionId);
-      shutdownSignal.removeEventListener("abort", cleanup);
-      if (!res.writableEnded) res.end();
     };
-
-    res.on("close", cleanup);
-    res.on("finish", cleanup);
-    req.on("error", cleanup);
-
-    const initialSnapshot = await this.dataService.getCurrentSnapshot();
-
-    // exit early if the user disconnected while we are getting the snapshot
-    if (res.writableEnded) return;
-
-    sendSse("stats-update", initialSnapshot);
 
     shutdownSignal.addEventListener("abort", cleanup, { once: true });
+
+    sendSse("stats-update", initialSnapshot);
 
     this.observerService.addObserver(connectionId, res, (data) => {
       sendSse("stats-update", data);
     });
 
-    heartbeatTimer = setInterval(() => {
+    const pulse = () => {
+      if (cleaned || res.writableEnded) return;
       try {
-        // keep connection alive
         const canWrite = res.write(":\n\n");
-        if (!canWrite) {
-          cleanup();
-        } else {
-          this.observerService.keepAlive();
-        }
+        if (!canWrite) return cleanup();
+        this.observerService.keepAlive();
       } catch {
         cleanup();
+        return;
       }
-    }, this.HEARTBEAT_INTERVAL);
+      heartbeatTimer = setTimeout(pulse, this.HEARTBEAT_INTERVAL);
+    };
+
+    heartbeatTimer = setTimeout(pulse, this.HEARTBEAT_INTERVAL);
   };
 }

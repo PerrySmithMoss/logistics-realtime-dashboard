@@ -28,6 +28,7 @@ const mockTimerTick = (ms: number) => {
 describe("InMemoryCache", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-13T12:00:00Z"));
   });
 
   afterEach(() => {
@@ -269,10 +270,7 @@ describe("InMemoryCache", () => {
   });
 
   describe("lazyCleanup", () => {
-    const populateExpired = async (
-      cache: InMemoryCache,
-      count: number,
-    ): Promise<void> => {
+    const populateExpired = async (cache: InMemoryCache, count: number): Promise<void> => {
       for (let i = 0; i < count; i++) {
         await cache.set(`key-${i}`, i, 1);
       }
@@ -287,18 +285,20 @@ describe("InMemoryCache", () => {
       expect(logger.info).not.toHaveBeenCalled();
     });
 
-    it("does NOT log when more than SIZE_THRESHOLD entries exist but less than 1 hour has elapsed", async () => {
+    it("does not log when more than SIZE_THRESHOLD entries exist but less than 1 hour has elapsed", async () => {
+      const startTime = new Date("2026-04-13T12:00:00Z");
+      vi.setSystemTime(startTime);
+
       const { cache, logger } = createMockCache();
 
-      // populate cache before fake timers so lazyCleanup sees elapsed time of 0
-      vi.useRealTimers();
       for (let i = 0; i < MOCK_CACHE_SIZE_THRESHOLD + 1; i++) {
         await cache.set(`key-${i}`, i, 1);
       }
-      vi.useFakeTimers();
 
       mockTimerTick(MOCK_CACHE_CLEANUP_INTERVAL_MS - 1);
+
       await cache.set("trigger", "cleanup");
+
       expect(logger.info).not.toHaveBeenCalled();
     });
 
@@ -308,9 +308,7 @@ describe("InMemoryCache", () => {
       mockTimerTick(MOCK_CACHE_CLEANUP_INTERVAL_MS + 1);
       await cache.set("trigger", "cleanup");
       expect(logger.info).toHaveBeenCalledOnce();
-      expect(vi.mocked(logger.info).mock.calls[0][0]).toMatch(
-        /Lazy cleanup performed/,
-      );
+      expect(vi.mocked(logger.info).mock.calls[0][0]).toMatch(/Lazy cleanup performed/);
     });
 
     it("does not remove entries that are still live during cleanup", async () => {
@@ -319,11 +317,7 @@ describe("InMemoryCache", () => {
       for (let i = 0; i < MOCK_CACHE_SIZE_THRESHOLD + 1; i++) {
         await cache.set(`expired-${i}`, i, 1);
       }
-      await cache.set(
-        "survivor",
-        "alive",
-        MOCK_CACHE_CLEANUP_INTERVAL_MS + 10_000,
-      );
+      await cache.set("survivor", "alive", MOCK_CACHE_CLEANUP_INTERVAL_MS + 10_000);
 
       mockTimerTick(2);
       mockTimerTick(MOCK_CACHE_CLEANUP_INTERVAL_MS);

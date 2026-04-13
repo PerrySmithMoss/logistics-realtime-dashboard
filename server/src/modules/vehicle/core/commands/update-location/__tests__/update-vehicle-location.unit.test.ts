@@ -3,9 +3,10 @@ import {
   UpdateVehicleLocationHandler,
 } from "@modules/vehicle/core/commands";
 import { Vehicle } from "@modules/vehicle/core/entities";
+import { VehicleLocationUpdatedEvent } from "@modules/vehicle/core/events/vehicle.events";
 import { IVehicleReadRepository, IVehicleWriteRepository } from "@modules/vehicle/core/interfaces";
 import { BadRequestError } from "@shared/errors/app.errors";
-import { IEventBroker, IVehicleStatusChangeEvent } from "@shared/interfaces";
+import { IEventBroker } from "@shared/interfaces";
 import { VehicleStatus } from "@shared/types/vehicle.types";
 
 describe("UpdateVehicleLocationHandler", () => {
@@ -71,8 +72,13 @@ describe("UpdateVehicleLocationHandler", () => {
       new UpdateVehicleLocationCommand("v-1", 51.6, -0.13, VehicleStatus.Active),
     );
 
-    const payload = vi.mocked(eventBroker.publish).mock.calls[0][1] as IVehicleStatusChangeEvent;
-    expect(payload.timestamp).not.toBe(oldDate);
+    expect(eventBroker.publish).toHaveBeenCalledWith(
+      VehicleLocationUpdatedEvent.type,
+      expect.objectContaining({
+        timestamp: expect.not.stringMatching(oldDate),
+        vehicleId: "vehicle-1",
+      }),
+    );
 
     vi.useRealTimers();
   });

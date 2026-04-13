@@ -2,40 +2,82 @@ import { Response } from "express";
 import { EventEmitter } from "node:events";
 import { vi } from "vitest";
 
-export type MockSseResponse = Response & {
-  emit: (event: string) => boolean;
-  writable: boolean;
-  writableEnded: boolean;
-  headersWritten?: Record<string, string | number>;
-};
+export type MockSseResponse = Response &
+  EventEmitter & {
+    headersWritten?: Record<string, string | number>;
+    writable: boolean;
+    writableEnded: boolean;
+  };
 
 export const createMockSseResponse = (): MockSseResponse => {
   const emitter = new EventEmitter();
-  const res = {} as MockSseResponse;
 
-  res.writable = true;
-  res.writableEnded = false;
+  // 1. Keep state in a simple object
+  const state = {
+    writable: true,
+    writableEnded: false,
+    headersWritten: undefined as Record<string, string | number> | undefined,
+  };
 
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn().mockReturnValue(res);
-  res.setHeader = vi.fn().mockReturnValue(res);
-  res.sendStatus = vi.fn().mockReturnValue(res);
-  res.send = vi.fn().mockReturnValue(res);
-  res.writeHead = vi.fn().mockImplementation((_status, headers) => {
-    res.headersWritten = headers as Record<string, string | number>;
-    return res;
-  });
-  res.write = vi.fn().mockReturnValue(true);
-  res.end = vi.fn().mockImplementation(() => {
-    res.writableEnded = true;
-    res.writable = false;
-    return res;
-  });
-  res.on = vi.fn().mockImplementation((event: string, handler: () => void) => {
-    emitter.on(event, handler);
-    return res;
-  });
-  res.emit = (event: string) => emitter.emit(event);
+  const container = { proxy: {} as MockSseResponse };
 
-  return res;
+  const handlers: Partial<Record<keyof MockSseResponse, unknown>> = {
+    status: vi.fn().mockImplementation(() => container.proxy),
+    json: vi.fn().mockImplementation(() => container.proxy),
+    setHeader: vi.fn().mockImplementation(() => container.proxy),
+    writeHead: vi.fn().mockImplementation(function (
+      this: MockSseResponse,
+      _s: number,
+      h: Record<string, string>,
+    ) {
+      state.headersWritten = h;
+      return container.proxy;
+    }),
+    write: vi.fn().mockReturnValue(true),
+    end: vi.fn().mockImplementation(function (this: MockSseResponse) {
+      state.writableEnded = true;
+      state.writable = false;
+      return container.proxy;
+    }),
+  };
+
+  container.proxy = new Proxy(emitter, {
+    get(target, prop, receiver) {
+      // Avoid Promise/Vitest traps
+      if (prop === "then" || prop === "asymmetricMatch" || typeof prop === "symbol") {
+        return undefined;
+      }
+
+      // 💡 NEW: Self-reference check. If someone asks for the underlying emitter
+      if (prop === "getEventEmitter") return target;
+
+      // Check state
+      if (Object.prototype.hasOwnProperty.call(state, prop)) {
+        return Reflect.get(state, prop);
+      }
+
+      // Check handlers
+      if (Object.prototype.hasOwnProperty.call(handlers, prop)) {
+        return handlers[prop as keyof typeof handlers];
+      }
+
+      // Check EventEmitter methods
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value === "function") {
+        return (value as (...args: unknown[]) => unknown).bind(target);
+      }
+
+      // 💡 CHANGE: Return a mock that returns the receiver to maintain chaining
+      return vi.fn().mockReturnValue(receiver);
+    },
+
+    set(target, prop, value, receiver) {
+      if (Object.prototype.hasOwnProperty.call(state, prop)) {
+        return Reflect.set(state, prop, value);
+      }
+      return Reflect.set(target, prop, value, receiver);
+    },
+  }) as unknown as MockSseResponse;
+
+  return container.proxy;
 };

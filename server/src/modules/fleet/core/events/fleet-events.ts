@@ -1,3 +1,5 @@
+import { VehicleSnapshot } from "@modules/vehicle/core/dtos";
+
 export class FleetStatsUpdatedEvent {
   static readonly type = "FLEET.STATS_UPDATED" as const;
 
@@ -9,7 +11,7 @@ export class FleetStatsUpdatedEvent {
         delayedCount: number;
         performancePct: number;
       };
-      vehicles: any[];
+      vehicles: VehicleSnapshot[];
     },
   ) {}
 }

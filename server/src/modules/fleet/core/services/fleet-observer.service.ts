@@ -21,45 +21,36 @@ export class FleetObserverService implements IFleetObserverService {
     private readonly logger: ILogger,
   ) {}
 
-  public setLiveComponents(
-    reactor: IBroadcastScheduler,
-    simulator: ISimulator,
-  ): void {
+  public setLiveComponents(reactor: IBroadcastScheduler, simulator: ISimulator): void {
     this.reactor = reactor;
     this.simulator = simulator;
   }
 
-  public addObserver(
-    id: string,
-    res: Response,
-    callback: (stats: unknown) => void,
-  ): void {
+  public addObserver(id: string, res: Response, callback: (stats: unknown) => void): void {
     if (!this.reactor || !this.simulator) {
       this.logger.error(
         "[FleetObserverService] Attempted to add observer, but reactor and simulator are missing.",
       );
-      throw new InternalServerError(
-        "Fleet Tracking Pipeline is not initialised.",
-        false,
-      );
+      throw new InternalServerError("Fleet Tracking Pipeline is not initialised.", false);
     }
 
-    const isFirst = this.observers.size === 0;
+    if (this.observers.has(id)) return;
+
+    if (this.observers.size === 0) {
+      this.activateFleetPipeline();
+    }
+
     this.observers.set(id, { callback, res });
 
     this.logger.info(
       `[FleetObserverService] Observer joined: ${id} | Total: ${this.observers.size}`,
     );
-
-    if (isFirst) this.activateFleetPipeline();
   }
 
   public removeObserver(id: string): void {
     const existed = this.observers.delete(id);
     if (!existed) return;
-    this.logger.info(
-      `[FleetObserverService] Observer left: ${id} | Total: ${this.observers.size}`,
-    );
+    this.logger.info(`[FleetObserverService] Observer left: ${id} | Total: ${this.observers.size}`);
 
     if (this.observers.size === 0) this.deactivateFleetPipeline();
   }
@@ -73,7 +64,6 @@ export class FleetObserverService implements IFleetObserverService {
   private broadcastToObservers = (event: FleetStatsUpdatedEvent): void => {
     if (this.observers.size === 0) return;
 
-    // snapshot observer IDs to avoid issues if the map is mutated during iteration
     const observerIds = Array.from(this.observers.keys());
 
     for (const id of observerIds) {
@@ -82,19 +72,14 @@ export class FleetObserverService implements IFleetObserverService {
 
       if (observer.res.writableEnded || !observer.res.writable) {
         this.observers.delete(id);
-        this.logger.debug(
-          `[FleetObserverService] Cleaned up stale observer: ${id}`,
-        );
+        this.logger.debug(`[FleetObserverService] Cleaned up stale observer: ${id}`);
         continue;
       }
 
       try {
         observer.callback(event.payload);
       } catch (err) {
-        this.logger.error(
-          `[FleetObserverService] Failed to send to ${id}:`,
-          err,
-        );
+        this.logger.error(`[FleetObserverService] Failed to send to ${id}:`, err);
         this.observers.delete(id);
       }
     }
@@ -107,20 +92,14 @@ export class FleetObserverService implements IFleetObserverService {
   private activateFleetPipeline(): void {
     this.logger.info("[FleetObserverService] Activating pipeline...");
     this.reactor?.start();
-    this.eventBroker.subscribe(
-      FleetStatsUpdatedEvent.type,
-      this.broadcastToObservers,
-    );
+    this.eventBroker.subscribe(FleetStatsUpdatedEvent.type, this.broadcastToObservers);
     this.simulator?.heartbeat("PIPELINE_START");
   }
 
   private deactivateFleetPipeline(): void {
     this.logger.info("[FleetObserverService] Deactivating pipeline...");
     this.reactor?.stop();
-    this.eventBroker.unsubscribe(
-      FleetStatsUpdatedEvent.type,
-      this.broadcastToObservers,
-    );
+    this.eventBroker.unsubscribe(FleetStatsUpdatedEvent.type, this.broadcastToObservers);
     this.simulator?.stop();
   }
 }

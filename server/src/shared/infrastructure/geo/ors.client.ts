@@ -6,9 +6,16 @@ import {
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { httpClient } from "@shared/lib/http";
 
+interface ORSResponse {
+  locations: Array<{
+    location: [number, number];
+    name?: string;
+    distance?: number;
+  }>;
+}
+
 export class OpenRouteServiceClient implements IGeoSnappingService {
-  private readonly orsUrl =
-    "https://api.openrouteservice.org/v2/snap/driving-car";
+  private readonly orsUrl = "https://api.openrouteservice.org/v2/snap/driving-car";
 
   constructor(
     private readonly apiKey: string,
@@ -22,7 +29,7 @@ export class OpenRouteServiceClient implements IGeoSnappingService {
     try {
       const locations = points.map((p) => [p.lng, p.lat]);
 
-      const response = await httpClient<any>(this.orsUrl, {
+      const response = await httpClient<ORSResponse>(this.orsUrl, {
         method: "POST",
         headers: {
           Authorization: this.apiKey,
@@ -34,21 +41,19 @@ export class OpenRouteServiceClient implements IGeoSnappingService {
       });
 
       if (!response || !response.locations) {
-        this.logger.warn(
-          "[ORSClient] API returned success but empty/invalid payload",
-          { response },
-        );
+        this.logger.warn("[ORSClient] API returned success but empty/invalid payload", {
+          response,
+        });
         return points.map((p) => ({ ...p, success: false }));
       }
 
-      return response.locations.map((item: any, index: number) => {
+      return response.locations.map((item, index) => {
         const original = points[index];
 
         const [lng, lat] = item.location;
 
         const success =
-          Math.abs(lat - original.lat) > 0.00001 ||
-          Math.abs(lng - original.lng) > 0.00001;
+          Math.abs(lat - original.lat) > 0.00001 || Math.abs(lng - original.lng) > 0.00001;
 
         return {
           lat,

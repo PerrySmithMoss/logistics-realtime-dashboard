@@ -8,10 +8,7 @@ export class FleetSimulator implements ISimulator {
   private interval: NodeJS.Timeout | null = null;
   private vehicleIds: string[] = [];
   private lastHeartbeat: number = 0;
-  private vehicleStates = new Map<
-    string,
-    { lat: number; lng: number; heading: number }
-  >();
+  private vehicleStates = new Map<string, { lat: number; lng: number; heading: number }>();
 
   constructor(
     private readonly commandBus: ICommandBus,
@@ -63,12 +60,8 @@ export class FleetSimulator implements ISimulator {
     }
 
     const now = Date.now();
-    const diff = now - this.lastHeartbeat;
-
-    if (diff > this.settings.watchdogTimeout) {
-      this.logger.info(
-        "[FleetSimulator] WATCHDOG_TIMEOUT. Shutting down simulator...",
-      );
+    if (now - this.lastHeartbeat > this.settings.watchdogTimeout) {
+      this.logger.info("[FleetSimulator] WATCHDOG_TIMEOUT. Shutting down...");
       this.stop();
       return;
     }
@@ -79,25 +72,9 @@ export class FleetSimulator implements ISimulator {
       if (signal.aborted) break;
 
       try {
-        let state = this.vehicleStates.get(id);
-        if (!state) {
-          state = {
-            lat: 51.5074 + (Math.random() - 0.5) * 0.01,
-            lng: -0.1278 + (Math.random() - 0.5) * 0.01,
-            heading: Math.random() * 2 * Math.PI,
-          };
-        }
+        const state = this.getNextState(id);
 
-        const speed = 0.0002;
-        const steeringDrift = (Math.random() - 0.5) * 0.2;
-
-        state.heading += steeringDrift;
-        state.lat += Math.cos(state.heading) * speed;
-        state.lng += Math.sin(state.heading) * speed;
-
-        this.vehicleStates.set(id, state);
-
-        // change status for demo purposes
+        // randomly change status for demo purposes
         const status = Math.random() > 0.98 ? "delayed" : "active";
 
         await this.commandBus.execute(
@@ -108,15 +85,32 @@ export class FleetSimulator implements ISimulator {
       } catch (err) {
         if (signal.aborted) return;
 
-        this.logger.error(
-          `[FleetSimulator] Failed to update vehicle ${id}`,
-          err,
-        );
+        this.logger.error(`[FleetSimulator] Failed to update vehicle ${id}`, err);
 
         if (err instanceof AppError && !err.isOperational) {
           this.stop();
+          break;
         }
       }
     }
+  }
+
+  private getNextState(id: string) {
+    let state = this.vehicleStates.get(id);
+    if (!state) {
+      state = {
+        lat: 51.5074 + (Math.random() - 0.5) * 0.01,
+        lng: -0.1278 + (Math.random() - 0.5) * 0.01,
+        heading: Math.random() * 2 * Math.PI,
+      };
+    }
+
+    const speed = 0.0002;
+    state.heading += (Math.random() - 0.5) * 0.2;
+    state.lat += Math.cos(state.heading) * speed;
+    state.lng += Math.sin(state.heading) * speed;
+
+    this.vehicleStates.set(id, state);
+    return state;
   }
 }

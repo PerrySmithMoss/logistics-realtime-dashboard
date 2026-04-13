@@ -1,6 +1,7 @@
 export * from "./broadcast-scheduler.interface";
 export * from "./cache.interface";
 export * from "./event-broker.interface";
+export * from "./event-registry.interface";
 export * from "./geo-snapping-service.interface";
 export * from "./health-controller.interface";
 export * from "./lifecycle-manager.interface";

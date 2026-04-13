@@ -1,14 +1,15 @@
+import { EventRegistry } from "@shared/interfaces";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 
 export interface EventSubscription {
-  event: string;
+  event: keyof EventRegistry;
   handler: (data: unknown) => Promise<void>;
 }
 
 export class FleetEventSubscriber {
   private readonly registeredHandlers = new Map<
-    string,
+    keyof EventRegistry,
     (data: unknown) => Promise<void>
   >();
 
@@ -20,13 +21,16 @@ export class FleetEventSubscriber {
 
   public subscribe(): void {
     for (const { event, handler } of this.subscriptions) {
+      // Prevent duplicate subscriptions
+      if (this.registeredHandlers.has(event)) continue;
+
       const safeHandler = async (data: unknown) => {
         try {
           await handler(data);
         } catch (err) {
           this.logger.error(
             `[FleetSubscriber] Failed to process "${event}":`,
-            err,
+            err instanceof Error ? err : new Error(String(err)),
           );
         }
       };

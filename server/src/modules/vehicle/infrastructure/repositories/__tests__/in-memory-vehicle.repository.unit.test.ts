@@ -1,6 +1,5 @@
-import { Vehicle } from "@modules/vehicle/core/entities/vehicle.entity";
 import { InMemoryDatabase } from "@shared/infrastructure/database/in-memory-database";
-import { createMockLifecycleManager } from "@shared/testing/test-utils";
+import { createMockLifecycleManager, createVehicleEntity } from "@shared/testing/test-utils";
 import { VehicleStatus } from "@shared/types/vehicle.types";
 import { InMemoryVehicleRepository } from "../in-memory-vehicle.repository";
 
@@ -8,16 +7,7 @@ describe("InMemoryVehicleRepository", () => {
   const setup = () => {
     const database = new InMemoryDatabase(createMockLifecycleManager());
     const repository = new InMemoryVehicleRepository(database);
-
-    const createVehicle = (overrides = {}) =>
-      Vehicle.create({
-        id: "vehicle-1",
-        plateNumber: "AB12 CDE",
-        lat: 51.5,
-        lng: -0.12,
-        status: VehicleStatus.Active,
-        ...overrides,
-      });
+    const createVehicle = (overrides = {}) => createVehicleEntity(overrides);
 
     return {
       database,

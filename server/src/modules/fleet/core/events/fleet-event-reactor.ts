@@ -7,7 +7,7 @@ import { FleetStatsUpdatedEvent } from "./fleet-events";
 
 export class FleetEventReactor implements IBroadcastScheduler {
   private needsPublish = false;
-  private publishInterval: NodeJS.Timeout | null = null;
+  private publishTimeout: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly dataService: IFleetDataService,
@@ -18,10 +18,7 @@ export class FleetEventReactor implements IBroadcastScheduler {
   public async onVehicleLocationChange(data: unknown): Promise<void> {
     try {
       if (!isStatusChangeEvent(data)) {
-        this.logger.warn(
-          "[FleetEventReactor] Received malformed status change event",
-          { data },
-        );
+        this.logger.warn("[FleetEventReactor] Received malformed status change event", { data });
         return;
       }
 
@@ -36,38 +33,38 @@ export class FleetEventReactor implements IBroadcastScheduler {
     if (!this.needsPublish) return;
 
     try {
-      const snapshot = await this.dataService.getCurrentSnapshot();
-      this.broker.publish(
-        FleetStatsUpdatedEvent.type,
-        new FleetStatsUpdatedEvent(snapshot),
-      );
       this.needsPublish = false;
+      const snapshot = await this.dataService.getCurrentSnapshot();
+      this.broker.publish(FleetStatsUpdatedEvent.type, new FleetStatsUpdatedEvent(snapshot));
     } catch (err) {
+      this.needsPublish = true;
       this.logger.error("[FleetEventReactor] Broadcast failed", err);
     }
   }
 
   public start() {
-    if (this.publishInterval) return;
+    if (this.publishTimeout) return;
 
     this.logger.info("[FleetEventReactor] Activating broadcast loop...");
 
     const run = async () => {
       await this.broadcast();
 
-      if (this.publishInterval) {
-        this.publishInterval = setTimeout(run, 1000);
+      // Check again to ensure stop wasn't called
+      // while broadcast was awaiting
+      if (this.publishTimeout) {
+        this.publishTimeout = setTimeout(run, 1000);
       }
     };
 
-    this.publishInterval = setTimeout(run, 1000);
+    this.publishTimeout = setTimeout(run, 1000);
   }
 
   public stop(): void {
-    if (this.publishInterval) {
+    if (this.publishTimeout) {
       this.logger.info("[FleetEventReactor] Deactivating broadcast loop...");
-      clearInterval(this.publishInterval);
-      this.publishInterval = null;
+      clearInterval(this.publishTimeout);
+      this.publishTimeout = null;
     }
   }
 }
