@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "noEmit": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "package.json"],
+  "exclude": ["dist", "node_modules"]
 }
