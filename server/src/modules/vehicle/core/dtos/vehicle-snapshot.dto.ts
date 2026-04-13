@@ -8,5 +8,5 @@ export type VehicleSnapshot = {
   readonly lng: number;
   readonly lastUpdated: string;
   readonly isSnapped?: boolean;
-  readonly metadata?: Record<string, any>;
+  readonly metadata?: Record<string, unknown>;
 };

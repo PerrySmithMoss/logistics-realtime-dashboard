@@ -3,8 +3,6 @@ import { VehicleStatus } from "@shared/types/vehicle.types";
 
 export const VehicleEvents = {
   LOCATION_UPDATED: "VEHICLE.LOCATION_UPDATED",
-  STATUS_CHANGED: "VEHICLE.STATUS_CHANGED",
-  MAINTENANCE_STARTED: "VEHICLE.MAINTENANCE_STARTED",
 } as const;
 
 export class VehicleLocationUpdatedEvent implements IVehicleStatusChangeEvent {

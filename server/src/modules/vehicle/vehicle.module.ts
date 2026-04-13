@@ -9,8 +9,7 @@ import {
   UpdateVehicleLocationHandler,
 } from "./core/commands/update-location/update-vehicle-location";
 import { Vehicle } from "./core/entities/vehicle.entity";
-import { IVehicleReadRepository } from "./core/interfaces/vehicle-read-repository.interface";
-import { IVehicleWriteRepository } from "./core/interfaces/vehicle-write-repository.interface";
+import { IVehicleReadRepository, IVehicleWriteRepository } from "./core/interfaces";
 import {
   ListAllVehiclesHandler,
   ListAllVehiclesQuery,
@@ -37,14 +36,11 @@ export class VehicleModule {
     this.registerQueries(queryBus, repository);
   }
 
-  private static seedRepository(
-    repo: InMemoryVehicleRepository,
-    logger: ILogger,
-  ) {
+  private static async seedRepository(repo: InMemoryVehicleRepository, logger: ILogger) {
     const HUB_LAT = 51.5074;
     const HUB_LNG = -0.1278;
 
-    mockVehicles.forEach((data, index) => {
+    const seeds = mockVehicles.map((data, index) => {
       const latOffset = index * 0.0002;
       const lngOffset = index * 0.0002;
 
@@ -55,8 +51,10 @@ export class VehicleModule {
         status: data.status,
       });
 
-      repo.save(vehicle);
+      return repo.save(vehicle);
     });
+
+    await Promise.all(seeds);
 
     logger.info(`[VehicleModule] Seeded ${mockVehicles.length} vehicles.`);
   }

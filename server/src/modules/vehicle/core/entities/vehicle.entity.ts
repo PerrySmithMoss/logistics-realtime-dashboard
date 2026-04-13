@@ -1,7 +1,4 @@
-import {
-  BadRequestError,
-  UnprocessableEntityError,
-} from "@shared/errors/app.errors";
+import { BadRequestError, UnprocessableEntityError } from "@shared/errors/app.errors";
 import { VehicleProps, VehicleStatus } from "@shared/types/vehicle.types";
 import { VehicleSnapshot } from "../dtos/vehicle-snapshot.dto";
 
@@ -24,7 +21,7 @@ export class Vehicle {
   }
 
   public static hydrate(props: VehicleProps): Vehicle {
-    return new Vehicle(props);
+    return new Vehicle({ ...props });
   }
 
   public getProps(): VehicleProps {
@@ -41,9 +38,7 @@ export class Vehicle {
     }
 
     if (this.props.status === "maintenance") {
-      throw new UnprocessableEntityError(
-        "Cannot update location while in maintenance.",
-      );
+      throw new UnprocessableEntityError("Cannot update location while in maintenance.");
     }
 
     this.props.lat = lat;

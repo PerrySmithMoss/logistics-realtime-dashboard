@@ -83,5 +83,6 @@ export type SerialisableApiResponseTypes =
   | number
   | boolean
   | null
+  | unknown
   | { [key: string]: SerialisableApiResponseTypes }
   | SerialisableApiResponseTypes[];

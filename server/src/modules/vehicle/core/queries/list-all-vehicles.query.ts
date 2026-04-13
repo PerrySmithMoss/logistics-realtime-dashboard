@@ -4,8 +4,13 @@ import { IVehicleReadRepository } from "../interfaces/vehicle-read-repository.in
 
 export class ListAllVehiclesQuery {
   static readonly type = "vehicle:list-all" as const;
-  constructor() {}
 }
+
+export type ListAllVehiclesResponse = {
+  data: VehicleSnapshot[];
+  count: number;
+  timestamp: string;
+};
 
 export class ListAllVehiclesHandler {
   constructor(private readonly repo: IVehicleReadRepository) {}
@@ -13,8 +18,14 @@ export class ListAllVehiclesHandler {
   async handle(
     _query: ListAllVehiclesQuery,
     _options?: IQueryBusOptions,
-  ): Promise<VehicleSnapshot[]> {
-    return this.repo.listAll();
+  ): Promise<ListAllVehiclesResponse> {
+    const vehicles = await this.repo.listAll();
+
+    return {
+      data: vehicles,
+      count: vehicles.length,
+      timestamp: new Date().toISOString(),
+    };
   }
 }
 
@@ -22,7 +33,7 @@ declare module "@shared/bus/query/query-registry" {
   interface GlobalQueryRegistry {
     [ListAllVehiclesQuery.type]: {
       request: ListAllVehiclesQuery;
-      response: VehicleSnapshot[];
+      response: ListAllVehiclesResponse;
     };
   }
 }
