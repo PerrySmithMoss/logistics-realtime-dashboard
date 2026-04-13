@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "validate": "npm run validate:server && npm run validate:client",
+    "validate:server": "cd server && npx lint-staged",
+    "validate:client": "cd client && npx lint-staged"
+  }
+}

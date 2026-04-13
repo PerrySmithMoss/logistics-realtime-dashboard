@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "type-check:test": "tsc -p tsconfig.test.json --noEmit"
   },
   "dependencies": {
     "jose": "^6.2.2",
@@ -23,7 +25,18 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.2",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "npm run type-check",
+      "npm run type-check:test",
+      "next lint --fix --file"
+    ]
   }
 }
