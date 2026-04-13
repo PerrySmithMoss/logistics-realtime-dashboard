@@ -1,17 +1,11 @@
 import { IAppConfig } from "@config/index";
 import { AppError, AppErrorCodes } from "@shared/errors/app.errors";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import {
-  ApiResponseContext,
-  ApiResponseOptions,
-} from "@shared/types/response.types";
+import { ApiResponseContext, ApiResponseOptions } from "@shared/types/response.types";
 import { createErrorResponse } from "@shared/utils/response.utils";
 import { ErrorRequestHandler } from "express";
 
-export const createErrorHandler = (
-  logger: ILogger,
-  config: IAppConfig,
-): ErrorRequestHandler => {
+export const createErrorHandler = (logger: ILogger, config: IAppConfig): ErrorRequestHandler => {
   const options: ApiResponseOptions = {
     apiVersion: config.app.version,
     environment: config.server.env,
@@ -30,6 +24,7 @@ export const createErrorHandler = (
     const retryAfter = isAppError ? error.retryAfterSeconds : undefined;
 
     const logLevel = !isAppError || statusCode >= 500 ? "error" : "warn";
+
     logger[logLevel](`[${code}] ${req.method} ${req.path}`, {
       requestId: req.id,
       message: error.message,
