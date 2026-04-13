@@ -1,14 +1,14 @@
-import {
-  InternalServerError,
-  TooManyRequestsError,
-} from "@shared/errors/app.errors";
+import { InternalServerError, TooManyRequestsError } from "@shared/errors/app.errors";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { RequestHandler } from "express";
 
-export const rateLimiter = (
-  cache: ICache,
-  options: { windowMs: number; maxRequests: number; keyPrefix?: string },
-): RequestHandler => {
+export interface RateLimiterOptions {
+  windowMs: number;
+  maxRequests: number;
+  keyPrefix?: string;
+}
+
+export const rateLimiter = (cache: ICache, options: RateLimiterOptions): RequestHandler => {
   const { windowMs, maxRequests, keyPrefix = "rl" } = options;
 
   return async (req, res, next) => {
@@ -28,10 +28,7 @@ export const rateLimiter = (
 
     if (currentUsage > maxRequests) {
       res.setHeader("X-RateLimit-Remaining", 0);
-      throw new TooManyRequestsError(
-        "Too many requests. Please slow down.",
-        resetSeconds,
-      );
+      throw new TooManyRequestsError("Too many requests. Please slow down.", resetSeconds);
     }
 
     next();

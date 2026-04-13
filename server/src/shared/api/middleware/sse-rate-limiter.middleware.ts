@@ -1,7 +1,4 @@
-import {
-  InternalServerError,
-  TooManyRequestsError,
-} from "@shared/errors/app.errors";
+import { InternalServerError, TooManyRequestsError } from "@shared/errors/app.errors";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { RequestHandler } from "express";
@@ -12,7 +9,7 @@ const DEFAULT_MESSAGES = {
   concurrency: "Maximum concurrent sessions reached for this resource.",
 };
 
-interface SseShieldOptions {
+export interface SseRateLimiterOptions {
   maxConcurrent?: number;
   minRetryMs?: number;
   errorMessageResponses?: {
@@ -25,36 +22,25 @@ interface SseShieldOptions {
 export const sseRateLimiter = (
   logger: ILogger,
   cache: ICache,
-  options: SseShieldOptions = {},
+  options: SseRateLimiterOptions = {},
 ): RequestHandler => {
-  const {
-    maxConcurrent = 3,
-    minRetryMs = 2000,
-    errorMessageResponses = {},
-  } = options;
+  const { maxConcurrent = 3, minRetryMs = 2000, errorMessageResponses = {} } = options;
 
-  const freqErrMsg =
-    errorMessageResponses.frequencyErrorMessage ?? DEFAULT_MESSAGES.frequency;
-  const concErrMsg =
-    errorMessageResponses.concurrencyErrorMessage ??
-    DEFAULT_MESSAGES.concurrency;
-  const invalidIpErrMsg =
-    errorMessageResponses.invalidIp ?? DEFAULT_MESSAGES.invalidIp;
+  const freqErrMsg = errorMessageResponses.frequencyErrorMessage ?? DEFAULT_MESSAGES.frequency;
+  const concErrMsg = errorMessageResponses.concurrencyErrorMessage ?? DEFAULT_MESSAGES.concurrency;
+  const invalidIpErrMsg = errorMessageResponses.invalidIp ?? DEFAULT_MESSAGES.invalidIp;
 
   return async (req, res, next) => {
     const ip = req.ip;
-
-    if (!ip) {
-      throw new InternalServerError(invalidIpErrMsg);
-    }
+    if (!ip) throw new InternalServerError(invalidIpErrMsg);
 
     const countKey = `sse:count:${req.path}:${ip}`;
     const retryKey = `sse:retry:${req.path}:${ip}`;
 
+    // 1. Check frequency (Rate Limit) first - this is still a 'get'
     const isThrottled = await cache.get(retryKey);
-    const currentCount = (await cache.get<number>(countKey)) || 0;
-
     const resetSeconds = Math.ceil(minRetryMs / 1000);
+
     res.setHeader("X-RateLimit-Limit", maxConcurrent);
     res.setHeader("X-RateLimit-Reset", resetSeconds);
 
@@ -65,31 +51,36 @@ export const sseRateLimiter = (
     }
 
     // concurrency check (connection limit)
-    if (currentCount >= maxConcurrent) {
+    const currentCount = await cache.increment(countKey, 86400000);
+
+    if (currentCount > maxConcurrent) {
+      await cache.decrement(countKey, 86400000);
       res.setHeader("X-RateLimit-Remaining", 0);
       throw new TooManyRequestsError(concErrMsg);
     }
 
-    const remaining = Math.max(0, maxConcurrent - (currentCount + 1)); // +1 because this req is about to connect
+    const remaining = maxConcurrent - currentCount;
     res.setHeader("X-RateLimit-Remaining", remaining);
 
     await cache.set(retryKey, true, minRetryMs);
-    await cache.increment(countKey, 86400000);
 
     let finished = false;
     const cleanup = async () => {
       if (finished) return;
       finished = true;
-      const remaining = await cache.decrement(countKey, 86400000);
-      if (remaining <= 0) await cache.delete(countKey);
+
+      try {
+        const remainingAfterDrop = await cache.decrement(countKey, 86400000);
+        if (remainingAfterDrop <= 0) {
+          await cache.delete(countKey);
+        }
+      } catch (e) {
+        logger.error("SSE Cleanup Error", e);
+      }
     };
 
-    res.on("close", () =>
-      cleanup().catch((e) => logger.error("SSE Cleanup Close Error", e)),
-    );
-    res.on("finish", () =>
-      cleanup().catch((e) => logger.error("SSE Cleanup Finish Error", e)),
-    );
+    res.on("close", cleanup);
+    res.on("finish", cleanup);
 
     next();
   };
