@@ -4,20 +4,24 @@ export interface IQueryBusOptions {
   signal?: AbortSignal;
 }
 
-export interface IQueryBus {
-  ask<K extends keyof GlobalQueryRegistry>(
-    queryName: K,
-    params: GlobalQueryRegistry[K]["request"],
-    options?: { signal?: AbortSignal },
-  ): Promise<GlobalQueryRegistry[K]["response"]>;
+export interface IQueryHandler<TReq = unknown, TRes = unknown> {
+  handle(query: TReq, options?: IQueryBusOptions): Promise<TRes>;
+}
 
-  register<K extends keyof GlobalQueryRegistry>(
+export interface QueryEntry {
+  request: unknown;
+  response: unknown;
+}
+
+export interface IQueryBus<R extends Record<keyof R, QueryEntry> = GlobalQueryRegistry> {
+  register<K extends keyof R>(
     queryName: K,
-    handler: {
-      handle(
-        query: GlobalQueryRegistry[K]["request"],
-        options?: IQueryBusOptions,
-      ): Promise<GlobalQueryRegistry[K]["response"]>;
-    },
+    handler: IQueryHandler<R[K]["request"], R[K]["response"]>,
   ): void;
+
+  ask<K extends keyof R>(
+    queryName: K,
+    params: R[K]["request"],
+    options?: IQueryBusOptions,
+  ): Promise<R[K]["response"]>;
 }

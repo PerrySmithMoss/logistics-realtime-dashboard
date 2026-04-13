@@ -1,134 +1,114 @@
 import { InternalServerError } from "@shared/errors/app.errors";
-import { describe, expect, it, vi } from "vitest";
+import { IQueryHandler } from "@shared/interfaces/query-bus.interface";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryBus } from "../query-bus";
 
+interface TestRegistry {
+  "test:get-data": {
+    request: { id: string };
+    response: { data: string };
+  };
+  "test:other": {
+    request: { filter: string };
+    response: string[];
+  };
+}
+
 describe("QueryBus", () => {
-  const setup = () => {
-    const bus = new QueryBus();
-    const TEST_QUERY = "test.query" as any;
+  const setup = (result?: unknown) => {
+    const bus = new QueryBus<TestRegistry>();
 
-    const mockHandler = {
-      handle: vi.fn().mockResolvedValue({ data: "success" }),
-    };
+    const createMockHandler = <K extends keyof TestRegistry>() =>
+      ({
+        handle: vi.fn().mockResolvedValue(result ?? { data: "success" }),
+      }) as IQueryHandler<TestRegistry[K]["request"], TestRegistry[K]["response"]>;
 
-    return { bus, mockHandler, TEST_QUERY };
+    return { bus, createMockHandler };
   };
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("register", () => {
-    it("should route the query to the correct handler and return the result", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
-      const params = { id: "123" };
+    it("should allow registering a valid query handler", () => {
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:get-data">();
 
-      bus.register(TEST_QUERY, mockHandler);
-      await bus.ask(TEST_QUERY, params);
-
-      expect(mockHandler.handle).toHaveBeenCalledWith(
-        params,
-        expect.any(Object),
-      );
+      expect(() => bus.register("test:get-data", handler)).not.toThrow();
     });
 
     it("should throw InternalServerError when registering a duplicate handler", () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:get-data">();
 
-      bus.register(TEST_QUERY, mockHandler);
+      bus.register("test:get-data", handler);
 
-      expect(() => bus.register(TEST_QUERY, mockHandler)).toThrow(
-        InternalServerError,
-      );
-      expect(() => bus.register(TEST_QUERY, mockHandler)).toThrow(
-        /already registered/,
-      );
-    });
-
-    it("should be type-safe within this file only", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
-
-      bus.register(TEST_QUERY, mockHandler);
-      const result = await bus.ask(TEST_QUERY, { id: "123" });
-
-      expect(result.data).toBe("success");
+      expect(() => bus.register("test:get-data", handler)).toThrow(InternalServerError);
+      expect(() => bus.register("test:get-data", handler)).toThrow(/already registered/);
     });
   });
 
   describe("ask", () => {
     it("should route the query to the correct handler and return the result", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
+      const { bus, createMockHandler } = setup({ data: "success" });
+      const handler = createMockHandler<"test:get-data">();
       const params = { id: "123" };
 
-      bus.register(TEST_QUERY, mockHandler);
-      const result = await bus.ask(TEST_QUERY, params);
+      bus.register("test:get-data", handler);
+      const result = await bus.ask("test:get-data", params);
 
-      expect(mockHandler.handle).toHaveBeenCalledWith(
-        params,
-        expect.any(Object),
-      );
+      expect(handler.handle).toHaveBeenCalledWith(params, {});
       expect(result).toEqual({ data: "success" });
     });
 
     it("should throw InternalServerError if no handler is registered", async () => {
-      const { bus, TEST_QUERY } = setup();
+      const { bus } = setup();
 
-      await expect(bus.ask(TEST_QUERY, { id: "1" })).rejects.toThrow(
-        InternalServerError,
-      );
+      await expect(bus.ask("test:get-data", { id: "1" })).rejects.toThrow(InternalServerError);
     });
   });
 
   describe("Cancellation & AbortSignal", () => {
     it("should throw InternalServerError if the signal is already aborted", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:get-data">();
       const controller = new AbortController();
       controller.abort();
 
-      bus.register(TEST_QUERY, mockHandler);
+      bus.register("test:get-data", handler);
 
       await expect(
-        bus.ask(TEST_QUERY, { id: "1" }, { signal: controller.signal }),
+        bus.ask("test:get-data", { id: "1" }, { signal: controller.signal }),
       ).rejects.toThrow(/cancelled: Signal already aborted/);
 
-      expect(mockHandler.handle).not.toHaveBeenCalled();
-    });
-
-    it("should allow the handler itself to handle the signal if passed through", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
-      bus.register(TEST_QUERY, mockHandler);
-
-      await bus.ask(
-        TEST_QUERY,
-        { id: "1" },
-        { signal: new AbortController().signal },
-      );
-
-      expect(mockHandler.handle).toHaveBeenCalled();
+      expect(handler.handle).not.toHaveBeenCalled();
     });
 
     it("should pass the AbortSignal through to the handler's options", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:get-data">();
       const controller = new AbortController();
       const signal = controller.signal;
-      const params = { id: "1" };
 
-      bus.register(TEST_QUERY, mockHandler);
+      bus.register("test:get-data", handler);
 
-      await bus.ask(TEST_QUERY, params, { signal });
+      await bus.ask("test:get-data", { id: "1" }, { signal });
 
-      expect(mockHandler.handle).toHaveBeenCalledWith(
-        params,
+      expect(handler.handle).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ signal }),
       );
     });
 
-    it("should function correctly when no options/signal are provided", async () => {
-      const { bus, mockHandler, TEST_QUERY } = setup();
-      bus.register(TEST_QUERY, mockHandler);
+    it("should default to an empty object for options", async () => {
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:get-data">();
 
-      await bus.ask(TEST_QUERY, { id: "1" });
+      bus.register("test:get-data", handler);
+      await bus.ask("test:get-data", { id: "1" });
 
-      expect(mockHandler.handle).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.any(Object),
-      );
+      expect(handler.handle).toHaveBeenCalledWith(expect.anything(), {});
     });
   });
 });

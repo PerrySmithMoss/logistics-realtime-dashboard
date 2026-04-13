@@ -2,50 +2,40 @@ import { InternalServerError } from "@shared/errors/app.errors";
 import {
   ICommandBus,
   ICommandBusOptions,
+  ICommandHandler,
 } from "../../interfaces/command-bus.interface";
 import { GlobalCommandRegistry } from "./command-registry";
 
-type CommandHandler = {
-  handle(command: unknown, options?: ICommandBusOptions): Promise<void>;
-};
+export class CommandBus<R = GlobalCommandRegistry> implements ICommandBus<R> {
+  private readonly handlers = new Map<keyof R, ICommandHandler<unknown>>();
 
-export class CommandBus implements ICommandBus {
-  private readonly handlers = new Map<
-    keyof GlobalCommandRegistry,
-    CommandHandler
-  >();
-
-  public register<K extends keyof GlobalCommandRegistry>(
-    commandName: K,
-    handler: { handle(command: GlobalCommandRegistry[K]): Promise<void> },
-  ): void {
+  public register<K extends keyof R>(commandName: K, handler: ICommandHandler<R[K]>): void {
     if (this.handlers.has(commandName)) {
       throw new InternalServerError(
-        `Handler for command ${String(commandName)} is already registered.`,
+        `Handler for '${String(commandName)}' is already registered.`,
         false,
       );
     }
-    this.handlers.set(commandName, handler);
+
+    this.handlers.set(commandName, handler as ICommandHandler<unknown>);
   }
 
-  public async execute<K extends keyof GlobalCommandRegistry>(
+  public async execute<K extends keyof R>(
     commandName: K,
-    request: GlobalCommandRegistry[K],
+    request: R[K],
     options?: ICommandBusOptions,
   ): Promise<void> {
     if (options?.signal?.aborted) {
       throw new InternalServerError(
-        `Command ${commandName} cancelled: Signal already aborted.`,
+        `Command ${String(commandName)} cancelled: Signal already aborted.`,
         false,
       );
     }
 
     const handler = this.handlers.get(commandName);
+
     if (!handler) {
-      throw new InternalServerError(
-        `No handler registered for ${commandName}`,
-        false,
-      );
+      throw new InternalServerError(`No handler for '${String(commandName)}'`, false);
     }
 
     await handler.handle(request, options ?? {});

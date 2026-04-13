@@ -4,20 +4,16 @@ export interface ICommandBusOptions {
   signal?: AbortSignal;
 }
 
-export interface ICommandBus {
-  execute<K extends keyof GlobalCommandRegistry>(
+export interface ICommandBus<R = GlobalCommandRegistry> {
+  register<K extends keyof R>(commandName: K, handler: ICommandHandler<R[K]>): void;
+
+  execute<K extends keyof R>(
     commandName: K,
-    request: GlobalCommandRegistry[K],
+    request: R[K],
     options?: ICommandBusOptions,
   ): Promise<void>;
+}
 
-  register<K extends keyof GlobalCommandRegistry>(
-    commandName: K,
-    handler: {
-      handle(
-        command: GlobalCommandRegistry[K],
-        options?: ICommandBusOptions,
-      ): Promise<void>;
-    },
-  ): void;
+export interface ICommandHandler<C = unknown> {
+  handle(command: C, options?: ICommandBusOptions): Promise<void>;
 }

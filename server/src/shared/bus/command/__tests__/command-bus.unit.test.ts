@@ -1,104 +1,101 @@
 import { InternalServerError } from "@shared/errors/app.errors";
-import { describe, expect, it, vi } from "vitest";
+import { ICommandHandler } from "@shared/interfaces/command-bus.interface";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandBus } from "../command-bus";
 
+interface TestRegistry {
+  "test:command": { payload: string };
+  "test:other": { userId: string; action: string };
+  "test:empty": Record<string, never>;
+  "test:data": { data: string };
+}
+
 describe("CommandBus", () => {
-  const setup = () => {
-    const bus = new CommandBus();
-    const TEST_COMMAND = "test.command" as any;
+  const setup = (handlerResult?: Promise<void>) => {
+    const bus = new CommandBus<TestRegistry>();
 
-    const mockHandler = {
-      handle: vi.fn().mockResolvedValue(undefined),
-    };
-
-    return { bus, mockHandler, TEST_COMMAND };
-  };
-
-  describe("Registration", () => {
-    it("should allow registering a valid command handler", () => {
-      const { bus, mockHandler, TEST_COMMAND } = setup();
-
-      expect(() => bus.register(TEST_COMMAND, mockHandler)).not.toThrow();
+    const createMockHandler = <K extends keyof TestRegistry>(): ICommandHandler<
+      TestRegistry[K]
+    > => ({
+      handle: vi.fn().mockReturnValue(handlerResult ?? Promise.resolve()),
     });
 
-    it("should throw InternalServerError if a handler is already registered for a command", () => {
-      const { bus, mockHandler, TEST_COMMAND } = setup();
+    return { bus, createMockHandler };
+  };
 
-      bus.register(TEST_COMMAND, mockHandler);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-      expect(() => bus.register(TEST_COMMAND, mockHandler)).toThrow(
-        InternalServerError,
-      );
-      expect(() => bus.register(TEST_COMMAND, mockHandler)).toThrow(
-        /already registered/,
-      );
+  describe("register", () => {
+    it("should allow registering a valid command handler", () => {
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:command">();
+
+      expect(() => bus.register("test:command", handler)).not.toThrow();
+    });
+
+    it("should throw InternalServerError if a handler is already registered", () => {
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:command">();
+
+      bus.register("test:command", handler);
+
+      expect(() => bus.register("test:command", handler)).toThrow(InternalServerError);
+      expect(() => bus.register("test:command", handler)).toThrow(/already registered/);
     });
   });
 
-  describe("Execution (execute)", () => {
+  describe("execute", () => {
     it("should successfully route the command to the registered handler", async () => {
-      const { bus, mockHandler, TEST_COMMAND } = setup();
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:other">();
       const payload = { userId: "user-1", action: "update" };
 
-      bus.register(TEST_COMMAND, mockHandler);
-      await bus.execute(TEST_COMMAND, payload);
+      bus.register("test:other", handler);
+      await bus.execute("test:other", payload);
 
-      expect(mockHandler.handle).toHaveBeenCalledWith(payload, {});
+      expect(handler.handle).toHaveBeenCalledWith(payload, {});
     });
 
     it("should throw InternalServerError if no handler exists for the command", async () => {
-      const { bus, TEST_COMMAND } = setup();
+      const { bus } = setup();
 
-      await expect(bus.execute(TEST_COMMAND, { data: "raw" })).rejects.toThrow(
-        InternalServerError,
-      );
-
-      await expect(bus.execute(TEST_COMMAND, { data: "raw" })).rejects.toThrow(
-        /No handler registered/,
+      await expect(bus.execute("test:data", { data: "raw" })).rejects.toThrow(InternalServerError);
+      await expect(bus.execute("test:data", { data: "raw" })).rejects.toThrow(
+        /No handler for 'test:data'/,
       );
     });
   });
 
   describe("Cancellation & Context Propagation", () => {
-    it("should fail fast if the AbortSignal is already aborted before execution", async () => {
-      const { bus, mockHandler, TEST_COMMAND } = setup();
+    it("should fail fast if the AbortSignal is already aborted", async () => {
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:empty">();
       const controller = new AbortController();
       controller.abort();
 
-      bus.register(TEST_COMMAND, mockHandler);
+      bus.register("test:empty", handler);
 
-      await expect(
-        bus.execute(TEST_COMMAND, {}, { signal: controller.signal }),
-      ).rejects.toThrow(/cancelled: Signal already aborted/);
+      await expect(bus.execute("test:empty", {}, { signal: controller.signal })).rejects.toThrow(
+        /cancelled: Signal already aborted/,
+      );
 
-      expect(mockHandler.handle).not.toHaveBeenCalled();
+      expect(handler.handle).not.toHaveBeenCalled();
     });
 
     it("should pass the AbortSignal down to the handler options", async () => {
-      const { bus, mockHandler, TEST_COMMAND } = setup();
+      const { bus, createMockHandler } = setup();
+      const handler = createMockHandler<"test:other">();
       const controller = new AbortController();
-      const signal = controller.signal;
-      const payload = { amount: 100 };
+      const payload = { userId: "u1", action: "save" };
 
-      bus.register(TEST_COMMAND, mockHandler);
+      bus.register("test:other", handler);
+      await bus.execute("test:other", payload, { signal: controller.signal });
 
-      await bus.execute(TEST_COMMAND, payload, { signal });
-
-      expect(mockHandler.handle).toHaveBeenCalledWith(
+      expect(handler.handle).toHaveBeenCalledWith(
         payload,
-        expect.objectContaining({ signal }),
-      );
-    });
-
-    it("should default to an empty object if no options are provided", async () => {
-      const { bus, mockHandler, TEST_COMMAND } = setup();
-
-      bus.register(TEST_COMMAND, mockHandler);
-      await bus.execute(TEST_COMMAND, {});
-
-      expect(mockHandler.handle).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.any(Object),
+        expect.objectContaining({ signal: controller.signal }),
       );
     });
   });

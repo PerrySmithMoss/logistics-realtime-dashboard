@@ -3,28 +3,18 @@ import { InternalServerError } from "@shared/errors/app.errors";
 import {
   IQueryBus,
   IQueryBusOptions,
+  IQueryHandler,
+  QueryEntry,
 } from "../../interfaces/query-bus.interface";
 
-type QueryHandler = {
-  handle(
-    query: unknown,
-    options: IQueryBusOptions | undefined,
-  ): Promise<unknown>;
-};
+export class QueryBus<
+  R extends Record<keyof R, QueryEntry> = GlobalQueryRegistry,
+> implements IQueryBus<R> {
+  private readonly handlers = new Map<keyof R, IQueryHandler<unknown, unknown>>();
 
-export class QueryBus implements IQueryBus {
-  private readonly handlers = new Map<
-    keyof GlobalQueryRegistry,
-    QueryHandler
-  >();
-
-  register<K extends keyof GlobalQueryRegistry>(
+  public register<K extends keyof R>(
     queryName: K,
-    handler: {
-      handle(
-        query: GlobalQueryRegistry[K]["request"],
-      ): Promise<GlobalQueryRegistry[K]["response"]>;
-    },
+    handler: IQueryHandler<R[K]["request"], R[K]["response"]>,
   ): void {
     if (this.handlers.has(queryName)) {
       throw new InternalServerError(
@@ -32,17 +22,18 @@ export class QueryBus implements IQueryBus {
         false,
       );
     }
+
     this.handlers.set(queryName, handler);
   }
 
-  async ask<K extends keyof GlobalQueryRegistry>(
+  public async ask<K extends keyof R>(
     queryName: K,
-    params: GlobalQueryRegistry[K]["request"],
+    params: R[K]["request"],
     options?: IQueryBusOptions,
-  ): Promise<GlobalQueryRegistry[K]["response"]> {
+  ): Promise<R[K]["response"]> {
     if (options?.signal?.aborted) {
       throw new InternalServerError(
-        `Query ${queryName} cancelled: Signal already aborted.`,
+        `Query ${String(queryName)} cancelled: Signal already aborted.`,
         false,
       );
     }
@@ -55,8 +46,6 @@ export class QueryBus implements IQueryBus {
       );
     }
 
-    return handler.handle(params, options ?? {}) as Promise<
-      GlobalQueryRegistry[K]["response"]
-    >;
+    return handler.handle(params, options ?? {});
   }
 }
