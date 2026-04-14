@@ -3,9 +3,18 @@
 ## Architectural Decisions
 
 Modular monolith over microservices
-I opted for a Modular Monolith using Vertical Slices. Instead of grouping by technical role (all controllers in one folder, all models in another), everything for the Vehicle domain—logic, persistence, and API—lives together.
+I opted for a Modular Monolith using Vertical Slices. Instead of grouping by technical role (all controllers in one folder, all models in another), everything for a domain—logic, persistence, and API lives together.
 
-- **The rationale**: at this scale, microservices add unnecessary network latency and "distributed system tax." By keeping high cohesion within the folder, we maintain the ability to "snap off" the Vehicle module into a standalone microservice later with almost zero refactoring, but without the overhead today.
+- **The rationale**: At this scale, microservices add unnecessary network latency and distributed system tax. By keeping high cohesion within the folder, we maintain the ability to transfer a module into a standalone microservice later with almost zero refactoring.
+
+### **THE FLEX: Unified Command Execution**
+
+One of the most powerful features of this architecture is the **Source-Agnostic Command Bus**. The system is designed to handle vehicle updates from two completely different directions using the exact same business logic:
+
+1. **External (Production Path)**: A RESTful API (`PATCH /api/v1/vehicles/:id/location`) allows real GPS hardware or third-party IoT platforms to push data into the system.
+2. **Internal (Demo Path)**: The `FleetSimulator` generates synthetic telemetry to drive the UI.
+
+**Why this matters**: Because both sources dispatch the same `UpdateVehicleLocationCommand`, the validation, geo-snapping logic, and event-streaming pipeline are identical. This proves the architecture is "Production-Ready"—simply point real hardware at the API, and the system behaves exactly as it does during the simulation.
 
 ### **CQRS (Command Query Responsibility Segregation)**
 

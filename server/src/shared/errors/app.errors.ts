@@ -53,10 +53,7 @@ export class BadRequestError extends AppError {
 }
 
 export class UnprocessableEntityError extends AppError {
-  constructor(
-    message: string = "Unprocessable Entity",
-    details?: ApiResponseErrorDetails[],
-  ) {
+  constructor(message: string = "Unprocessable Entity", details?: ApiResponseErrorDetails[]) {
     super(message, AppErrorCodes.UnprocessableEntity, 422, true, details);
     this.name = "UnprocessableEntityError";
   }
@@ -70,15 +67,9 @@ export class InternalServerError extends AppError {
   ) {
     const normalizedCause = cause instanceof Error ? cause : undefined;
 
-    super(
-      message,
-      AppErrorCodes.InternalServerError,
-      500,
-      isOperational,
-      undefined,
-      undefined,
-      { cause: normalizedCause },
-    );
+    super(message, AppErrorCodes.InternalServerError, 500, isOperational, undefined, undefined, {
+      cause: normalizedCause,
+    });
 
     this.name = "InternalServerError";
     this.cause = cause;
@@ -110,14 +101,7 @@ export class ServiceUnavailableError extends AppError {
     details?: ApiResponseErrorDetails[],
     retryAfterSeconds?: number,
   ) {
-    super(
-      message,
-      AppErrorCodes.ServiceUnavailable,
-      503,
-      true,
-      details,
-      retryAfterSeconds,
-    );
+    super(message, AppErrorCodes.ServiceUnavailable, 503, true, details, retryAfterSeconds);
     this.name = "ServiceUnavailableError";
   }
 }
@@ -126,7 +110,7 @@ export class FetchError extends AppError {
   constructor(
     message: string = "Request Failed",
     public readonly status: number,
-    public readonly data?: any,
+    public readonly data?: unknown,
   ) {
     super(message, AppErrorCodes.FetchError, status);
     this.name = "FetchError";
@@ -163,14 +147,7 @@ export class TooManyRequestsError extends AppError {
     message: string = "Too many requests, please try again later.",
     public readonly retryAfter?: number,
   ) {
-    super(
-      message,
-      AppErrorCodes.TooManyRequests,
-      429,
-      true,
-      undefined,
-      retryAfter,
-    );
+    super(message, AppErrorCodes.TooManyRequests, 429, true, undefined, retryAfter);
     this.name = "TooManyRequestsError";
   }
 }
