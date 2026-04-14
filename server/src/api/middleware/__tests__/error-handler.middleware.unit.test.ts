@@ -24,6 +24,7 @@ describe("error-handler middleware", () => {
         env: "test",
         isProd: false,
         isDev: overrides.isDev ?? true,
+        isTest: true,
         minLogLevel: "DEBUG",
         internalAuthSecret: "test-secret-at-least-32-chars-long-for-validity",
       },
