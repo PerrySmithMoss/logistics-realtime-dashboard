@@ -15,37 +15,19 @@ export class FetchError extends AppError {
 
 export class NotFoundError extends AppError {
   constructor(resource: string, options?: ErrorOptions) {
-    super(
-      `${resource} not found`,
-      ErrorCode.NotFound,
-      404,
-      true,
-      undefined,
-      options,
-    );
+    super(`${resource} not found`, ErrorCode.NotFound, 404, true, undefined, options);
   }
 }
 
 export class BadRequestError extends AppError {
-  constructor(
-    message: string,
-    details?: ErrorDetails[],
-    options?: ErrorOptions,
-  ) {
+  constructor(message: string, details?: ErrorDetails[], options?: ErrorOptions) {
     super(message, ErrorCode.BadRequest, 400, true, details, options);
   }
 }
 
-export class UnauthorizedError extends AppError {
+export class UnauthorisedError extends AppError {
   constructor(options?: ErrorOptions) {
-    super(
-      "Authentication required",
-      ErrorCode.Unauthorized,
-      401,
-      true,
-      undefined,
-      options,
-    );
+    super("Authentication required", ErrorCode.Unauthorised, 401, true, undefined, options);
   }
 }
 
@@ -64,14 +46,7 @@ export class ForbiddenError extends AppError {
 
 export class UnprocessableEntityError extends AppError {
   constructor(details: ErrorDetails[], options?: ErrorOptions) {
-    super(
-      "Validation failed",
-      ErrorCode.UnprocessableEntity,
-      422,
-      true,
-      details,
-      options,
-    );
+    super("Validation failed", ErrorCode.UnprocessableEntity, 422, true, details, options);
   }
 }
 

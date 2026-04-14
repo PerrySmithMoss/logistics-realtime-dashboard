@@ -1,14 +1,65 @@
 import { Application } from "@app/application";
-import { IAppConfig } from "@config/index";
+import { IAppConfig, createConfig } from "@config/index";
 import { IFleetSnapshot } from "@modules/fleet/core/dtos/fleet-snapshot.dto";
 import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
+import { DeepPartial } from "@shared/types";
+import { sleep } from "@shared/utils";
+import { readFileSync } from "node:fs";
 import { createServer, request as httpRequest } from "node:http";
 import { AddressInfo } from "node:net";
+import path from "node:path";
 import request from "supertest";
+import { vi } from "vitest";
+import { StreamClient, StreamClientOptions } from "./stream-client";
 
-export const TEST_INTERNAL_SECRET = "integration-test-secret";
+const TEST_INTERNAL_SECRET = "integration-test-secret";
+const E2E_ENV_PATH = path.resolve(process.cwd(), ".env.test");
+const DEFAULT_E2E_SYSTEM_TIME = new Date("2026-04-13T12:00:00Z");
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const ACTIVE_E2E_HARNESSES = new Set<{ close: () => Promise<void> }>();
+
+const sleepOrAdvance = async (ms: number) => {
+  if (vi.isFakeTimers()) {
+    await vi.advanceTimersByTimeAsync(ms);
+    return;
+  }
+
+  await sleep(ms);
+};
+
+const parseEnvFile = (raw: string): Record<string, string> => {
+  const env: Record<string, string> = {};
+
+  for (const line of raw.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex === -1) continue;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    let value = trimmed.slice(separatorIndex + 1).trim();
+
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    env[key] = value;
+  }
+
+  return env;
+};
+
+const loadEnvFile = (filePath: string): Record<string, string> => {
+  try {
+    return parseEnvFile(readFileSync(filePath, "utf8"));
+  } catch {
+    return {};
+  }
+};
 
 const identitySnappingService: IGeoSnappingService = {
   async snapBatch(points) {
@@ -51,6 +102,41 @@ export const createIntegrationConfig = (): IAppConfig => ({
   },
 });
 
+export const createE2EConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}): IAppConfig =>
+  createConfig({
+    ...loadEnvFile(E2E_ENV_PATH),
+    ...overrides,
+  });
+
+const mergeConfig = (base: IAppConfig, overrides: DeepPartial<IAppConfig> = {}): IAppConfig => ({
+  ...base,
+  ...overrides,
+  app: {
+    ...base.app,
+    ...overrides.app,
+  },
+  server: {
+    ...base.server,
+    ...overrides.server,
+  },
+  modules: {
+    ...base.modules,
+    ...overrides.modules,
+    vehicle: {
+      ...base.modules.vehicle,
+      ...overrides.modules?.vehicle,
+    },
+    fleet: {
+      ...base.modules.fleet,
+      ...overrides.modules?.fleet,
+      sse: {
+        ...base.modules.fleet.sse,
+        ...overrides.modules?.fleet?.sse,
+      },
+    },
+  },
+});
+
 export const waitForReady = async (requester: ReturnType<typeof request>, timeoutMs = 1500) => {
   const startedAt = Date.now();
 
@@ -60,7 +146,7 @@ export const waitForReady = async (requester: ReturnType<typeof request>, timeou
       return response;
     }
 
-    await sleep(25);
+    await sleepOrAdvance(25);
   }
 
   throw new Error("Application did not reach ready state in time");
@@ -70,19 +156,20 @@ export const waitForFleetSnapshot = async (
   requester: ReturnType<typeof request>,
   predicate: (snapshot: IFleetSnapshot) => boolean,
   timeoutMs = 1500,
+  authHeaders: Record<string, string> = {
+    "x-internal-secret": TEST_INTERNAL_SECRET,
+  },
 ) => {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const response = await requester
-      .get("/api/v1/fleet/snapshot")
-      .set("x-internal-secret", TEST_INTERNAL_SECRET);
+    const response = await requester.get("/api/v1/fleet/snapshot").set(authHeaders);
 
     if (response.status === 200 && predicate(response.body.data)) {
       return response.body.data as IFleetSnapshot;
     }
 
-    await sleep(25);
+    await sleepOrAdvance(25);
   }
 
   throw new Error("Fleet snapshot did not reach the expected state in time");
@@ -204,4 +291,102 @@ export const bootstrapIntegrationApp = async () => {
       await app.dispose();
     },
   };
+};
+
+export const forceCloseAllE2EHarnesses = async () => {
+  await Promise.all(Array.from(ACTIVE_E2E_HARNESSES, (harness) => harness.close()));
+};
+
+export const bootstrapE2EApp = async (
+  options: {
+    envOverrides?: Partial<NodeJS.ProcessEnv>;
+    configOverrides?: DeepPartial<IAppConfig>;
+    geoSnappingService?: IGeoSnappingService;
+  } = {},
+) => {
+  if (!vi.isFakeTimers()) {
+    vi.useFakeTimers();
+    vi.setSystemTime(DEFAULT_E2E_SYSTEM_TIME);
+  }
+
+  const config = mergeConfig(createE2EConfig(options.envOverrides), options.configOverrides);
+  const app = new Application(config);
+  await app.bootstrap({
+    geoSnappingService: options.geoSnappingService ?? identitySnappingService,
+  });
+
+  const container = app.getContainer();
+  container.cache.reset?.();
+
+  const server = createServer(app.getServer());
+  await new Promise<void>((resolve) => {
+    server.listen(0, config.server.host, () => resolve());
+  });
+
+  const requester = request(server);
+  await waitForReady(requester);
+
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://${config.server.host}:${address.port}`;
+  const activeStreams = new Set<StreamClient>();
+
+  const harness = {
+    app,
+    requester,
+    server,
+    baseUrl,
+    config,
+    authHeaders: {
+      "x-internal-secret": config.server.internalAuthSecret,
+    },
+    useFakeTimers: (now: Date = DEFAULT_E2E_SYSTEM_TIME) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+    },
+    useRealTimers: () => {
+      vi.useRealTimers();
+    },
+    waitForFleetSnapshot: (predicate: (snapshot: IFleetSnapshot) => boolean, timeoutMs?: number) =>
+      waitForFleetSnapshot(requester, predicate, timeoutMs, harness.authHeaders),
+    openStream: async (streamOptions: Omit<StreamClientOptions, "baseUrl" | "headers"> = {}) => {
+      const client = new StreamClient({
+        baseUrl,
+        headers: harness.authHeaders,
+        ...streamOptions,
+      });
+
+      activeStreams.add(client);
+
+      try {
+        await client.open();
+      } catch (error) {
+        activeStreams.delete(client);
+        throw error;
+      }
+
+      client.onClose(() => {
+        activeStreams.delete(client);
+      });
+
+      return client;
+    },
+    close: async () => {
+      ACTIVE_E2E_HARNESSES.delete(harness);
+
+      await Promise.all(Array.from(activeStreams, (client) => client.close(true)));
+      activeStreams.clear();
+
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+
+      container.cache.reset?.();
+      container.database.reset?.();
+      await app.dispose();
+    },
+  };
+
+  ACTIVE_E2E_HARNESSES.add(harness);
+
+  return harness;
 };

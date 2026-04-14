@@ -28,7 +28,7 @@ export class AppError extends Error {
     public readonly code: AppErrorCodes,
     public readonly statusCode: number = 500,
     public readonly isOperational: boolean = true,
-    public readonly details?: ApiResponseErrorDetails[], // 👈 Standardized
+    public readonly details?: ApiResponseErrorDetails[],
     public readonly retryAfterSeconds?: number,
     options?: ErrorOptions,
   ) {
@@ -65,10 +65,10 @@ export class InternalServerError extends AppError {
     cause?: unknown,
     isOperational: boolean = true,
   ) {
-    const normalizedCause = cause instanceof Error ? cause : undefined;
+    const normalisedCause = cause instanceof Error ? cause : undefined;
 
     super(message, AppErrorCodes.InternalServerError, 500, isOperational, undefined, undefined, {
-      cause: normalizedCause,
+      cause: normalisedCause,
     });
 
     this.name = "InternalServerError";
@@ -78,7 +78,7 @@ export class InternalServerError extends AppError {
 
 export class ExternalServiceError extends AppError {
   constructor(service: string, cause?: unknown, isOperational: boolean = true) {
-    const normalizedCause = cause instanceof Error ? cause : undefined;
+    const normalisedCause = cause instanceof Error ? cause : undefined;
 
     super(
       `${service} request failed`,
@@ -87,7 +87,7 @@ export class ExternalServiceError extends AppError {
       isOperational,
       undefined,
       undefined,
-      { cause: normalizedCause },
+      { cause: normalisedCause },
     );
 
     this.name = "ExternalServiceError";
@@ -131,7 +131,7 @@ export class FetchError extends AppError {
 export class UnauthorisedError extends AppError {
   constructor(message: string = "Unauthorised access") {
     super(message, AppErrorCodes.Unauthorised, 401);
-    this.name = "UnauthorizedError";
+    this.name = "UnauthorisedError";
   }
 }
 

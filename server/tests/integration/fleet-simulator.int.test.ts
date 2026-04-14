@@ -33,7 +33,7 @@ describe("Fleet Simulator Integration", () => {
     const { fleetSimulator } = harness.app.getContainer();
 
     if (!fleetSimulator) {
-      throw new Error("Simulator was expected to be initialized for this test.");
+      throw new Error("Simulator was expected to be initialised for this test.");
     }
 
     try {
@@ -53,7 +53,7 @@ describe("Fleet Simulator Integration", () => {
     const { fleetSimulator, commandBus } = harness.app.getContainer();
 
     if (!fleetSimulator) {
-      throw new Error("Simulator was expected to be initialized for this test.");
+      throw new Error("Simulator was expected to be initialised for this test.");
     }
 
     try {

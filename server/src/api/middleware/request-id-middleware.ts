@@ -5,11 +5,11 @@ export const requestIdMiddleware: RequestHandler = (req, res, next) => {
   const header = req.headers["x-request-id"];
 
   const incomingId = Array.isArray(header) ? header[0] : header;
-  const sanitizedId = incomingId?.trim();
+  const sanitisedId = incomingId?.trim();
 
-  const isValid = sanitizedId && sanitizedId.length > 0 && sanitizedId.length < 100;
+  const isValid = sanitisedId && sanitisedId.length > 0 && sanitisedId.length < 100;
 
-  const id = isValid ? sanitizedId : randomUUID();
+  const id = isValid ? sanitisedId : randomUUID();
 
   req.id = id;
   res.setHeader("X-Request-Id", id);

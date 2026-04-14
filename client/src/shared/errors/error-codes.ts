@@ -5,7 +5,7 @@ export enum ErrorCode {
   //   Http errors
   NotFound = "NOT_FOUND",
   BadRequest = "BAD_REQUEST",
-  Unauthorized = "UNAUTHORIZED",
+  Unauthorised = "UNAUTHORISED",
   Forbidden = "FORBIDDEN",
   UnprocessableEntity = "UNPROCESSABLE_ENTITY",
   FetchError = "FETCH_ERROR",

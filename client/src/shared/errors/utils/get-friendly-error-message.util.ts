@@ -6,7 +6,7 @@ export const getFriendlyErrorMessage = (error: Error): string => {
   switch (error.code) {
     case ErrorCode.NotFound:
       return "That resource doesn't exist.";
-    case ErrorCode.Unauthorized:
+    case ErrorCode.Unauthorised:
       return "You need to sign in.";
     case ErrorCode.Forbidden:
       return "You don't have access to this.";
