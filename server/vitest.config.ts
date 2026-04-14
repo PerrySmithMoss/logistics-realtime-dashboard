@@ -12,10 +12,16 @@ export default defineConfig({
     },
   },
   test: {
+    globals: true,
+    setupFiles: ["./tests/vitest.setup.ts"],
+    env: {
+      NODE_ENV: "test",
+      OPEN_ROUTE_SERVICE_API_KEY: "test-key",
+      INTERNAL_AUTH_SECRET: "test-secret-123",
+    },
     typecheck: {
       tsconfig: "./tsconfig.test.json",
     },
-    globals: true,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
