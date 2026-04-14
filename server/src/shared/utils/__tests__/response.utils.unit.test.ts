@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ApiResponseContext,
   ApiResponseError,
   ApiResponseOptions,
 } from "../../types/response.types";
@@ -14,14 +15,9 @@ const mockOptions: ApiResponseOptions = {
   isDev: true,
 };
 
-describe("Response Utilities", () => {
+describe("Response utilities", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     vi.setSystemTime(mockDate);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   describe("createSuccessResponse", () => {
@@ -92,25 +88,19 @@ describe("Response Utilities", () => {
     });
 
     it("should ensure the default timestamp overwrites any provided meta timestamp", () => {
-      const response = createSuccessResponse(
-        {},
-        {
-          ...mockContext,
-          timestamp: "1970-01-01T00:00:00Z",
-        } as any,
-        mockOptions,
-      );
+      const contextWithBadTimestamp = {
+        ...mockContext,
+        timestamp: "1970-01-01T00:00:00Z",
+      } as ApiResponseContext & { timestamp: string };
+
+      const response = createSuccessResponse({}, contextWithBadTimestamp, mockOptions);
 
       expect(response.meta.timestamp).toBe(mockDate.toISOString());
       expect(response.meta.timestamp).not.toBe("1970-01-01T00:00:00Z");
     });
 
     it("should produce a valid JSON stringifyable object", () => {
-      const response = createSuccessResponse(
-        { a: 1 },
-        mockContext,
-        mockOptions,
-      );
+      const response = createSuccessResponse({ a: 1 }, mockContext, mockOptions);
       const json = JSON.parse(JSON.stringify(response));
 
       expect(json.success).toBe(true);
@@ -171,11 +161,7 @@ describe("Response Utilities", () => {
         ...mockError,
         stack: "Error: at source.ts:10:5",
       };
-      const response = createErrorResponse(
-        errorWithStack,
-        mockContext,
-        mockOptions,
-      );
+      const response = createErrorResponse(errorWithStack, mockContext, mockOptions);
 
       expect(response.error?.stack).toBeDefined();
       expect(response.error?.stack).toContain("source.ts");
@@ -197,53 +183,134 @@ describe("Response Utilities", () => {
 
   describe("Immutability (Freeze)", () => {
     it("should prevent mutation of the success response and its meta", () => {
-      const response = createSuccessResponse(
-        { foo: "bar" },
-        mockContext,
-        mockOptions,
-      );
+      const response = createSuccessResponse({ foo: "bar" }, mockContext, mockOptions);
 
-      // Top level freeze
       expect(() => {
-        (response as any).success = false;
+        (response as Record<string, unknown>).success = false;
       }).toThrow(TypeError);
 
-      // Nested level freeze (meta)
       expect(() => {
-        (response.meta as any).requestId = "new-id";
+        (response.meta as Record<string, unknown>).requestId = "new-id";
       }).toThrow(TypeError);
     });
 
     it("should prevent mutation of the error response and its error details", () => {
-      const mockError: ApiResponseError = {
-        message: "Fail",
-        code: "ERR",
-        statusCode: 500,
-      };
-      const response = createErrorResponse(mockError, mockContext, mockOptions);
+      const response = createSuccessResponse({ foo: "bar" }, mockContext, mockOptions);
 
       expect(() => {
-        (response.error as any).message = "Hack";
+        // @ts-expect-error: success is readonly
+        response.success = false;
       }).toThrow(TypeError);
 
       expect(() => {
-        (response.meta as any).requestId = "new-id";
+        response.meta.requestId = "new-id";
       }).toThrow(TypeError);
     });
 
     it("should not maintain a reference to the input meta object (Defensive Copying)", () => {
       const inputMeta = { requestId: "123" };
-      const response = createSuccessResponse(
-        { val: 1 },
-        inputMeta,
-        mockOptions,
-      );
+      const response = createSuccessResponse({ val: 1 }, inputMeta, mockOptions);
 
       expect(response.meta).not.toBe(inputMeta);
 
       expect(() => {
         inputMeta.requestId = "changed";
       }).not.toThrow();
+    });
+  });
+
+  describe("Metadata Logic (getCommonResponseMeta)", () => {
+    it("should merge all context fields without losing data", () => {
+      const complexContext: ApiResponseContext = {
+        requestId: "req-123",
+        path: "/users",
+        retryAfter: 30,
+        pagination: { total: 1, page: 1, limit: 1, totalPages: 1 },
+        customFlag: true,
+      };
+
+      const response = createSuccessResponse({}, complexContext, mockOptions);
+
+      expect(response.meta.path).toBe("/users");
+      expect(response.meta.retryAfter).toBe(30);
+      expect(response.meta.pagination).toBeDefined();
+      expect(response.meta.customFlag).toBe(true);
+    });
+
+    it("should prioritise internal values (timestamp) over context values", () => {
+      const maliciousContext = {
+        ...mockContext,
+        timestamp: "2000-01-01T00:00:00Z",
+        apiVersion: "9.9.9",
+      };
+
+      const response = createSuccessResponse(
+        {},
+        maliciousContext as ApiResponseContext,
+        mockOptions,
+      );
+
+      expect(response.meta.timestamp).toBe(mockDate.toISOString());
+      expect(response.meta.apiVersion).toBe(mockOptions.apiVersion);
+    });
+
+    it("should handle empty or minimal context objects", () => {
+      const minimalContext: ApiResponseContext = { requestId: "min-1" };
+      const response = createSuccessResponse({}, minimalContext, mockOptions);
+
+      expect(response.meta).toMatchObject({
+        requestId: "min-1",
+        apiVersion: mockOptions.apiVersion,
+        environment: mockOptions.environment,
+      });
+      expect(response.meta.timestamp).toBeDefined();
+    });
+
+    describe("Security", () => {
+      const mockData = { id: 1 };
+      const mockContext = { requestId: "req-123" };
+      const mockOptions = {
+        apiVersion: "1.0.0",
+        environment: "production",
+        isDev: false,
+      };
+
+      it("should NOT include the environment field in production (isDev: false)", () => {
+        const response = createSuccessResponse(mockData, mockContext, {
+          ...mockOptions,
+          isDev: false,
+        });
+
+        expect(response.meta.environment).toBeUndefined();
+        // Double check it's not just null/empty, but actually gone
+        expect(response.meta).not.toHaveProperty("environment");
+      });
+
+      it("should include the environment field in development (isDev: true)", () => {
+        const response = createSuccessResponse(mockData, mockContext, {
+          ...mockOptions,
+          isDev: true,
+          environment: "development",
+        });
+
+        expect(response.meta.environment).toBe("development");
+      });
+
+      it("should hide stack traces in production even if provided", () => {
+        const error = {
+          code: "INTERNAL_ERROR",
+          message: "Boom",
+          statusCode: 500,
+          stack: "secret/path/to/file.ts:10:5",
+        };
+
+        const response = createErrorResponse(error, mockContext, {
+          ...mockOptions,
+          isDev: false,
+        });
+
+        expect(response.error?.stack).toBeUndefined();
+      });
     });
   });
 });

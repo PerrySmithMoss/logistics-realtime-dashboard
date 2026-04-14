@@ -56,11 +56,11 @@ export type ApiResponseContext = {
   path?: string;
   retryAfter?: number;
   pagination?: ApiResponsePaginationMeta;
-};
+} & Record<string, unknown>; // allow for custom metadata
 
 export type ApiResponseMeta = ApiResponseContext & {
+  environment?: string; // should only show in development
   apiVersion: string;
-  environment: string;
   timestamp: string;
 };
 

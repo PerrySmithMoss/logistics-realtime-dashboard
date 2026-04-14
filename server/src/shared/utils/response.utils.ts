@@ -7,13 +7,13 @@ import {
   SerialisableApiResponseTypes,
 } from "../types/response.types";
 
-const getCommonMeta = (
+const getCommonResponseMeta = (
   context: ApiResponseContext,
   options: ApiResponseOptions,
 ): ApiResponseMeta => ({
-  apiVersion: options.apiVersion,
-  environment: options.environment,
   ...context,
+  ...(options.isDev && { environment: options.environment }),
+  apiVersion: options.apiVersion,
   timestamp: new Date().toISOString(),
 });
 
@@ -26,7 +26,7 @@ export const createSuccessResponse = <T extends SerialisableApiResponseTypes>(
     success: true,
     data: Object.freeze(structuredClone(data)),
     error: null,
-    meta: Object.freeze(getCommonMeta(context, options)),
+    meta: Object.freeze(getCommonResponseMeta(context, options)),
   });
 };
 
@@ -50,6 +50,6 @@ export const createErrorResponse = (
     success: false,
     data: null,
     error: Object.freeze(formattedError),
-    meta: Object.freeze(getCommonMeta(context, options)),
+    meta: Object.freeze(getCommonResponseMeta(context, options)),
   });
 };
