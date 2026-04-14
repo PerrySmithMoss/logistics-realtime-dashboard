@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const logger = createLogger("Fleet Stream Proxy");
 
-const STREAM_URL = `${serverEnv.FLEET_API_BASE_URL}/api/v1/fleet/stats/stream`;
+const STREAM_URL = `${serverEnv.FLEET_API_BASE_URL}/api/v1/fleet/stream`;
 
 export async function GET(req: NextRequest) {
   const userRole = req.headers.get("x-user-role");
