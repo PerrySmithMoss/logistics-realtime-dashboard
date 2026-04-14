@@ -1,9 +1,9 @@
 import { IAppConfig } from "@config/index";
 import { VehicleEvents } from "@modules/vehicle/core/events/vehicle.events";
 import { mockVehicles } from "@modules/vehicle/data/mock-vehicles";
-import { OpenRouteServiceClient } from "@shared/infrastructure/geo";
 import { ICommandBus } from "@shared/interfaces/command-bus.interface";
 import { IEventBroker } from "@shared/interfaces/event-broker.interface";
+import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { IQueryBus } from "@shared/interfaces/query-bus.interface";
@@ -20,6 +20,7 @@ import { FleetSimulator } from "./infrastructure/fleet-simulator";
 export interface FleetModuleResult {
   controller: IFleetController;
   dataService: IFleetDataService;
+  simulator?: FleetSimulator;
 }
 
 export class FleetModule {
@@ -30,6 +31,7 @@ export class FleetModule {
     queryBus: IQueryBus,
     eventBroker: IEventBroker,
     logger: ILogger,
+    snappingService: IGeoSnappingService,
   ): Promise<FleetModuleResult> {
     const {
       batchIntervalMs,
@@ -37,16 +39,14 @@ export class FleetModule {
       enableFleetSimulator,
       simulatorTickInterval,
       watchdogTimeout,
-      orsApiKey,
     } = config.modules.fleet;
 
     const projection = new FleetStatsProjection();
-    const orsClient = new OpenRouteServiceClient(orsApiKey, logger);
 
     const dataService = new FleetDataService(
       queryBus,
       projection,
-      orsClient,
+      snappingService,
       logger,
       lifecycle,
       {
@@ -56,37 +56,38 @@ export class FleetModule {
     );
 
     const observerService = new FleetObserverService(eventBroker, logger);
+    const reactor = new FleetEventReactor(dataService, eventBroker, logger);
+    const subscriber = new FleetEventSubscriber(
+      eventBroker,
+      [
+        {
+          event: VehicleEvents.LOCATION_UPDATED,
+          handler: (data) => reactor.onVehicleLocationChange(data),
+        },
+      ],
+      logger,
+    );
+
+    subscriber.subscribe();
+
+    let simulator: FleetSimulator | undefined;
 
     if (enableFleetSimulator) {
-      const simulator = new FleetSimulator(commandBus, logger, lifecycle, {
+      simulator = new FleetSimulator(commandBus, logger, lifecycle, {
         tickInterval: simulatorTickInterval,
         watchdogTimeout: watchdogTimeout,
       });
       simulator.initialise(mockVehicles.map((v) => v.id));
 
-      const reactor = new FleetEventReactor(dataService, eventBroker, logger);
-
       observerService.setLiveComponents(reactor, simulator);
-
-      const subscriber = new FleetEventSubscriber(
-        eventBroker,
-        [
-          {
-            event: VehicleEvents.LOCATION_UPDATED,
-            handler: (data) => reactor.onVehicleLocationChange(data),
-          },
-        ],
-        logger,
-      );
-
-      subscriber.subscribe();
-
-      lifecycle.onShutdown(async () => {
-        subscriber.unsubscribe();
-        reactor.stop();
-        simulator.stop();
-      });
+    } else {
+      observerService.setLiveComponents(reactor);
     }
+
+    lifecycle.onShutdown(async () => {
+      subscriber.unsubscribe();
+      reactor.stop();
+    });
 
     return {
       controller: new FleetController(
@@ -94,8 +95,10 @@ export class FleetModule {
         observerService,
         dataService,
         lifecycle,
+        config.modules.fleet.sse.heartbeatIntervalMs,
       ),
       dataService,
+      simulator,
     };
   }
 }

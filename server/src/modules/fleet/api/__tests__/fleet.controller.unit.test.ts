@@ -43,6 +43,7 @@ describe("FleetController", () => {
       observerService,
       dataService,
       lifecycle,
+      15_000,
     );
 
     return { observerService, dataService, lifecycle, req, res, controller };

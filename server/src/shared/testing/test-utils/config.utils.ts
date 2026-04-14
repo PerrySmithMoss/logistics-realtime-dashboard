@@ -1,8 +1,6 @@
 import { IAppConfig } from "@config/index";
 
-export const createMockConfig = (
-  overrides: Partial<IAppConfig> = {},
-): IAppConfig => {
+export const createMockConfig = (overrides: Partial<IAppConfig> = {}): IAppConfig => {
   const baseConfig: IAppConfig = {
     app: {
       version: "1.0.0",
@@ -14,6 +12,7 @@ export const createMockConfig = (
       env: "test",
       isProd: false,
       isDev: true,
+      isTest: true,
       minLogLevel: "DEBUG",
       internalAuthSecret: "test-secret-at-least-32-chars-long-for-validity",
     },
@@ -31,6 +30,7 @@ export const createMockConfig = (
         sse: {
           maxConcurrent: 3,
           minRetryMs: 2000,
+          heartbeatIntervalMs: 15000,
         },
       },
     },
@@ -44,7 +44,14 @@ export const createMockConfig = (
     modules: {
       ...baseConfig.modules,
       vehicle: { ...baseConfig.modules.vehicle, ...overrides.modules?.vehicle },
-      fleet: { ...baseConfig.modules.fleet, ...overrides.modules?.fleet },
+      fleet: {
+        ...baseConfig.modules.fleet,
+        ...overrides.modules?.fleet,
+        sse: {
+          ...baseConfig.modules.fleet.sse,
+          ...overrides.modules?.fleet?.sse,
+        },
+      },
     },
   };
 };

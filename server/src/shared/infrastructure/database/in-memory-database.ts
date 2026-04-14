@@ -16,9 +16,7 @@ export class InMemoryDatabase implements IDatabase {
     });
   }
 
-  public getTable<K extends keyof DatabaseSchema>(
-    tableName: K,
-  ): Map<string, DatabaseSchema[K]> {
+  public getTable<K extends keyof DatabaseSchema>(tableName: K): Map<string, DatabaseSchema[K]> {
     const table = this.storage[tableName];
 
     if (!table) {
@@ -31,10 +29,12 @@ export class InMemoryDatabase implements IDatabase {
     return table;
   }
 
-  public async query<K extends keyof DatabaseSchema>(
-    tableName: K,
-  ): Promise<DatabaseSchema[K][]> {
+  public async query<K extends keyof DatabaseSchema>(tableName: K): Promise<DatabaseSchema[K][]> {
     const table = this.getTable(tableName);
     return Array.from(table.values());
+  }
+
+  public reset(): void {
+    Object.values(this.storage).forEach((table) => table.clear());
   }
 }

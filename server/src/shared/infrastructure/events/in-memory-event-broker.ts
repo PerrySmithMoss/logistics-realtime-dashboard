@@ -66,6 +66,10 @@ export class InMemoryEventBroker<T = EventRegistry> implements IEventBroker<T> {
     }
   }
 
+  public reset(): void {
+    this.listeners.clear();
+  }
+
   private getHandlersFor<K extends keyof T>(
     eventName: K,
   ): Array<(data: T[K]) => void | Promise<void>> {

@@ -150,11 +150,14 @@ export class FleetDataService implements IFleetDataService {
 
   private startBatching(): void {
     if (this.batchTimeout) return;
-    this.batchTimeout = setInterval(() => this.flushSnapBuffer(), this.settings.batchIntervalMs);
+    this.batchTimeout = setTimeout(() => this.flushSnapBuffer(), this.settings.batchIntervalMs);
   }
 
   private scheduleNextBatch(): void {
     if (this.lifecycle.isShuttingDown) return;
+    if (this.batchTimeout) {
+      clearTimeout(this.batchTimeout);
+    }
     this.batchTimeout = setTimeout(() => this.flushSnapBuffer(), this.settings.batchIntervalMs);
   }
 

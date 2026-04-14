@@ -6,4 +6,6 @@ export interface IEventBroker<T = EventRegistry> {
   unsubscribe<K extends keyof T>(eventName: K, handler: (data: T[K]) => void | Promise<void>): void;
 
   publish<K extends keyof T>(eventName: K, data: T[K]): void;
+
+  reset?(): Promise<void> | void;
 }

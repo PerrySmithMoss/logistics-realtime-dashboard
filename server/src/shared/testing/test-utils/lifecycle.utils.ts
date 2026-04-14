@@ -9,7 +9,7 @@ export const createMockLifecycleManager = (
   initialState = AppState.STARTING,
 ): MockLifecycleManager => {
   let currentState = initialState;
-  let shutdownTask: (() => Promise<void>) | null = null;
+  const shutdownTasks: (() => Promise<void>)[] = [];
   const abortController = new AbortController();
 
   const mock = {
@@ -22,7 +22,7 @@ export const createMockLifecycleManager = (
       abortController.abort();
     }),
     onShutdown: vi.fn().mockImplementation((task) => {
-      shutdownTask = task;
+      shutdownTasks.push(task);
     }),
     closeAll: vi.fn().mockResolvedValue(undefined),
   } as unknown as MockLifecycleManager;
@@ -37,7 +37,9 @@ export const createMockLifecycleManager = (
   });
 
   mock.triggerShutdown = async () => {
-    if (shutdownTask) await shutdownTask();
+    for (const task of shutdownTasks) {
+      await task();
+    }
   };
 
   return mock;

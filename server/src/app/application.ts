@@ -1,16 +1,13 @@
-import {
-  createErrorHandler,
-  notFoundHandler,
-  requestIdMiddleware,
-} from "@api/middleware";
+import { createErrorHandler, notFoundHandler, requestIdMiddleware } from "@api/middleware";
 import { createApiRouter } from "@api/router";
 import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { createHealthRouter } from "@shared/api/health.router";
 import { rateLimiter } from "@shared/api/middleware";
 import { consoleLogger } from "@shared/infrastructure/logger";
+import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import express from "express";
+import express, { Express } from "express";
 import { AppContainer } from "./container";
 import { IAppContainer } from "./interfaces/container.interface";
 import { IServer } from "./interfaces/server.interface";
@@ -20,54 +17,93 @@ export class Application {
   private server?: IServer;
   private container?: IAppContainer;
   private logger?: ILogger;
+  private expressApp?: Express;
 
   constructor(private readonly config: IAppConfig) {}
 
+  public async bootstrap(options: { geoSnappingService?: IGeoSnappingService } = {}) {
+    if (this.container && this.expressApp) return this;
+
+    this.container = await AppContainer.create(this.config, options);
+    this.logger = this.container.appLogger;
+    this.expressApp = this.buildExpressApp(this.container);
+
+    this.runBackgroundHydration(this.container.fleetDataService);
+
+    return this;
+  }
+
   public async start() {
     try {
-      this.container = await AppContainer.create(this.config);
-      this.logger = this.container.appLogger;
+      await this.bootstrap();
 
-      const expressApp = express();
+      if (!this.expressApp || !this.container) {
+        throw new Error("Application bootstrap failed");
+      }
 
-      expressApp.use(requestIdMiddleware);
-      expressApp.set("trust proxy", true);
-      expressApp.use(express.json({ limit: "1mb" }));
-
-      expressApp.use(
-        "/health",
-        createHealthRouter(this.container.controllers.health),
-      );
-
-      const globalRateLimit = rateLimiter(this.container.cache, {
-        windowMs: 60000,
-        maxRequests: 100,
-        keyPrefix: "rl:global",
-      });
-
-      expressApp.use(globalRateLimit);
-
-      expressApp.use("/api/v1", createApiRouter(this.container));
-
-      expressApp.use(notFoundHandler);
-      expressApp.use(
-        createErrorHandler(this.container.errorLogger, this.config),
-      );
-
-      this.runBackgroundHydration(this.container.fleetDataService);
-
-      this.server = new HttpServer(expressApp, this.container.serverLogger);
+      this.server = new HttpServer(this.expressApp, this.container.serverLogger);
       await this.server.start(this.config.server);
 
       this.logStartupStatus();
       return this;
     } catch (err) {
-      (this.logger ?? console).error(
-        "CRITICAL: Failed to start application:",
-        err,
-      );
+      (this.logger ?? console).error("CRITICAL: Failed to start application:", err);
       process.exit(1);
     }
+  }
+
+  public getServer(): Express {
+    if (!this.expressApp) {
+      throw new Error("Application has not been bootstrapped");
+    }
+
+    return this.expressApp;
+  }
+
+  public getContainer(): IAppContainer {
+    if (!this.container) {
+      throw new Error("Application has not been bootstrapped");
+    }
+
+    return this.container;
+  }
+
+  public async dispose(): Promise<void> {
+    if (this.server) {
+      await this.server.stop();
+      this.server = undefined;
+    }
+
+    if (this.container) {
+      await this.container.lifecycle.closeAll();
+    }
+
+    this.container = undefined;
+    this.logger = undefined;
+    this.expressApp = undefined;
+  }
+
+  private buildExpressApp(container: IAppContainer): Express {
+    const expressApp = express();
+
+    expressApp.use(requestIdMiddleware);
+    expressApp.set("trust proxy", true);
+    expressApp.use(express.json({ limit: "1mb" }));
+
+    expressApp.use("/health", createHealthRouter(container.controllers.health));
+
+    const globalRateLimit = rateLimiter(container.cache, {
+      windowMs: 60000,
+      maxRequests: 100,
+      keyPrefix: "rl:global",
+    });
+
+    expressApp.use(globalRateLimit);
+    expressApp.use("/api/v1", createApiRouter(container));
+    expressApp.use(notFoundHandler);
+    expressApp.use(createErrorHandler(container.errorLogger, this.config));
+
+    return expressApp;
   }
 
   private async runBackgroundHydration(dataService: IFleetDataService) {
@@ -107,9 +143,7 @@ export class Application {
 
     const forceExitTimeout = this.config.server.isDev ? 3000 : 10000;
     const forceExit = setTimeout(() => {
-      activeLogger.error(
-        `Cleanup timed out after ${forceExitTimeout}ms. Forcing exit.`,
-      );
+      activeLogger.error(`Cleanup timed out after ${forceExitTimeout}ms. Forcing exit.`);
       process.exit(1);
     }, forceExitTimeout);
 
@@ -119,14 +153,9 @@ export class Application {
     }
 
     try {
-      activeLogger.info(
-        "Stopping HTTP server and closing database connections...",
-      );
+      activeLogger.info("Stopping HTTP server and closing database connections...");
 
-      await Promise.all([
-        this.server.stop(),
-        this.container.lifecycle.closeAll(),
-      ]);
+      await Promise.all([this.server.stop(), this.container.lifecycle.closeAll()]);
 
       clearTimeout(forceExit);
       activeLogger.info("Shutdown successful.");

@@ -45,9 +45,7 @@ export class InMemoryCache implements ICache {
         }
       }
       this.lastCleanupTime = now;
-      this.logger.info(
-        `Lazy cleanup performed. Current size: ${this.cache.size}`,
-      );
+      this.logger.info(`Lazy cleanup performed. Current size: ${this.cache.size}`);
     }
   }
 
@@ -67,11 +65,7 @@ export class InMemoryCache implements ICache {
     return this.getCacheEntry<T>(key);
   }
 
-  public async set<T>(
-    key: string,
-    value: T,
-    ttlMs: number = this.DEFAULT_TTL_MS,
-  ): Promise<void> {
+  public async set<T>(key: string, value: T, ttlMs: number = this.DEFAULT_TTL_MS): Promise<void> {
     this.lazyCleanup();
     const expiresAt = Date.now() + ttlMs;
     this.cache.set(key, { value, expiresAt });
@@ -84,10 +78,7 @@ export class InMemoryCache implements ICache {
    * @returns The new incremented value.
    * @throws {CacheTypeError} If the key exists but the value is not a number.
    */
-  public async increment(
-    key: string,
-    ttlMs: number = this.DEFAULT_TTL_MS,
-  ): Promise<number> {
+  public async increment(key: string, ttlMs: number = this.DEFAULT_TTL_MS): Promise<number> {
     const existingValue = this.getCacheEntry<unknown>(key);
 
     if (existingValue !== null && typeof existingValue !== "number") {
@@ -98,9 +89,7 @@ export class InMemoryCache implements ICache {
     const newValue = currentValue + 1;
 
     const currentEntry = this.cache.get(key);
-    const expiresAt = currentEntry
-      ? currentEntry.expiresAt
-      : Date.now() + ttlMs;
+    const expiresAt = currentEntry ? currentEntry.expiresAt : Date.now() + ttlMs;
 
     this.cache.set(key, { value: newValue, expiresAt });
 
@@ -114,10 +103,7 @@ export class InMemoryCache implements ICache {
    * @returns The new decremented value.
    * @throws {CacheTypeError} If the key exists but the value is not a number.
    */
-  public async decrement(
-    key: string,
-    ttlMs: number = this.DEFAULT_TTL_MS,
-  ): Promise<number> {
+  public async decrement(key: string, ttlMs: number = this.DEFAULT_TTL_MS): Promise<number> {
     const existingValue = this.getCacheEntry<unknown>(key);
 
     if (existingValue !== null && typeof existingValue !== "number") {
@@ -128,9 +114,7 @@ export class InMemoryCache implements ICache {
     const newValue = currentValue - 1;
 
     const currentEntry = this.cache.get(key);
-    const expiresAt = currentEntry
-      ? currentEntry.expiresAt
-      : Date.now() + ttlMs;
+    const expiresAt = currentEntry ? currentEntry.expiresAt : Date.now() + ttlMs;
 
     this.cache.set(key, { value: newValue, expiresAt });
 
@@ -139,5 +123,10 @@ export class InMemoryCache implements ICache {
 
   public async delete(key: string): Promise<void> {
     this.cache.delete(key);
+  }
+
+  public reset(): void {
+    this.cache.clear();
+    this.lastCleanupTime = Date.now();
   }
 }

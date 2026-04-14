@@ -4,4 +4,5 @@ export interface ICache {
   delete(key: string): Promise<void>;
   increment(key: string, ttlMs?: number): Promise<number>;
   decrement(key: string, ttlMs?: number): Promise<number>;
+  reset?(): Promise<void> | void;
 }

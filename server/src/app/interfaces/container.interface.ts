@@ -1,6 +1,8 @@
 import { IAppConfig } from "@config/index";
 import { IFleetController } from "@modules/fleet/api/interfaces/fleet-controller.interface";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
+import { FleetSimulator } from "@modules/fleet/infrastructure/fleet-simulator";
+import { IVehicleController } from "@modules/vehicle/api/interfaces/vehicle-controller.interface";
 import { ILifecycleManager } from "@shared/interfaces";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ICommandBus } from "@shared/interfaces/command-bus.interface";
@@ -25,6 +27,8 @@ export interface IAppContainer {
   readonly controllers: {
     readonly health: IHealthController;
     readonly fleet: IFleetController;
+    readonly vehicle: IVehicleController;
   };
   readonly fleetDataService: IFleetDataService;
+  readonly fleetSimulator?: FleetSimulator;
 }

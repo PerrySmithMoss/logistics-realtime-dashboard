@@ -21,15 +21,15 @@ export class FleetObserverService implements IFleetObserverService {
     private readonly logger: ILogger,
   ) {}
 
-  public setLiveComponents(reactor: IBroadcastScheduler, simulator: ISimulator): void {
+  public setLiveComponents(reactor: IBroadcastScheduler, simulator?: ISimulator): void {
     this.reactor = reactor;
     this.simulator = simulator;
   }
 
   public addObserver(id: string, res: Response, callback: (stats: unknown) => void): void {
-    if (!this.reactor || !this.simulator) {
+    if (!this.reactor) {
       this.logger.error(
-        "[FleetObserverService] Attempted to add observer, but reactor and simulator are missing.",
+        "[FleetObserverService] Attempted to add observer, but reactor is missing.",
       );
       throw new InternalServerError("Fleet Tracking Pipeline is not initialised.", false);
     }

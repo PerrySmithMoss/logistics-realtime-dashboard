@@ -28,7 +28,7 @@ describe("FleetObserverService", () => {
     );
 
     expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining("reactor and simulator are missing."),
+      expect.stringContaining("Attempted to add observer, but reactor is missing"),
     );
   });
 

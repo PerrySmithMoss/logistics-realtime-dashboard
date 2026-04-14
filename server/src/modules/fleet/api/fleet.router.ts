@@ -1,8 +1,4 @@
-import {
-  rateLimiter,
-  sseRateLimiter,
-  verifyServiceSecret,
-} from "@shared/api/middleware";
+import { rateLimiter, sseRateLimiter, verifyServiceSecret } from "@shared/api/middleware";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { Router } from "express";
@@ -47,7 +43,7 @@ export const createFleetRoutes = (
   );
 
   fleetRouter.get(
-    "/stats/stream",
+    "/stream",
     authGuard,
     sseShield,
     //   validateFleetStatsStreamRequest,

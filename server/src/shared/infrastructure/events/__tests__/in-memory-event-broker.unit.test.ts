@@ -145,7 +145,6 @@ describe("InMemoryEventBroker", () => {
         expect.stringContaining("Cleared 1 active stream listeners"),
       );
 
-      await new Promise((res) => setTimeout(res, 10));
       expect(handler).not.toHaveBeenCalled();
     });
 

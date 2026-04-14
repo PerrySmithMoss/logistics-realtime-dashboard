@@ -19,7 +19,7 @@ export class HttpServer implements IServer {
   public start(config: ServerConfig): Promise<void> {
     if (this.server) {
       this.logger.warn("Server is already running.");
-      return;
+      return Promise.resolve();
     }
 
     return new Promise((resolve, reject) => {
@@ -27,8 +27,8 @@ export class HttpServer implements IServer {
         resolve();
       });
 
-      this.server.on("error", (error: any) => {
-        if (error.code === "EADDRINUSE") {
+      this.server.on("error", (error: unknown) => {
+        if (error && typeof error === "object" && "code" in error) {
           this.logger.error(`❌ Port ${config.port} is already in use.`);
           return reject(error);
         }

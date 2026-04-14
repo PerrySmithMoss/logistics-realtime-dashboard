@@ -8,13 +8,12 @@ import { IFleetObserverService } from "../core/interfaces/fleet-observer-service
 import { IFleetController } from "./interfaces/fleet-controller.interface";
 
 export class FleetController extends BaseController implements IFleetController {
-  private readonly HEARTBEAT_INTERVAL = 15000;
-
   constructor(
     readonly config: IAppConfig,
     private readonly observerService: IFleetObserverService,
     private readonly dataService: IFleetDataService,
     private readonly lifecycle: ILifecycleManager,
+    private readonly heartbeatIntervalMs: number,
   ) {
     super({
       apiVersion: config.app.version,
@@ -92,9 +91,9 @@ export class FleetController extends BaseController implements IFleetController 
         cleanup();
         return;
       }
-      heartbeatTimer = setTimeout(pulse, this.HEARTBEAT_INTERVAL);
+      heartbeatTimer = setTimeout(pulse, this.heartbeatIntervalMs);
     };
 
-    heartbeatTimer = setTimeout(pulse, this.HEARTBEAT_INTERVAL);
+    heartbeatTimer = setTimeout(pulse, this.heartbeatIntervalMs);
   };
 }
