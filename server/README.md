@@ -168,7 +168,7 @@ If you want to see the dashboard updating at high-frequency (sub-second latency)
 | **Processor**  | `FleetDataService.ts`  | `BATCH_INTERVAL_MS` | `500ms`  | The window for batching geo-snapping API calls.  |
 | **Dispatcher** | `FleetEventReactor.ts` | `TICK_RATE`         | `500ms`  | How often the system broadcasts state to the UI. |
 
-> **Note:** For the most "fluid" visual experience in a demo, set the Simulator to `1000ms` and the Batch/Tick rates to `200ms`. This creates a high-density data stream that demonstrates the efficiency of the memoized React components on the frontend.
+> **Note:** For the most "fluid" visual experience in a demo, set the simulator to `1000ms` and the batch/tick rates to `200ms`. This creates a high-density data stream that demonstrates the efficiency of the memoized React components on the frontend.
 
 ---
 
@@ -176,3 +176,32 @@ If you want to see the dashboard updating at high-frequency (sub-second latency)
 
 - Synchronous Broker: Currently, events execute in-process. If we needed to scale to multiple backend instances, we would simply replace the internal Broker with a Redis/PubSub implementation so all nodes stay in sync.
 - Zero-library philosophy: aside from express and zod, every core component like the Bus, the DI container, in memory db and cache and the snapping logic—is hand-coded. This was a conscious choice to demonstrate a deep understanding of design patterns over relying on framework/library magic, plus it makes it cheaper for my tiny VPS :D.
+
+---
+
+## Testing
+
+To ensure the stability of real-time GPS flows on a constrained 2GB VPS, I implemented a tiered testing suite that covers 100% of the core domain logic.
+
+#### Unit Testing (Domain & Logic)
+
+- **Focus**: Pure business logic, command validation, and the Fleet Simulator's math.
+- **Implementation**: Vitest with 100% coverage on Vertical Slices.
+- **The challenge**: Testing time dependent logic (like the fleet simulator's watchdog). I utilised `vi.useFakeTimers()` to verify that the simulator correctly shuts down after exactly 30 seconds of inactivity without actually waiting.
+
+#### Integration Testing (Module Interaction)
+
+- **Focus**: Verifying that the Vehicle and Fleet modules communicate correctly via the Event Broker.
+- **Method**:
+  1. Send a `PATCH` request to update a vehicle's location.
+  2. Verify the `VehicleRepository` persists the change.
+  3. Verify the `FleetEventReactor` catches the domain event and updates the global Fleet Projection.
+  4. Assert that the `/fleet/snapshot` endpoint reflects the new coordinates instantly.
+
+#### E2E Testing (Real-Time System Journeys)
+
+- **Focus**: High-fidelity simulation of a user dashboard session using Supertest.
+- **Custom stream client**: Since SSE (Server-Sent Events) is a long-lived connection, I built a custom `StreamClient` utility. It buffers fragments and parses the `text/event-stream` protocol to allow assertions on incoming real-time JSON frames.
+- **Key scenarios**:
+  - **Dashboard lifecycle**: Open stream -> Trigger 50+ rapid location updates -> Verify SSE "stats-update" events reflect the final batched state.
+- **Backpressure & Rate Limiting**: Verifying that hitting the API too hard triggers the `429 Too Many Requests` response while leaving the SSE stream uninterrupted.
