@@ -33,3 +33,34 @@ export interface IAppContainer {
   readonly fleetSimulator?: FleetSimulator;
   resetForTesting?(): Promise<void>;
 }
+
+interface AppContainerDependencies {
+  readonly config: IAppConfig;
+  readonly lifecycle: ILifecycleManager;
+  readonly commandBus: ICommandBus;
+  readonly queryBus: IQueryBus;
+  readonly database: IDatabase;
+  readonly cache: ICache;
+  readonly eventBroker: IEventBroker;
+  readonly logger: ILogger;
+}
+
+interface AppContainerControllers {
+  readonly health: IHealthController;
+  readonly fleet: IFleetController;
+  readonly vehicle: IVehicleController;
+}
+
+interface AppContainerLoggers {
+  readonly app: ILogger;
+  readonly server: ILogger;
+  readonly error: ILogger;
+}
+
+export interface AppContainerOptions {
+  readonly dependencies: AppContainerDependencies;
+  readonly controllers: AppContainerControllers;
+  readonly loggers: AppContainerLoggers;
+  readonly fleetDataService: IFleetDataService;
+  readonly fleetSimulator?: FleetSimulator;
+}

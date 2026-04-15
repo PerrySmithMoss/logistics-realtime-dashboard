@@ -31,6 +31,7 @@ export class AppError extends Error {
     public readonly details?: ApiResponseErrorDetails[],
     public readonly retryAfterSeconds?: number,
     options?: ErrorOptions,
+    public readonly isAppError = true,
   ) {
     super(message, options);
     this.name = this.constructor.name;
@@ -106,13 +107,20 @@ export class ServiceUnavailableError extends AppError {
   }
 }
 
-export class FetchError extends AppError {
+export class FetchError<T = unknown> extends AppError {
   constructor(
     message: string = "Request Failed",
     public readonly status: number,
-    public readonly data?: unknown,
+    public readonly data?: T,
   ) {
-    super(message, AppErrorCodes.FetchError, status);
+    const apiMessage =
+      data && typeof data === "object" && "message" in data && typeof data.message === "string"
+        ? data.message
+        : undefined;
+
+    const finalMessage = apiMessage ? `${message} - ${apiMessage}` : message;
+
+    super(finalMessage, AppErrorCodes.FetchError, status);
     this.name = "FetchError";
   }
 
