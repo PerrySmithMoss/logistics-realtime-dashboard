@@ -1,4 +1,5 @@
-import { ExternalServiceError, FetchError } from "@shared/errors/app.errors";
+import { ExternalServiceError, FetchError, InternalServerError } from "@shared/errors/app.errors";
+import { exponentialBackoff, getErrorData, mergeAbortSignals } from "@shared/utils";
 
 export interface HttpClientOptions extends RequestInit {
   timeout?: number;
@@ -20,7 +21,7 @@ export const httpClient = async <T>(
     label = "HTTP_Request",
     ...options
   }: HttpClientOptions = {},
-): Promise<T> => {
+): Promise<T | null> => {
   if (!url.startsWith("http")) {
     throw Error(`[httpClient] invalid url: ${url}`);
   }
@@ -34,7 +35,7 @@ export const httpClient = async <T>(
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const signal = options.signal
-      ? AbortSignal.any([options.signal, controller.signal])
+      ? mergeAbortSignals([options.signal, controller.signal])
       : controller.signal;
 
     try {
@@ -48,57 +49,41 @@ export const httpClient = async <T>(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg =
-          errorData?.message ?? `Request failed with ${response.status}`;
+        const errorData = await getErrorData(response);
+        const status = response.status;
 
-        const fetchError = new FetchError(
-          `${label}: ${errorMsg}`,
-          response.status,
-          errorData,
-        );
-
-        const isClientError = response.status < 500 && response.status !== 408;
-        if (isClientError || attempt === retries || !canRetry) {
-          throw fetchError;
-        }
-
-        throw fetchError;
+        throw new FetchError(`${label}: ${status}`, status, errorData);
       }
 
-      const result =
-        response.status !== 204 && response.status !== 205
-          ? await response.json().catch(() => null)
-          : null;
+      if (response.status === 204 || response.status === 205) return null;
+
+      const result = await response.json().catch(() => null);
 
       return transform && result?.data !== undefined ? result.data : result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
+      const error = err instanceof Error ? err : new Error(String(err));
 
-      if (err.name === "AbortError" && options.signal?.aborted) throw err;
+      if (error.name === "AbortError") {
+        if (options.signal?.aborted) throw error;
 
-      const isTimeout = err.name === "AbortError" && controller.signal.aborted;
-      const isLastAttempt = attempt === retries;
-
-      if (isLastAttempt || !canRetry) {
-        if (err instanceof FetchError || err?.name === "FetchError") {
-          throw err;
+        if (attempt < retries && canRetry) {
+          await exponentialBackoff(initialRetryDelay, attempt);
+          continue;
         }
-
-        if (isTimeout) {
-          throw new FetchError(`${label}: Gateway Timeout`, 504, {
-            original: err.message,
-          });
-        }
-
-        throw new ExternalServiceError(label, err);
+        throw new FetchError(`${label}: Gateway Timeout`, 504, { cause: error.message });
       }
 
-      // exponential backoff
-      const delay = initialRetryDelay * Math.pow(2, attempt);
-      await new Promise((r) => setTimeout(r, delay));
+      const isFetchError = error instanceof FetchError;
+      const shouldRetry = canRetry && attempt < retries;
+
+      if (!shouldRetry) {
+        throw isFetchError ? error : new ExternalServiceError(label, error);
+      }
+
+      await exponentialBackoff(initialRetryDelay, attempt);
     }
   }
 
-  throw new Error("Retry loop exhausted unexpectedly");
+  throw new InternalServerError("Retry loop exhausted");
 };

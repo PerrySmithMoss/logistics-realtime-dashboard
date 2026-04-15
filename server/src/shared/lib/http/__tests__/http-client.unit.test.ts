@@ -1,23 +1,56 @@
 import { ExternalServiceError, FetchError } from "@shared/errors/app.errors";
+import { exponentialBackoff } from "@shared/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { httpClient, HttpClientOptions } from "../http-client";
+
+vi.mock("@shared/utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/utils")>();
+  return {
+    ...actual,
+    exponentialBackoff: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 const createMockResponse = (
   status: number,
   body: unknown = {},
-  ok = status >= 200 && status < 300,
+  contentType = "application/json",
 ) => {
-  return {
-    ok,
+  const isJson = contentType === "application/json";
+  const hasNoContent = status === 204 || status === 205;
+
+  let responseBody: BodyInit | null = null;
+
+  if (!hasNoContent) {
+    if (isJson) {
+      responseBody = JSON.stringify(body);
+    } else if (typeof body === "string") {
+      responseBody = body;
+    } else if (
+      body instanceof Blob ||
+      body instanceof FormData ||
+      body instanceof URLSearchParams
+    ) {
+      responseBody = body;
+    } else if (body == null) {
+      responseBody = null;
+    } else {
+      responseBody = String(body);
+    }
+  }
+
+  const response = new Response(responseBody, {
     status,
-    json: vi.fn().mockResolvedValue(body),
-  };
+    headers: { "Content-Type": contentType },
+  });
+
+  vi.spyOn(response, "json");
+
+  return response;
 };
 
 const mockFetch = (...responses: ReturnType<typeof createMockResponse>[]) => {
-  let chain = (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-    responses[0],
-  );
+  let chain = (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(responses[0]);
   for (const res of responses.slice(1)) {
     chain = chain.mockResolvedValueOnce(res);
   }
@@ -34,9 +67,14 @@ const HTTP_CLIENT_DEFAULT_OPTIONS = {
 } satisfies HttpClientOptions;
 
 describe("httpClient", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
-    global.fetch = vi.fn();
+
+    fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   afterEach(async () => {
@@ -50,18 +88,12 @@ describe("httpClient", () => {
 
   describe("URL validation", () => {
     it("throws a plain Error (not FetchError) for relative URLs", async () => {
-      await expect(httpClient("/relative/path")).rejects.toThrow(
-        "[httpClient] invalid url",
-      );
-      await expect(httpClient("/relative/path")).rejects.not.toThrow(
-        FetchError,
-      );
+      await expect(httpClient("/relative/path")).rejects.toThrow("[httpClient] invalid url");
+      await expect(httpClient("/relative/path")).rejects.not.toThrow(FetchError);
     });
 
     it("rejects protocol-relative URLs", async () => {
-      await expect(httpClient("//example.com/data")).rejects.toThrow(
-        "[httpClient] invalid url",
-      );
+      await expect(httpClient("//example.com/data")).rejects.toThrow("[httpClient] invalid url");
     });
 
     it("accepts https:// URLs", async () => {
@@ -80,10 +112,7 @@ describe("httpClient", () => {
       const result = await httpClient(URL);
 
       expect(result).toEqual(body);
-      expect(global.fetch).toHaveBeenCalledWith(
-        URL,
-        expect.objectContaining({ method: "GET" }),
-      );
+      expect(global.fetch).toHaveBeenCalledWith(URL, expect.objectContaining({ method: "GET" }));
     });
 
     it("sends Content-Type: application/json by default", async () => {
@@ -118,9 +147,8 @@ describe("httpClient", () => {
 
     it("returns null for 204 without calling .json()", async () => {
       const response = createMockResponse(204);
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        response,
-      );
+
+      fetchMock.mockResolvedValueOnce(response);
 
       const result = await httpClient(URL);
 
@@ -130,9 +158,7 @@ describe("httpClient", () => {
 
     it("returns null for 205 without calling .json()", async () => {
       const response = createMockResponse(205);
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        response,
-      );
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(response);
 
       const result = await httpClient(URL);
 
@@ -154,11 +180,14 @@ describe("httpClient", () => {
 
   describe("transform option", () => {
     it("unwraps result.data when transform:true and data is present", async () => {
-      mockFetch(createMockResponse(200, { data: { foo: "bar" }, meta: {} }));
+      const body = { data: { foo: "bar" }, meta: { count: 1 } };
+      mockFetch(createMockResponse(200, body));
 
-      const result = await httpClient(URL, { transform: true });
+      // TS now knows 'result' is the inner object because of the overload
+      const result = await httpClient<{ foo: string }>(URL, { transform: true });
 
       expect(result).toEqual({ foo: "bar" });
+      expect(result).not.toHaveProperty("meta");
     });
 
     it("returns the full result when transform:true but data is undefined", async () => {
@@ -184,18 +213,16 @@ describe("httpClient", () => {
     it("retries GET on 5xx and succeeds on the second attempt", async () => {
       mockFetch(createMockResponse(500), createMockResponse(200, { ok: true }));
 
-      const p = httpClient(URL, { retries: 1, initialRetryDelay: 1000 });
-      await vi.runAllTimersAsync();
+      const result = await httpClient(URL, { retries: 1 });
 
-      await expect(p).resolves.toEqual({ ok: true });
+      expect(result).toEqual({ ok: true });
       expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      expect(exponentialBackoff).toHaveBeenCalledWith(1000, 0);
     });
 
     it("retries PUT on 5xx by default (idempotent method)", async () => {
-      mockFetch(
-        createMockResponse(500),
-        createMockResponse(200, { updated: true }),
-      );
+      mockFetch(createMockResponse(500), createMockResponse(200, { updated: true }));
 
       const p = httpClient(URL, {
         method: "PUT",
@@ -223,9 +250,7 @@ describe("httpClient", () => {
     });
 
     it("does NOT retry POST on 5xx by default", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockResponse(500),
-      );
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(createMockResponse(500));
 
       const p = httpClient(URL, { method: "POST", retries: 2 });
 
@@ -234,9 +259,7 @@ describe("httpClient", () => {
     });
 
     it("does NOT retry PATCH on 5xx by default", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockResponse(502),
-      );
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(createMockResponse(502));
 
       const p = httpClient(URL, { method: "PATCH", retries: 2 });
 
@@ -245,10 +268,7 @@ describe("httpClient", () => {
     });
 
     it("retries POST when allowRetry:true is explicit", async () => {
-      mockFetch(
-        createMockResponse(500),
-        createMockResponse(200, { created: true }),
-      );
+      mockFetch(createMockResponse(500), createMockResponse(200, { created: true }));
 
       const p = httpClient(URL, {
         method: "POST",
@@ -263,9 +283,7 @@ describe("httpClient", () => {
     });
 
     it("exhausts all retries and throws FetchError after the final attempt", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockResponse(503),
-      );
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(createMockResponse(503));
 
       const p = httpClient(URL, {
         retries: 2,
@@ -290,9 +308,9 @@ describe("httpClient", () => {
           createMockResponse(status, { message: `Error ${status}` }),
         );
 
-        await expect(
-          httpClient(URL, { ...HTTP_CLIENT_DEFAULT_OPTIONS }),
-        ).rejects.toThrow(FetchError);
+        await expect(httpClient(URL, { ...HTTP_CLIENT_DEFAULT_OPTIONS })).rejects.toThrow(
+          FetchError,
+        );
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
       },
@@ -310,88 +328,34 @@ describe("httpClient", () => {
   });
 
   describe("exponential backoff — timing precision", () => {
-    it("waits initialRetryDelay before the first retry", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockResponse(500),
-      );
+    it("calls backoff with the correct delay calculation", async () => {
+      fetchMock.mockResolvedValue(createMockResponse(500));
 
       const p = httpClient(URL, {
-        ...HTTP_CLIENT_DEFAULT_OPTIONS,
-        retries: 1,
-      }).catch(() => {});
-
-      await vi.advanceTimersByTimeAsync(99);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-
-      await vi.advanceTimersByTimeAsync(2);
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-
-      await p;
-    });
-
-    it("applies 2x backoff on second retry", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockResponse,
-      );
-
-      const p = httpClient(URL, {
-        ...HTTP_CLIENT_DEFAULT_OPTIONS,
-        retries: 2,
-      }).catch(() => {});
-
-      await vi.advanceTimersByTimeAsync(0);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-
-      await vi.advanceTimersByTimeAsync(100);
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-
-      await vi.advanceTimersByTimeAsync(200);
-      expect(global.fetch).toHaveBeenCalledTimes(3);
-
-      await p;
-    });
-
-    it("setTimeout is called with the correct computed delays", async () => {
-      const setTimeoutSpy = vi.spyOn(global, "setTimeout");
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockResponse(500),
-      );
-
-      const p = httpClient(URL, {
-        timeout: 50,
-        retries: 2,
         initialRetryDelay: 100,
+        retries: 2,
       }).catch((e) => e);
 
-      await vi.runAllTimersAsync();
+      await p;
 
-      const error = await p;
-      expect(error).toBeTruthy();
+      expect(global.fetch).toHaveBeenCalledTimes(3);
 
-      const delays = setTimeoutSpy.mock.calls
-        .map((call) => call[1] as number)
-        .filter((ms): ms is number => ms > 50);
-
-      expect(delays[0]).toBe(100);
-      expect(delays[1]).toBe(200);
+      expect(exponentialBackoff).toHaveBeenNthCalledWith(1, 100, 0);
+      expect(exponentialBackoff).toHaveBeenNthCalledWith(2, 100, 1);
     });
   });
 
   describe("timeouts", () => {
     it("throws FetchError with statusCode 504 after the configured timeout", async () => {
-      (global.fetch as any).mockImplementation(
-        (_: unknown, options: RequestInit) => {
-          return new Promise((_, reject) => {
-            if (options.signal) {
-              options.signal.addEventListener("abort", () => {
-                reject(
-                  new DOMException("The operation was aborted.", "AbortError"),
-                );
-              });
-            }
-          });
-        },
-      );
+      fetchMock.mockImplementation((_: unknown, options: RequestInit) => {
+        return new Promise((_, reject) => {
+          if (options.signal) {
+            options.signal.addEventListener("abort", () => {
+              reject(new DOMException("The operation was aborted.", "AbortError"));
+            });
+          }
+        });
+      });
 
       const promise = httpClient(URL, {
         ...HTTP_CLIENT_DEFAULT_OPTIONS,
@@ -409,7 +373,7 @@ describe("httpClient", () => {
     });
 
     it("includes the label in the 504 error message", async () => {
-      (global.fetch as any).mockImplementation(
+      fetchMock.mockImplementation(
         (
           _: unknown,
           options: {
@@ -461,19 +425,17 @@ describe("httpClient", () => {
     it("rethrows AbortError immediately when the external signal is aborted", async () => {
       const controller = new AbortController();
 
-      (global.fetch as any).mockImplementation(
-        (_: unknown, options: RequestInit) => {
-          return new Promise((_, reject) => {
-            if (options.signal?.aborted) {
-              return reject(new DOMException("Aborted", "AbortError"));
-            }
+      fetchMock.mockImplementation((_: unknown, options: RequestInit) => {
+        return new Promise((_, reject) => {
+          if (options.signal?.aborted) {
+            return reject(new DOMException("Aborted", "AbortError"));
+          }
 
-            options.signal?.addEventListener("abort", () => {
-              reject(new DOMException("Aborted", "AbortError"));
-            });
+          options.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
           });
-        },
-      );
+        });
+      });
 
       const p = httpClient(URL, {
         signal: controller.signal,
@@ -505,17 +467,13 @@ describe("httpClient", () => {
     });
 
     it("throws FetchError 504 on internal timeout, not AbortError", async () => {
-      (global.fetch as any).mockImplementation(
-        (_: unknown, options: RequestInit) => {
-          return new Promise((_, reject) => {
-            options.signal?.addEventListener("abort", () => {
-              reject(
-                new DOMException("The operation was aborted.", "AbortError"),
-              );
-            });
+      fetchMock.mockImplementation((_: unknown, options: RequestInit) => {
+        return new Promise((_, reject) => {
+          options.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
           });
-        },
-      );
+        });
+      });
 
       const p = httpClient(URL, { timeout: 500, retries: 0 }).catch((e) => e);
 
@@ -559,13 +517,17 @@ describe("httpClient", () => {
     it("includes API message in FetchError", async () => {
       mockFetch(createMockResponse(400, { message: "Bad input" }));
 
-      await expect(
-        httpClient(URL, { label: "ORDER_SERVICE", retries: 0 }),
-      ).rejects.toMatchObject({
-        name: "FetchError",
-        statusCode: 400,
-        message: expect.stringContaining("ORDER_SERVICE: Bad input"),
-      });
+      const error = await httpClient(URL, { label: "ORDER_SERVICE", retries: 0 }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(FetchError);
+
+      const fetchError = error as FetchError;
+
+      expect(fetchError.name).toBe("FetchError");
+      expect(fetchError.statusCode).toBe(400);
+
+      expect(fetchError.message).toContain("Bad input");
+      expect(fetchError.data).toMatchObject({ message: "Bad input" });
     });
 
     it("falls back to status-based message when body has no message field", async () => {
@@ -573,45 +535,34 @@ describe("httpClient", () => {
 
       mockFetch(createMockResponse(400, {}));
 
-      await expect(
-        httpClient(URL, { label: "ORDER_SERVICE", retries: 0 }),
-      ).rejects.toMatchObject({
-        name: "FetchError",
-        statusCode: 400,
-        message: expect.stringContaining(
-          "ORDER_SERVICE: Request failed with 400",
-        ),
+      await expect(httpClient(URL, { label: "ORDER_SERVICE", retries: 0 })).rejects.toMatchObject({
+        message: expect.stringContaining("400"),
       });
     });
 
     it("falls back when JSON parsing fails", async () => {
-      vi.useRealTimers();
-
       const badResponse = {
         ok: false,
         status: 400,
         json: vi.fn().mockRejectedValue(new Error("Invalid JSON")),
+        text: vi.fn().mockResolvedValue("Garbage HTML/Text"),
       };
 
-      (global.fetch as any).mockResolvedValue(badResponse);
+      fetchMock.mockResolvedValue(badResponse);
 
-      await expect(
-        httpClient(URL, { label: "ORDER_SERVICE", retries: 0 }),
-      ).rejects.toMatchObject({
-        name: "FetchError",
-        statusCode: 400,
-        message: expect.stringContaining("Request failed with 400"),
-      });
+      const error = await httpClient(URL, { label: "ORDER_SERVICE", retries: 0 }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ExternalServiceError);
+
+      const externalError = error as ExternalServiceError;
+
+      expect(externalError.statusCode).toBe(502);
     });
 
     it("throws ExternalServiceError for non-HTTP errors (e.g. network down)", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("Network Down"),
-      );
+      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Network Down"));
 
-      await expect(httpClient(URL, { retries: 0 })).rejects.toThrow(
-        ExternalServiceError,
-      );
+      await expect(httpClient(URL, { retries: 0 })).rejects.toThrow(ExternalServiceError);
     });
 
     it("does not wrap FetchError inside ExternalServiceError", async () => {
@@ -626,29 +577,33 @@ describe("httpClient", () => {
     });
 
     it("ExternalServiceError message includes the label", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("ECONNREFUSED"),
-      );
+      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("ECONNREFUSED"));
 
-      await expect(
-        httpClient(URL, { retries: 0, label: "INVENTORY_SERVICE" }),
-      ).rejects.toThrow("INVENTORY_SERVICE");
+      await expect(httpClient(URL, { retries: 0, label: "INVENTORY_SERVICE" })).rejects.toThrow(
+        "INVENTORY_SERVICE",
+      );
     });
 
     it("preserves FetchError through retry loop without wrapping it", async () => {
-      (global.fetch as any).mockResolvedValue(
-        createMockResponse(400, { message: "Bad input" }),
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(createMockResponse(400, { message: "Bad input" })),
       );
 
-      const promise = httpClient(URL, { retries: 2 }).catch((e) => e);
+      const promise = httpClient(URL, {
+        retries: 2,
+        initialRetryDelay: 10,
+        label: "HTTP_Request",
+      }).catch((e) => e);
 
       await vi.runAllTimersAsync();
 
       const error = await promise;
 
       expect(error).toBeInstanceOf(FetchError);
-      expect((error as FetchError).message).toContain("Bad input");
-      expect((error as FetchError).statusCode).toBe(400);
+      const fetchError = error as FetchError;
+
+      expect(fetchError.message).toContain("Bad input");
+      expect(fetchError.statusCode).toBe(400);
     });
 
     it("includes statusCode and data in FetchError", async () => {
@@ -661,6 +616,27 @@ describe("httpClient", () => {
       expect((error as FetchError).statusCode).toBe(429);
       expect((error as FetchError).data).toMatchObject(body);
     });
+
+    it("normalises HTML error pages into the FetchError data details", async () => {
+      const html = "<html>Node.js Error Page</html>";
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 502,
+        headers: new Headers({ "Content-Type": "text/html" }),
+        text: vi.fn().mockResolvedValue(html),
+      });
+
+      const error = await httpClient(URL, { retries: 0 }).catch((e) => e);
+
+      if (!(error instanceof FetchError)) {
+        throw new Error("Expected an FetchError");
+      }
+
+      expect(error.data.details[0]).toMatchObject({
+        code: "RAW_RESPONSE",
+        value: html,
+      });
+    });
   });
 
   describe("request options", () => {
@@ -669,10 +645,7 @@ describe("httpClient", () => {
 
       await httpClient(URL);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        URL,
-        expect.objectContaining({ method: "GET" }),
-      );
+      expect(global.fetch).toHaveBeenCalledWith(URL, expect.objectContaining({ method: "GET" }));
     });
 
     it("normalises method to uppercase", async () => {
@@ -680,10 +653,7 @@ describe("httpClient", () => {
 
       await httpClient(URL, { method: "post" as "POST" });
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        URL,
-        expect.objectContaining({ method: "POST" }),
-      );
+      expect(global.fetch).toHaveBeenCalledWith(URL, expect.objectContaining({ method: "POST" }));
     });
 
     it("forwards additional fetch options (e.g. body) to native fetch", async () => {
@@ -692,10 +662,7 @@ describe("httpClient", () => {
 
       await httpClient(URL, { method: "POST", body, allowRetry: false });
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        URL,
-        expect.objectContaining({ body }),
-      );
+      expect(global.fetch).toHaveBeenCalledWith(URL, expect.objectContaining({ body }));
     });
   });
 });

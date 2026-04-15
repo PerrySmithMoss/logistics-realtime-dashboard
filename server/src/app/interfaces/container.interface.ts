@@ -45,13 +45,13 @@ interface AppContainerDependencies {
   readonly logger: ILogger;
 }
 
-interface AppContainerControllers {
+export interface AppContainerControllers {
   readonly health: IHealthController;
   readonly fleet: IFleetController;
   readonly vehicle: IVehicleController;
 }
 
-interface AppContainerLoggers {
+export interface AppContainerLoggers {
   readonly app: ILogger;
   readonly server: ILogger;
   readonly error: ILogger;
