@@ -21,8 +21,6 @@ export class ConsoleLogger implements ILogger {
   private write(level: LogLevelName, message: string, data?: unknown) {
     if (LOG_LEVEL_PRIORITY[level] < this.minLevelPriority) return;
 
-    if (!this.isDev && (level === "DEBUG" || level === "INFO")) return;
-
     const formatted = this.format(level, message, data);
 
     if (level === "ERROR" || level === "CRITICAL") {
@@ -38,9 +36,7 @@ export class ConsoleLogger implements ILogger {
         data instanceof Error
           ? { name: data.name, message: data.message, stack: data.stack }
           : data;
-      return this.isDev
-        ? JSON.stringify(prepared, null, 2)
-        : JSON.stringify(prepared);
+      return this.isDev ? JSON.stringify(prepared, null, 2) : JSON.stringify(prepared);
     } catch {
       return "[Circular Data or Stringify Error]";
     }

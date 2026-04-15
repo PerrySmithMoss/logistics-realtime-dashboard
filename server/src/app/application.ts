@@ -1,13 +1,16 @@
 import { createErrorHandler, notFoundHandler, requestIdMiddleware } from "@api/middleware";
 import { createApiRouter } from "@api/router";
+import { createTestRouter } from "@api/test.router";
 import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { createHealthRouter } from "@shared/api/health.router";
 import { rateLimiter } from "@shared/api/middleware";
+import { InternalServerError } from "@shared/errors/app.errors";
 import { consoleLogger } from "@shared/infrastructure/logger";
 import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import express, { Express } from "express";
+import helmet from "helmet";
 import { AppContainer } from "./container";
 import { IAppContainer } from "./interfaces/container.interface";
 import { IServer } from "./interfaces/server.interface";
@@ -33,12 +36,16 @@ export class Application {
     return this;
   }
 
-  public async start() {
+  public async start(options: { geoSnappingService?: IGeoSnappingService } = {}) {
     try {
-      await this.bootstrap();
+      await this.bootstrap(options);
 
       if (!this.expressApp || !this.container) {
-        throw new Error("Application bootstrap failed");
+        throw new InternalServerError(
+          "Application bootstrap failed",
+          "this.expressApp or this.container is falsy",
+          false,
+        );
       }
 
       this.server = new HttpServer(this.expressApp, this.container.serverLogger);
@@ -54,7 +61,11 @@ export class Application {
 
   public getServer(): Express {
     if (!this.expressApp) {
-      throw new Error("Application has not been bootstrapped");
+      throw new InternalServerError(
+        "Application has not been bootstrapped",
+        "this.expressApp is falsy",
+        false,
+      );
     }
 
     return this.expressApp;
@@ -62,7 +73,11 @@ export class Application {
 
   public getContainer(): IAppContainer {
     if (!this.container) {
-      throw new Error("Application has not been bootstrapped");
+      throw new InternalServerError(
+        "Application has not been bootstrapped",
+        "this.container is falsy",
+        false,
+      );
     }
 
     return this.container;
@@ -86,8 +101,22 @@ export class Application {
   private buildExpressApp(container: IAppContainer): Express {
     const expressApp = express();
 
-    expressApp.use(requestIdMiddleware);
+    expressApp.use(
+      helmet({
+        // handled by reverse proxy (traefik)
+        strictTransportSecurity: false,
+        xFrameOptions: false,
+        xContentTypeOptions: false,
+
+        // app specific
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+      }),
+    );
+
     expressApp.set("trust proxy", true);
+
+    expressApp.use(requestIdMiddleware);
     expressApp.use(express.json({ limit: "1mb" }));
 
     expressApp.use("/health", createHealthRouter(container.controllers.health));
@@ -100,6 +129,25 @@ export class Application {
 
     expressApp.use(globalRateLimit);
     expressApp.use("/api/v1", createApiRouter(container));
+
+    if (this.config.server.isTest) {
+      const resetFn = container.resetForTesting;
+
+      if (typeof resetFn !== "function") {
+        throw new InternalServerError(
+          "Test Infrastructure Failure: 'resetForTesting' is missing or not a function",
+          "Check container registration inside AppContainer",
+          false,
+        );
+      }
+
+      const testRouter = createTestRouter({
+        reset: () => resetFn(),
+      });
+
+      expressApp.use("/api/test", testRouter);
+    }
+
     expressApp.use(notFoundHandler);
     expressApp.use(createErrorHandler(container.errorLogger, this.config));
 
@@ -111,9 +159,10 @@ export class Application {
       await dataService.hydrate();
     } catch (err) {
       (this.logger || consoleLogger).critical(
-        "Background Hydration failed. Fleet data will be unavailable.",
+        "Background hydration failed. Initiating shutdown.",
         err,
       );
+      await this.shutdown("HYDRATION_FAILURE");
     }
   }
 
