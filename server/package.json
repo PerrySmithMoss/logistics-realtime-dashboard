@@ -12,6 +12,7 @@
     "build": "rm -rf dist && npm run type-check && esbuild src/index.ts --bundle --platform=node --target=node24 --sourcemap --outdir=dist --external:express",
     "start": "node --enable-source-maps ./dist/index.js",
     "start:prod-local": "node --enable-source-maps --env-file=.env ./dist/index.js",
+    "start:test": "tsx $([ -f .env.test ] && echo '--env-file=.env.test') ./src/test-server.ts",
     "lint": "eslint src",
     "type-check": "tsc -p tsconfig.app.json --noEmit",
     "type-check:test": "tsc -p tsconfig.test.json --noEmit",
@@ -24,6 +25,7 @@
   },
   "dependencies": {
     "express": "^5.2.1",
+    "helmet": "^8.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

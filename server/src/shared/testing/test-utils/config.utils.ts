@@ -1,6 +1,7 @@
 import { IAppConfig } from "@config/index";
+import { DeepPartial } from "@shared/types";
 
-export const createMockConfig = (overrides: Partial<IAppConfig> = {}): IAppConfig => {
+export const createMockConfig = (overrides: DeepPartial<IAppConfig> = {}): IAppConfig => {
   const baseConfig: IAppConfig = {
     app: {
       version: "1.0.0",

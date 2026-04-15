@@ -3,7 +3,7 @@ import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-ser
 import { IFleetObserverService } from "@modules/fleet/core/interfaces/fleet-observer-service.interface";
 import { IFleetStatsProjection } from "@modules/fleet/core/interfaces/fleet-stats-projection.interface";
 import { VehicleSnapshot } from "@modules/vehicle/core/dtos";
-import { IBroadcastScheduler, ISimulator } from "@shared/interfaces";
+import { IBroadcastScheduler, ISimulator, IVehicleStatusChangeEvent } from "@shared/interfaces";
 import { vi, type Mocked } from "vitest";
 import { createVehicleSnapshot } from "./vehicle.utils";
 
@@ -79,23 +79,37 @@ export const createMockFleetSimulator = (
 export const createMockFleetProjection = (): IFleetStatsProjection & {
   _state: IFleetSnapshot;
 } => {
-  const state = {
+  const getInitialState = (): IFleetSnapshot => ({
     summary: { total: 0, activeCount: 0, delayedCount: 0, performancePct: 100 },
-    vehicles: [] as VehicleSnapshot[],
-  };
-
-  const handleUpdate = vi.fn((update) => {
-    const index = state.vehicles.findIndex((v) => v.id === (update.vehicleId || update.id));
-    const vehicle = { ...update, id: update.vehicleId || update.id };
-    if (index > -1) state.vehicles[index] = vehicle;
-    else state.vehicles.push(vehicle);
-    state.summary.total = state.vehicles.length;
+    vehicles: [],
   });
 
+  let state = getInitialState();
+
   return {
-    handleUpdate,
-    getCurrentSnapshot: vi.fn().mockReturnValue(state),
-    _state: state,
+    get _state() {
+      return state;
+    },
+
+    handleUpdate: vi.fn((update: IVehicleStatusChangeEvent) => {
+      const id = update.vehicleId;
+      const index = state.vehicles.findIndex((v) => v.id === id);
+      const vehicle = { ...update, id } as unknown as VehicleSnapshot;
+
+      if (index > -1) {
+        state.vehicles[index] = vehicle;
+      } else {
+        state.vehicles.push(vehicle);
+      }
+
+      state.summary.total = state.vehicles.length;
+    }),
+
+    getCurrentSnapshot: vi.fn(() => state),
+
+    reset: vi.fn(() => {
+      state = getInitialState();
+    }),
   };
 };
 

@@ -31,4 +31,5 @@ export interface IAppContainer {
   };
   readonly fleetDataService: IFleetDataService;
   readonly fleetSimulator?: FleetSimulator;
+  resetForTesting?(): Promise<void>;
 }
