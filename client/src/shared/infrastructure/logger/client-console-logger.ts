@@ -1,4 +1,4 @@
-import { ILogger } from "@/shared/interface";
+import { ILogger } from "./logger.interface";
 import { CONSOLE_LOGGER_MAP, LOG_LEVEL_PRIORITY } from "./logger.constants";
 import { ILoggerOptions, LogLevel } from "./logger.types";
 

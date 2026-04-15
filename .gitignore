@@ -26,6 +26,11 @@ coverage/
 .env.production.local
 
 # =========================
+# Testing
+# =========================
+test-results/
+
+# =========================
 # TypeScript
 # =========================
 *.tsbuildinfo

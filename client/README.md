@@ -4,7 +4,7 @@
 
 ### Domain-Driven Modular Directory
 
-Following the backend's "Vertical Slice" strategy, the frontend is organized into **Domain Modules** (e.g., `modules/fleet`).
+Following the backend's "Vertical Slice" strategy, the frontend is organised into **Domain Modules** (e.g., `modules/fleet`).
 
 - **The Rationale**: Components, hooks, and services that change together, stay together. This avoids the "folder jumping" typical in many React projects.
 - **Scalability**: By keeping the shared infrastructure (loggers, SSE clients) strictly separated from the fleet business logic, we can scale the UI by adding new modules without bloating the core bundle.
@@ -42,7 +42,7 @@ The map engine is the most resource-intensive and fragile part of the UI.
 
 - **Debounced Interaction**: The `MapSearch` component uses a `150ms` debounce, targeting a sweet spot between fast updates and human perception. This avoids triggering heavy GeoJSON filtering on every single keystroke.
 
-- **State Adjustment during Render**: To keep the keyboard navigation snappy, the `activeIndex` is synchronized during the render phase rather than in a `useEffect`, eliminating cascading renders and visual flicker.
+- **State Adjustment during Render**: To keep the keyboard navigation snappy, the `activeIndex` is synchronised during the render phase rather than in a `useEffect`, eliminating cascading renders and visual flicker.
 
 ---
 
@@ -52,7 +52,7 @@ The map engine is the most resource-intensive and fragile part of the UI.
 
 **Interaction**: `Search Input -> Debounce -> Suggestions List -> onSearch Callback -> Map Imperative Handle (Zoom/Popup)`
 
-**Resilience**: `Map Crash -> Error Boundary -> Localized Fallback UI -> User Reset`
+**Resilience**: `Map Crash -> Error Boundary -> Localised Fallback UI -> User Reset`
 
 ---
 

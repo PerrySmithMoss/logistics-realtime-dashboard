@@ -1,4 +1,4 @@
-import { ILogger } from "@/shared/interface";
+import { ILogger } from "./logger.interface";
 import { ClientConsoleLogger } from "./client-console-logger";
 import { LogLevel } from "./logger.types";
 import { ServerConsoleLogger } from "./server-console-logger";

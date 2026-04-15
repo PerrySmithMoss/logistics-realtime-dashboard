@@ -10,14 +10,23 @@ import {
   FleetMapErrorBoundary,
   FleetMapOverlay,
   FleetMapSearch,
+  FleetSummaryCard,
 } from "./";
 
 interface FleetDashboardProps {
-  initialDataPromise: Promise<FleetSnapshot>;
+  initialDataPromise?: Promise<FleetSnapshot>;
+  initialData?: FleetSnapshot;
 }
 
-export const FleetDashboard = ({ initialDataPromise }: FleetDashboardProps) => {
-  const initialData = use(initialDataPromise);
+export const FleetDashboard = ({
+  initialDataPromise,
+  initialData: initialDataOverride,
+}: FleetDashboardProps) => {
+  if (!initialDataOverride && !initialDataPromise) {
+    throw new Error("FleetDashboard requires initialData or initialDataPromise");
+  }
+
+  const initialData = initialDataOverride ?? use(initialDataPromise!);
   const mapRef = useRef<FleetMapHandle>(null);
   const [data, setData] = useState<FleetSnapshot>(initialData);
 
@@ -63,9 +72,10 @@ export const FleetDashboard = ({ initialDataPromise }: FleetDashboardProps) => {
           value={`${data.summary.performancePct.toFixed(1)}%`}
           variant={data.summary.performancePct < 80 ? "warning" : "default"}
         />
-        <FleetDashboardStatCard
+        <FleetSummaryCard
           title="Delayed"
-          value={data.summary.delayedCount.toString()}
+          count={data.summary.delayedCount}
+          total={data.summary.total}
           variant={data.summary.delayedCount > 0 ? "danger" : "default"}
         />
       </section>
