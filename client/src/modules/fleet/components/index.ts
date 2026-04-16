@@ -4,6 +4,6 @@ export * from "./fleet-map-error-boundary.component";
 export * from "./fleet-map-overlay.component";
 export * from "./fleet-map-search.component";
 export * from "./fleet-map.component";
-export * from "./fleet-summary-card.component";
 export * from "./fleet-stats-skeleton.component";
+export * from "./fleet-summary-card.component";
 export * from "./vehicle-marker.component";

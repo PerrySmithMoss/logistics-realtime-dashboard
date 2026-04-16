@@ -35,7 +35,7 @@ export const FleetDashboard = ({
   const { geoJSON, delayedVehicles } = useMemo(() => {
     return {
       geoJSON: transformToGeoJSON(data.vehicles),
-      delayedVehicles: data.vehicles.filter((v) => v.status === "delayed"),
+      delayedVehicles: data.vehicles?.filter((v) => v.status === "delayed"),
     };
   }, [data.vehicles]);
 
@@ -46,9 +46,7 @@ export const FleetDashboard = ({
 
   const handleSearch = useCallback(
     (vehicleId: string) => {
-      const vehicle = data.vehicles.find(
-        (v) => v.id.toLowerCase() === vehicleId.toLowerCase(),
-      );
+      const vehicle = data.vehicles?.find((v) => v.id.toLowerCase() === vehicleId.toLowerCase());
 
       if (!vehicle) return;
 
@@ -59,14 +57,8 @@ export const FleetDashboard = ({
 
   return (
     <div className="p-6 h-full flex flex-col space-y-4 bg-slate-50">
-      <section
-        aria-label="Fleet summary"
-        className="grid grid-cols-3 gap-4 shrink-0"
-      >
-        <FleetDashboardStatCard
-          title="Total Vehicles"
-          value={data.summary.total.toString()}
-        />
+      <section aria-label="Fleet summary" className="grid grid-cols-3 gap-4 shrink-0">
+        <FleetDashboardStatCard title="Total Vehicles" value={data.summary.total.toString()} />
         <FleetDashboardStatCard
           title="Performance"
           value={`${data.summary.performancePct.toFixed(1)}%`}
@@ -79,21 +71,20 @@ export const FleetDashboard = ({
           variant={data.summary.delayedCount > 0 ? "danger" : "default"}
         />
       </section>
-      <section
-        aria-label="Fleet map"
-        className="flex-1 relative border border-slate-200 rounded-2xl bg-white shadow-sm overflow-hidden"
-      >
-        <FleetMapSearch onSearch={handleSearch} vehicles={data.vehicles} />
+      <section aria-label="Fleet workspace" className="flex flex-1 gap-4">
+        <div className="relative flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <FleetMapSearch onSearch={handleSearch} vehicles={data.vehicles} />
 
-        <FleetMapErrorBoundary>
-          <FleetMap ref={mapRef} data={geoJSON} />
-        </FleetMapErrorBoundary>
+          <FleetMapErrorBoundary>
+            <FleetMap ref={mapRef} data={geoJSON} />
+          </FleetMapErrorBoundary>
 
-        <FleetMapOverlay
-          sseStatus={sseStatus}
-          delayedVehicles={delayedVehicles}
-          onVehicleClick={focusOnVehicle}
-        />
+          <FleetMapOverlay
+            sseStatus={sseStatus}
+            delayedVehicles={delayedVehicles}
+            onVehicleClick={focusOnVehicle}
+          />
+        </div>
       </section>
     </div>
   );

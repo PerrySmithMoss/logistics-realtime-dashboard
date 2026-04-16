@@ -49,7 +49,11 @@ const ConnectionIndicator = ({ status }: { status: SseConnectionStatus }) => {
   const isConnecting = status === "connecting";
 
   return (
-    <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-3 py-2 rounded-full border border-slate-200 shadow-sm text-[11px] font-semibold text-slate-600">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-3 py-2 rounded-full border border-slate-200 shadow-sm text-[11px] font-semibold text-slate-600"
+    >
       <span
         className={`w-2 h-2 rounded-full ${isConnecting ? "bg-amber-400 animate-pulse" : "bg-red-500"}`}
       />

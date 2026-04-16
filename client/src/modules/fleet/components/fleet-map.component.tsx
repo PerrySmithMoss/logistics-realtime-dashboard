@@ -28,9 +28,14 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
     const map = useRef<maplibregl.Map | null>(null);
     const activePopup = useRef<maplibregl.Popup | null>(null);
     const isMapReady = useRef(false);
+    const pendingFocus = useRef<{ lng: number; lat: number } | null>(null);
+    const pendingPopupVehicle = useRef<FleetVehicle | null>(null);
 
     const openPopup = useCallback((vehicle: FleetVehicle) => {
-      if (!map.current || !isMapReady.current) return;
+      if (!map.current || !isMapReady.current) {
+        pendingPopupVehicle.current = vehicle;
+        return;
+      }
 
       activePopup.current?.remove();
 
@@ -52,7 +57,10 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
       ref,
       (): FleetMapHandle => ({
         zoomToVehicle: (lng, lat) => {
-          if (!map.current?.isStyleLoaded()) return;
+          if (!map.current?.isStyleLoaded() || !isMapReady.current) {
+            pendingFocus.current = { lng, lat };
+            return;
+          }
 
           map.current?.flyTo({
             center: [lng, lat],
@@ -127,11 +135,32 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
 
         isMapReady.current = true;
         map.current = mapInstance;
+
+        if (pendingFocus.current) {
+          const { lng, lat } = pendingFocus.current;
+          pendingFocus.current = null;
+
+          mapInstance.flyTo({
+            center: [lng, lat],
+            zoom: 16,
+            speed: 1.2,
+            curve: 1.42,
+            essential: true,
+          });
+        }
+
+        if (pendingPopupVehicle.current) {
+          const vehicle = pendingPopupVehicle.current;
+          pendingPopupVehicle.current = null;
+          openPopup(vehicle);
+        }
       });
 
       return () => {
         mapInstance.remove();
         map.current = null;
+        pendingFocus.current = null;
+        pendingPopupVehicle.current = null;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

@@ -1,6 +1,21 @@
 import { createLogger } from "../logger";
 
-type SseErrorHandler = () => void;
+export interface SseConnectionErrorDetails {
+  recoverable: boolean;
+  status?: number;
+}
+
+type SseErrorHandler = (details: SseConnectionErrorDetails) => void;
+
+class SseConnectionError extends Error {
+  constructor(
+    message: string,
+    public readonly details: SseConnectionErrorDetails,
+  ) {
+    super(message);
+    this.name = "SseConnectionError";
+  }
+}
 
 const logger = createLogger("SSeClient");
 
@@ -71,7 +86,13 @@ export class SseClient {
         });
 
         if (!response.ok || !response.body) {
-          throw new Error(`SSE request failed with status ${response.status}`);
+          throw new SseConnectionError(
+            `SSE request failed with status ${response.status}`,
+            {
+              recoverable: ![401, 403].includes(response.status),
+              status: response.status,
+            },
+          );
         }
 
         logger.debug("SSE Connection established");
@@ -92,7 +113,9 @@ export class SseClient {
         if (buffer.trim()) this.parseChunk(`${buffer}\n\n`);
 
         if (!this.didDisconnectManually) {
-          throw new Error("SSE stream closed unexpectedly");
+          throw new SseConnectionError("SSE stream closed unexpectedly", {
+            recoverable: true,
+          });
         }
       } catch (error) {
         if (
@@ -106,7 +129,11 @@ export class SseClient {
         logger.error("SSE Connection error/interruption", {
           error,
         });
-        this.onError?.();
+        this.onError?.(
+          error instanceof SseConnectionError
+            ? error.details
+            : { recoverable: true },
+        );
       } finally {
         this.streamPromise = null;
         this.abortController = null;
