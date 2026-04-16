@@ -1,4 +1,5 @@
 import { ExternalServiceError, FetchError } from "../errors";
+import { ApiResponse } from "../types";
 
 export interface HttpClientOptions extends RequestInit {
   timeout?: number;
@@ -20,11 +21,7 @@ export interface HttpClientConfig {
 
 const IDEMPOTENT_METHODS = new Set(["GET", "PUT", "DELETE", "HEAD"]);
 
-const resolveUrl = (
-  base: string,
-  path: string,
-  params?: Record<string, string>,
-): string => {
+const resolveUrl = (base: string, path: string, params?: Record<string, string>): string => {
   const url = path.startsWith("http") ? new URL(path) : new URL(path, base);
 
   if (params) {
@@ -34,11 +31,38 @@ const resolveUrl = (
   return url.toString();
 };
 
+const mergeAbortSignals = (signals: AbortSignal[]): AbortSignal => {
+  const controller = new AbortController();
+
+  const abort = (signal: AbortSignal) => {
+    controller.abort(signal.reason);
+    signals.forEach((candidate) => {
+      candidate.removeEventListener("abort", onAbort);
+    });
+  };
+
+  const onAbort = (event: Event) => {
+    abort(event.target as AbortSignal);
+  };
+
+  for (const signal of signals) {
+    if (signal.aborted) {
+      abort(signal);
+      break;
+    }
+
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  return controller.signal;
+};
+
+const isWrappedResponse = <T>(res: unknown): res is ApiResponse<T> =>
+  typeof res === "object" && res !== null && "success" in res && "meta" in res && "data" in res;
+
 const request = async <T>(
   url: string,
-  instanceConfig: Required<
-    Omit<HttpClientConfig, "baseUrl" | "defaultHeaders">
-  > & {
+  instanceConfig: Required<Omit<HttpClientConfig, "baseUrl" | "defaultHeaders">> & {
     defaultHeaders: Record<string, string>;
   },
   {
@@ -48,7 +72,8 @@ const request = async <T>(
     initialRetryDelay = instanceConfig.initialRetryDelay,
     allowRetry = false,
     label = "HTTP_Request",
-    params: _params,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    params: _,
     ...options
   }: HttpClientOptions = {},
 ): Promise<T> => {
@@ -58,9 +83,10 @@ const request = async <T>(
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const hasBody = options.body !== undefined && options.body !== null;
 
     const signal = options.signal
-      ? AbortSignal.any([options.signal, controller.signal])
+      ? mergeAbortSignals([options.signal, controller.signal])
       : controller.signal;
 
     try {
@@ -69,7 +95,7 @@ const request = async <T>(
         method,
         signal,
         headers: {
-          "Content-Type": "application/json",
+          ...(hasBody && { "Content-Type": "application/json" }),
           ...instanceConfig.defaultHeaders,
           ...options.headers,
         },
@@ -94,29 +120,39 @@ const request = async <T>(
       }
 
       const isNoContent = response.status === 204 || response.status === 205;
-      const result = isNoContent
-        ? null
-        : await response.json().catch(() => null);
 
-      return (
-        transform && result?.data !== undefined ? result.data : result
-      ) as T;
+      if (isNoContent) return null as T;
+
+      const result = await response.json().catch(() => null);
+
+      if (isWrappedResponse<T>(result)) {
+        if (!result.success) {
+          throw new FetchError(
+            `${label}: ${result.error.message}`,
+            result.error.statusCode,
+            result.error,
+          );
+        }
+
+        if (transform) {
+          if (result.data === undefined) {
+            throw new FetchError(`${label}: Wrapped response missing data field`, 500, result);
+          }
+          return result.data as T;
+        }
+
+        return result as T;
+      }
     } catch (err: unknown) {
       clearTimeout(timeoutId);
 
       // caller cancelled, don't retry
-      if (
-        err instanceof Error &&
-        err.name === "AbortError" &&
-        options.signal?.aborted
-      ) {
+      if (err instanceof Error && err.name === "AbortError" && options.signal?.aborted) {
         throw err;
       }
 
       const isTimeout =
-        err instanceof Error &&
-        err.name === "AbortError" &&
-        controller.signal.aborted;
+        err instanceof Error && err.name === "AbortError" && controller.signal.aborted;
       const isLastAttempt = attempt === retries;
 
       if (isLastAttempt || !canRetry) {
@@ -129,7 +165,7 @@ const request = async <T>(
         throw new ExternalServiceError(label, err);
       }
 
-      const delay = initialRetryDelay * Math.pow(2, attempt);
+      const delay = Math.random() * initialRetryDelay * Math.pow(2, attempt);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -139,21 +175,9 @@ const request = async <T>(
 
 export interface HttpClient {
   get: <T>(path: string, options?: HttpClientOptions) => Promise<T>;
-  post: <T>(
-    path: string,
-    body: unknown,
-    options?: HttpClientOptions,
-  ) => Promise<T>;
-  put: <T>(
-    path: string,
-    body: unknown,
-    options?: HttpClientOptions,
-  ) => Promise<T>;
-  patch: <T>(
-    path: string,
-    body: unknown,
-    options?: HttpClientOptions,
-  ) => Promise<T>;
+  post: <T>(path: string, body: unknown, options?: HttpClientOptions) => Promise<T>;
+  put: <T>(path: string, body: unknown, options?: HttpClientOptions) => Promise<T>;
+  patch: <T>(path: string, body: unknown, options?: HttpClientOptions) => Promise<T>;
   delete: <T>(path: string, options?: HttpClientOptions) => Promise<T>;
 }
 
@@ -182,28 +206,28 @@ export const createHttpClient = ({
       }),
 
     post: <T>(path: string, body: unknown, options?: HttpClientOptions) =>
-      request<T>(resolve(path), instanceConfig, {
+      request<T>(resolve(path, options?.params), instanceConfig, {
         ...options,
         method: "POST",
         body: JSON.stringify(body),
       }),
 
     put: <T>(path: string, body: unknown, options?: HttpClientOptions) =>
-      request<T>(resolve(path), instanceConfig, {
+      request<T>(resolve(path, options?.params), instanceConfig, {
         ...options,
         method: "PUT",
         body: JSON.stringify(body),
       }),
 
     patch: <T>(path: string, body: unknown, options?: HttpClientOptions) =>
-      request<T>(resolve(path), instanceConfig, {
+      request<T>(resolve(path, options?.params), instanceConfig, {
         ...options,
         method: "PATCH",
         body: JSON.stringify(body),
       }),
 
     delete: <T>(path: string, options?: HttpClientOptions) =>
-      request<T>(resolve(path), instanceConfig, {
+      request<T>(resolve(path, options?.params), instanceConfig, {
         ...options,
         method: "DELETE",
       }),
