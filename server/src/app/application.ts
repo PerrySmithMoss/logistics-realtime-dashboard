@@ -131,18 +131,8 @@ export class Application {
     expressApp.use("/api/v1", createApiRouter(container));
 
     if (this.config.server.isTest) {
-      const resetFn = container.resetForTesting;
-
-      if (typeof resetFn !== "function") {
-        throw new InternalServerError(
-          "Test Infrastructure Failure: 'resetForTesting' is missing or not a function",
-          "Check container registration inside AppContainer",
-          false,
-        );
-      }
-
       const testRouter = createTestRouter({
-        reset: () => resetFn(),
+        reset: async () => await container.resetForTesting?.(),
       });
 
       expressApp.use("/api/test", testRouter);

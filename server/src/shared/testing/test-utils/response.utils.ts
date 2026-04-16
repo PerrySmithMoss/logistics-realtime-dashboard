@@ -1,8 +1,8 @@
 import { Response } from "express";
-import { vi } from "vitest";
+import { Mocked, vi } from "vitest";
 
 export const createMockResponse = (): Response => {
-  const res = {} as any;
+  const res = {} as Mocked<Response>;
 
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
