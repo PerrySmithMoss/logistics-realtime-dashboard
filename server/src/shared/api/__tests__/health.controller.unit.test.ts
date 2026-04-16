@@ -1,11 +1,14 @@
 import { IAppConfig } from "@config/index";
 import { ServiceUnavailableError } from "@shared/errors/app.errors";
 import { AppState } from "@shared/interfaces";
-import { createMockLifecycleManager } from "@shared/testing/test-utils";
-import { createMockConfig } from "@shared/testing/test-utils/config.utils";
-import { createMockFleetDataService } from "@shared/testing/test-utils/fleet.utils";
-import { createMockRequest } from "@shared/testing/test-utils/request.utils";
-import { createMockResponse } from "@shared/testing/test-utils/response.utils";
+import {
+  createMockConfig,
+  createMockFleetDataService,
+  createMockLifecycleManager,
+  createMockRequest,
+  createMockResponse,
+} from "@shared/testing/test-utils";
+import { DeepPartial } from "@shared/types";
 import { Request } from "express";
 import { HealthController } from "../health.controller";
 
@@ -13,7 +16,7 @@ describe("HealthController", () => {
   const setup = (
     overrides: {
       req?: Partial<Request>;
-      config?: Partial<IAppConfig>;
+      config?: DeepPartial<IAppConfig>;
       lifecycleState?: AppState;
       isHydrated?: boolean;
     } = {},
@@ -22,18 +25,10 @@ describe("HealthController", () => {
     vi.setSystemTime(new Date("2026-04-12T12:00:00Z"));
 
     const mockConfig = createMockConfig(overrides.config);
-    const mockLifecycle = createMockLifecycleManager(
-      overrides.lifecycleState ?? AppState.READY,
-    );
-    const mockDataService = createMockFleetDataService(
-      overrides.isHydrated ?? true,
-    );
+    const mockLifecycle = createMockLifecycleManager(overrides.lifecycleState ?? AppState.READY);
+    const mockDataService = createMockFleetDataService(overrides.isHydrated ?? true);
 
-    const controller = new HealthController(
-      mockConfig,
-      mockLifecycle,
-      mockDataService,
-    );
+    const controller = new HealthController(mockConfig, mockLifecycle, mockDataService);
 
     return {
       controller,
@@ -56,9 +51,7 @@ describe("HealthController", () => {
       controller.live(mockReq, mockRes);
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
-      expect(vi.mocked(mockRes.json).mock.calls[0][0].data.status).toBe(
-        "ALIVE",
-      );
+      expect(vi.mocked(mockRes.json).mock.calls[0][0].data.status).toBe("ALIVE");
     });
   });
 
@@ -79,7 +72,7 @@ describe("HealthController", () => {
       const { controller, mockReq, mockRes } = setup({
         config: {
           app: { version: "2.0.0", name: "fleet-api" },
-          server: { env: "production" } as any,
+          server: { env: "production" },
         },
       });
 
@@ -124,9 +117,7 @@ describe("HealthController", () => {
 
       mockLifecycle.prepareForShutdown();
 
-      await expect(controller.ready(mockReq, mockRes)).rejects.toThrow(
-        ServiceUnavailableError,
-      );
+      await expect(controller.ready(mockReq, mockRes)).rejects.toThrow(ServiceUnavailableError);
     });
 
     it("should return a valid ISO timestamp and numeric uptime", async () => {
@@ -170,9 +161,7 @@ describe("HealthController", () => {
 
       await promise.catch((err) => {
         expect(err.statusCode).toBe(503);
-        expect(err.details).toContainEqual(
-          expect.objectContaining({ value: "STARTING" }),
-        );
+        expect(err.details).toContainEqual(expect.objectContaining({ value: "STARTING" }));
       });
     });
   });

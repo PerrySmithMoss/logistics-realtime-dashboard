@@ -12,6 +12,7 @@ import {
 import { FLEET_MAP_ICON_COLORS } from "../constants";
 import { buildPopupHtml, loadVehicleIcon } from "../lib/fleet-map.utils";
 import { FleetMapHandle, FleetVehicle } from "../types";
+import { VehicleMarker } from "./vehicle-marker.component";
 
 interface FleetMapProps {
   data: GeoJSON.FeatureCollection;
@@ -27,9 +28,14 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
     const map = useRef<maplibregl.Map | null>(null);
     const activePopup = useRef<maplibregl.Popup | null>(null);
     const isMapReady = useRef(false);
+    const pendingFocus = useRef<{ lng: number; lat: number } | null>(null);
+    const pendingPopupVehicle = useRef<FleetVehicle | null>(null);
 
     const openPopup = useCallback((vehicle: FleetVehicle) => {
-      if (!map.current || !isMapReady.current) return;
+      if (!map.current || !isMapReady.current) {
+        pendingPopupVehicle.current = vehicle;
+        return;
+      }
 
       activePopup.current?.remove();
 
@@ -51,7 +57,10 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
       ref,
       (): FleetMapHandle => ({
         zoomToVehicle: (lng, lat) => {
-          if (!map.current?.isStyleLoaded()) return;
+          if (!map.current?.isStyleLoaded() || !isMapReady.current) {
+            pendingFocus.current = { lng, lat };
+            return;
+          }
 
           map.current?.flyTo({
             center: [lng, lat],
@@ -126,11 +135,32 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
 
         isMapReady.current = true;
         map.current = mapInstance;
+
+        if (pendingFocus.current) {
+          const { lng, lat } = pendingFocus.current;
+          pendingFocus.current = null;
+
+          mapInstance.flyTo({
+            center: [lng, lat],
+            zoom: 16,
+            speed: 1.2,
+            curve: 1.42,
+            essential: true,
+          });
+        }
+
+        if (pendingPopupVehicle.current) {
+          const vehicle = pendingPopupVehicle.current;
+          pendingPopupVehicle.current = null;
+          openPopup(vehicle);
+        }
       });
 
       return () => {
         mapInstance.remove();
         map.current = null;
+        pendingFocus.current = null;
+        pendingPopupVehicle.current = null;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -174,10 +204,53 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(
     }, [data]);
 
     return (
-      <div
-        ref={mapContainer}
-        className="h-full w-full rounded-xl overflow-hidden shadow-inner"
-      />
+      <>
+        <div
+          ref={mapContainer}
+          className="h-full w-full rounded-xl overflow-hidden shadow-inner"
+        />
+        <ul aria-label="Vehicle markers" className="sr-only">
+          {data.features.map((feature) => {
+            const properties = feature.properties as
+              | Pick<FleetVehicle, "id" | "status">
+              | undefined;
+
+            if (!properties?.id || !properties.status) return null;
+
+            return (
+              <li key={properties.id}>
+                <VehicleMarker
+                  vehicleId={properties.id}
+                  status={properties.status}
+                />
+              </li>
+            );
+          })}
+        </ul>
+        <ul aria-label="Vehicle telemetry" className="sr-only">
+          {data.features.map((feature) => {
+            const properties = feature.properties as
+              | Pick<FleetVehicle, "id" | "status">
+              | undefined;
+
+            if (
+              !properties?.id ||
+              feature.geometry.type !== "Point" ||
+              feature.geometry.coordinates.length < 2
+            ) {
+              return null;
+            }
+
+            const [lng, lat] = feature.geometry.coordinates;
+
+            return (
+              <li key={`${properties.id}-telemetry`}>
+                {properties.id}: {lat.toFixed(4)}, {lng.toFixed(4)}
+              </li>
+            );
+          })}
+        </ul>
+      </>
     );
   },
 );

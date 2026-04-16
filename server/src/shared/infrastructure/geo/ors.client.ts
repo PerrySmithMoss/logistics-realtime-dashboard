@@ -40,7 +40,7 @@ export class OpenRouteServiceClient implements IGeoSnappingService {
         signal: options?.signal,
       });
 
-      if (!response || !response.locations) {
+      if (!this.isORSResponse(response)) {
         this.logger.warn("[ORSClient] API returned success but empty/invalid payload", {
           response,
         });
@@ -71,5 +71,14 @@ export class OpenRouteServiceClient implements IGeoSnappingService {
 
       return points.map((p) => ({ ...p, success: false }));
     }
+  }
+
+  private isORSResponse(data: unknown): data is ORSResponse {
+    return (
+      typeof data === "object" &&
+      data !== null &&
+      "locations" in data &&
+      Array.isArray((data as ORSResponse).locations)
+    );
   }
 }

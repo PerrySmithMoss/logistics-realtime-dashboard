@@ -18,10 +18,12 @@ export const fleetRepository = {
     http.get<FleetSnapshot>("/api/v1/fleet/snapshot", {
       cache: "no-store",
       label: "Fleet_Snapshot",
+      transform: true,
     }),
 
   getVehicleById: (id: string): Promise<FleetVehicle> =>
     http.get<FleetVehicle>(`/api/v1/fleet/vehicles/${id}`, {
       label: "Fleet_VehicleById",
+      transform: true,
     }),
 };

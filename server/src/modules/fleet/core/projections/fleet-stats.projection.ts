@@ -64,4 +64,9 @@ export class FleetStatsProjection implements IFleetStatsProjection {
       vehicles,
     };
   }
+
+  public reset(): void {
+    this.vehicleStates.clear();
+    this.stats.delayedCount = 0;
+  }
 }

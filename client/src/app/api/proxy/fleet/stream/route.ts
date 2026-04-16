@@ -9,11 +9,7 @@ const logger = createLogger("Fleet Stream Proxy");
 const STREAM_URL = `${serverEnv.FLEET_API_BASE_URL}/api/v1/fleet/stream`;
 
 export async function GET(req: NextRequest) {
-  const userRole = req.headers.get("x-user-role");
-
-  if (!userRole) {
-    return new Response("Unauthorised", { status: 401 });
-  }
+  const userRole = req.headers.get("x-user-role") ?? "viewer";
 
   const traceId = req.headers.get("x-trace-id") || crypto.randomUUID();
 
@@ -35,6 +31,11 @@ export async function GET(req: NextRequest) {
         traceId,
         url: STREAM_URL,
       });
+
+      if ([401, 403].includes(response.status)) {
+        return new Response("Upstream Error", { status: response.status });
+      }
+
       return new Response("Upstream Error", { status: 502 });
     }
 

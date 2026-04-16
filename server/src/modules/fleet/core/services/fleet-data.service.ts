@@ -43,9 +43,13 @@ export class FleetDataService implements IFleetDataService {
   }
 
   public async hydrate(): Promise<void> {
-    const combinedSignal = AbortSignal.any([
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      timeoutController.abort(new Error("Hydration timed out"));
+    }, this.settings.hydrationTimeout);
+    const combinedSignal = this.combineAbortSignals([
       this.lifecycle.getShutdownSignal(),
-      AbortSignal.timeout(this.settings.hydrationTimeout),
+      timeoutController.signal,
     ]);
 
     try {
@@ -96,7 +100,18 @@ export class FleetDataService implements IFleetDataService {
       if (err instanceof AppError) throw err;
 
       throw new InternalServerError("Fleet hydration failed", err, false);
+    } finally {
+      clearTimeout(timeoutId);
     }
+  }
+
+  public async reset(): Promise<void> {
+    this._isHydrated = false;
+    this.snapBuffer.clear();
+    this.preHydrationBuffer.clear();
+    this.projection.reset();
+
+    await this.hydrate();
   }
 
   public async processVehicleMovement(event: IVehicleStatusChangeEvent): Promise<void> {
@@ -166,5 +181,31 @@ export class FleetDataService implements IFleetDataService {
       clearTimeout(this.batchTimeout);
       this.batchTimeout = null;
     }
+  }
+
+  private combineAbortSignals(signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController();
+
+    const abort = (signal: AbortSignal) => {
+      controller.abort(signal.reason);
+      signals.forEach((candidate) => {
+        candidate.removeEventListener("abort", onAbort);
+      });
+    };
+
+    const onAbort = (event: Event) => {
+      abort(event.target as AbortSignal);
+    };
+
+    for (const signal of signals) {
+      if (signal.aborted) {
+        abort(signal);
+        break;
+      }
+
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    return controller.signal;
   }
 }

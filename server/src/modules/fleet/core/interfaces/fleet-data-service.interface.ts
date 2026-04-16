@@ -2,8 +2,9 @@ import { IVehicleStatusChangeEvent } from "@shared/interfaces/vehicle-status-cha
 import { IFleetSnapshot } from "../dtos/fleet-snapshot.dto";
 
 export interface IFleetDataService {
-  hydrate(): Promise<void>;
   readonly isHydrated: boolean;
+  hydrate(): Promise<void>;
+  reset(): Promise<void>;
   processVehicleMovement(event: IVehicleStatusChangeEvent): Promise<void>;
   getCurrentSnapshot(): Promise<IFleetSnapshot>;
 }

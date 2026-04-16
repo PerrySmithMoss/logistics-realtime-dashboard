@@ -27,11 +27,17 @@ export class HttpServer implements IServer {
         resolve();
       });
 
-      this.server.on("error", (error: unknown) => {
-        if (error && typeof error === "object" && "code" in error) {
-          this.logger.error(`❌ Port ${config.port} is already in use.`);
-          return reject(error);
-        }
+      this.server.on("error", (error: NodeJS.ErrnoException) => {
+        const messages: Record<string, string> = {
+          EADDRINUSE: `Port ${config.port} is already in use.`,
+          EACCES: `Insufficient permissions to bind to port ${config.port}.`,
+        };
+
+        const message = error.code
+          ? (messages[error.code] ?? `Server error: ${error.code}`)
+          : "Unknown server error";
+
+        this.logger.error(message, { code: error.code, port: config.port });
         reject(error);
       });
     });

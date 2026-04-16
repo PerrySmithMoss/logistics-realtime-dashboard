@@ -35,10 +35,11 @@ export const useFleetSSE = (
       onUpdateRef.current(data);
     }, THROTTLE_MS);
 
-    const client = new SseClient("/api/proxy/fleet/stream", () => {
+    const client = new SseClient("/api/proxy/fleet/stream", ({ recoverable }) => {
       if (!isMounted) return;
 
       setStatus((prev) => (prev !== "error" ? "error" : prev));
+      if (!recoverable) return;
 
       // exponential backoff
       const delay = Math.min(1000 * 2 ** retryCount, 30_000);

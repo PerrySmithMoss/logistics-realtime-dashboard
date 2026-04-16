@@ -1,5 +1,5 @@
-import { ILogger } from "@/shared/interface";
 import { CONSOLE_LOGGER_MAP, LOG_LEVEL_PRIORITY } from "./logger.constants";
+import { ILogger } from "./logger.interface";
 import { ILoggerOptions, LogLevel } from "./logger.types";
 
 export class ClientConsoleLogger implements ILogger {
@@ -15,10 +15,7 @@ export class ClientConsoleLogger implements ILogger {
   }
 
   public withContext(newContext: string): ILogger {
-    return new ClientConsoleLogger(
-      this.options,
-      `${this.context}:${newContext}`,
-    );
+    return new ClientConsoleLogger(this.options, `${this.context}:${newContext}`);
   }
 
   private log(level: LogLevel, msg: string, data?: unknown) {
@@ -30,9 +27,7 @@ export class ClientConsoleLogger implements ILogger {
     const prefix = `[${timestamp}] [${level.toUpperCase()}] [${this.context}]`;
 
     const processedData =
-      data instanceof Error
-        ? { ...data, name: data.name, message: data.message, stack: data.stack }
-        : data;
+      data instanceof Error ? { name: data.name, message: data.message, stack: data.stack } : data;
 
     const consoleMethod = CONSOLE_LOGGER_MAP[level];
 

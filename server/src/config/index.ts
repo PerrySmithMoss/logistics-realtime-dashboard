@@ -75,7 +75,7 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
       isDev: env.NODE_ENV === "development",
       isTest: env.NODE_ENV === "test",
       minLogLevel: env.MIN_LOG_LEVEL,
-      internalAuthSecret: env.INTERNAL_AUTH_SECRET ?? "dev-secret-only-use-locally",
+      internalAuthSecret: env.INTERNAL_AUTH_SECRET ?? "random_32_byte_string-do_not_use_in_prod",
     },
     modules: {
       vehicle: { seedMockData: env.ENABLE_FLEET_SIMULATOR },
