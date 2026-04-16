@@ -2,7 +2,7 @@
 
 A high performance, full stack monitoring system designed to track vehicle fleets with sub second latency. This project solves the challenge of visualising high frequency GPS data without UI jitter or server side bottlenecks.
 
-![Image](https://github.com/user-attachments/assets/cb9e9193-f428-445e-8e59-3493f040968f)
+![Image](https://github.com/user-attachments/assets/10007eb6-929f-4b9c-8f95-54ea610d4b81)
 
 ## The Challenge
 
