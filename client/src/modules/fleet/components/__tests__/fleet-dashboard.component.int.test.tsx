@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http } from "msw";
 import React from "react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
@@ -12,6 +12,8 @@ const mapTestState = vi.hoisted(() => ({
   mountCount: 0,
   unmountCount: 0,
   renderSpy: vi.fn(),
+  zoomToVehicle: vi.fn(),
+  openPopup: vi.fn(),
 }));
 
 vi.mock("../fleet-map.component", async () => {
@@ -25,7 +27,7 @@ vi.mock("../fleet-map.component", async () => {
           zoomToVehicle: Mock;
           openPopup: Mock;
         }>,
-      ) => {
+        ) => {
         ReactModule.useEffect(() => {
           mapTestState.mountCount += 1;
 
@@ -35,8 +37,8 @@ vi.mock("../fleet-map.component", async () => {
         }, []);
 
         ReactModule.useImperativeHandle(ref, () => ({
-          zoomToVehicle: vi.fn(),
-          openPopup: vi.fn(),
+          zoomToVehicle: mapTestState.zoomToVehicle,
+          openPopup: mapTestState.openPopup,
         }));
 
         mapTestState.renderSpy(data.features.map((feature) => feature.properties?.id));
@@ -56,6 +58,8 @@ describe("FleetDashboard integration", () => {
     mapTestState.mountCount = 0;
     mapTestState.unmountCount = 0;
     mapTestState.renderSpy.mockClear();
+    mapTestState.zoomToVehicle.mockClear();
+    mapTestState.openPopup.mockClear();
   });
 
   it("hydrates from the initial snapshot and applies streamed stats updates without remounting the map", async () => {
@@ -100,4 +104,56 @@ describe("FleetDashboard integration", () => {
       expect(await screen.findByText("Connection Lost")).toBeInTheDocument();
     },
   );
+
+  it("focuses the selected vehicle from search suggestions", async () => {
+    vi.useFakeTimers();
+    const stream = new TestSseStream();
+
+    server.use(
+      http.get("http://localhost:3000/api/proxy/fleet/stream", () => stream.createResponse()),
+    );
+
+    customRender(<FleetDashboard initialData={initialFleetSnapshot} />);
+
+    const input = screen.getByPlaceholderText("Search Vehicle ID...");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "202" } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(mapTestState.zoomToVehicle).toHaveBeenCalledWith(
+      initialFleetSnapshot.vehicles[1].lng,
+      initialFleetSnapshot.vehicles[1].lat,
+    );
+    expect(mapTestState.openPopup).toHaveBeenCalledWith(initialFleetSnapshot.vehicles[1]);
+  });
+
+  it("focuses delayed vehicles when their overlay pill is clicked", () => {
+    const stream = new TestSseStream();
+
+    server.use(
+      http.get("http://localhost:3000/api/proxy/fleet/stream", () => stream.createResponse()),
+    );
+
+    customRender(<FleetDashboard initialData={initialFleetSnapshot} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /vhc-202/i }));
+
+    expect(mapTestState.zoomToVehicle).toHaveBeenCalledWith(
+      initialFleetSnapshot.vehicles[1].lng,
+      initialFleetSnapshot.vehicles[1].lat,
+    );
+    expect(mapTestState.openPopup).toHaveBeenCalledWith(initialFleetSnapshot.vehicles[1]);
+  });
+
+  it("throws when neither initial data prop is provided", () => {
+    expect(() => render(<FleetDashboard />)).toThrow(
+      "FleetDashboard requires initialData or initialDataPromise",
+    );
+  });
 });
