@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -76,6 +76,12 @@ vi.mock("../vehicle-marker.component", () => ({
 }));
 
 describe("FleetMap", () => {
+  const triggerMapLoad = async () => {
+    await act(async () => {
+      await mapState.events.get("load")?.();
+    });
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     mapState.events.clear();
@@ -97,7 +103,7 @@ describe("FleetMap", () => {
       <FleetMap data={transformToGeoJSON(initialFleetSnapshot.vehicles)} />,
     );
 
-    mapState.events.get("load")?.();
+    await triggerMapLoad();
 
     rerender(<FleetMap data={transformToGeoJSON(updatedFleetSnapshot.vehicles)} />);
 
@@ -113,7 +119,7 @@ describe("FleetMap", () => {
 
     render(<FleetMap ref={ref} data={transformToGeoJSON(initialFleetSnapshot.vehicles)} />);
 
-    mapState.events.get("load")?.();
+    await triggerMapLoad();
 
     ref.current?.zoomToVehicle(-0.1234, 51.5092);
     ref.current?.openPopup(initialFleetSnapshot.vehicles[1]);
@@ -144,7 +150,7 @@ describe("FleetMap", () => {
     expect(mapState.flyTo).not.toHaveBeenCalled();
     expect(popupSetLngLat).not.toHaveBeenCalled();
 
-    mapState.events.get("load")?.();
+    await triggerMapLoad();
 
     expect(mapState.flyTo).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -161,7 +167,7 @@ describe("FleetMap", () => {
   it("opens a popup from layer clicks and updates the cursor on hover", async () => {
     render(<FleetMap data={transformToGeoJSON(initialFleetSnapshot.vehicles)} />);
 
-    mapState.events.get("load")?.();
+    await triggerMapLoad();
 
     mapState.layerEvents.get("mouseenter:vehicle-layer")?.();
     expect(mapState.getCanvas().style.cursor).toBe("pointer");
@@ -196,7 +202,7 @@ describe("FleetMap", () => {
       <FleetMap data={transformToGeoJSON(initialFleetSnapshot.vehicles)} />,
     );
 
-    mapState.events.get("load")?.();
+    await triggerMapLoad();
 
     mapState.layerEvents.get("click:vehicle-layer")?.({
       features: [
