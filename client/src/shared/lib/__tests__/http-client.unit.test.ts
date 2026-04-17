@@ -129,4 +129,112 @@ describe("createHttpClient", () => {
       ExternalServiceError,
     );
   });
+
+  it("retries idempotent server failures and eventually resolves", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const http = createHttpClient({
+      baseUrl,
+      timeout: 100,
+      retries: 1,
+      initialRetryDelay: 200,
+    });
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "temporarily unavailable" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+    const requestPromise = http.get<{ ok: boolean }>("/health");
+
+    await vi.runOnlyPendingTimersAsync();
+
+    await expect(requestPromise).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry non-idempotent requests on server failures", async () => {
+    const http = createHttpClient({ baseUrl, timeout: 100, retries: 2 });
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: "write failed" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(
+      http.post("/api/v1/fleet/vehicles", { id: "VHC-101" }, { label: "Fleet_CreateVehicle" }),
+    ).rejects.toMatchObject({
+      message: "Fleet_CreateVehicle: write failed",
+      status: 503,
+    } satisfies Partial<FetchError>);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null for no-content responses", async () => {
+    const http = createHttpClient({ baseUrl, timeout: 100, retries: 0 });
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await expect(http.delete("/api/v1/fleet/vehicles/VHC-101")).resolves.toBeNull();
+  });
+
+  it("surfaces malformed wrapped responses when transform is requested", async () => {
+    const http = createHttpClient({ baseUrl, timeout: 100, retries: 0 });
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        success: true,
+        meta: { traceId: "trace-1" },
+        data: undefined,
+      }),
+    });
+
+    await expect(
+      http.get("/api/v1/fleet/snapshot", {
+        transform: true,
+        label: "Fleet_Snapshot",
+      }),
+    ).rejects.toMatchObject({
+      message: "Fleet_Snapshot: Wrapped response missing data field",
+      status: 500,
+    } satisfies Partial<FetchError>);
+  });
+
+  it("passes caller-initiated aborts through without wrapping them", async () => {
+    const http = createHttpClient({ baseUrl, timeout: 100, retries: 1 });
+    const controller = new AbortController();
+
+    fetchMock.mockImplementationOnce(async (_url, options) => {
+      return await new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted by caller", "AbortError"));
+        });
+      });
+    });
+
+    const requestPromise = http.get("/api/v1/fleet/snapshot", {
+      signal: controller.signal,
+    });
+
+    controller.abort("cancelled");
+
+    await expect(requestPromise).rejects.toMatchObject({
+      name: "AbortError",
+      message: "Aborted by caller",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
