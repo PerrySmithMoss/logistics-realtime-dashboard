@@ -60,6 +60,12 @@ const mergeAbortSignals = (signals: AbortSignal[]): AbortSignal => {
 const isWrappedResponse = <T>(res: unknown): res is ApiResponse<T> =>
   typeof res === "object" && res !== null && "success" in res && "meta" in res && "data" in res;
 
+const isAbortError = (err: unknown): boolean =>
+  typeof err === "object" &&
+  err !== null &&
+  "name" in err &&
+  (err as { name?: string }).name === "AbortError";
+
 const request = async <T>(
   url: string,
   instanceConfig: Required<Omit<HttpClientConfig, "baseUrl" | "defaultHeaders">> & {
@@ -143,16 +149,17 @@ const request = async <T>(
 
         return result as T;
       }
+
+      return result as T;
     } catch (err: unknown) {
       clearTimeout(timeoutId);
 
       // caller cancelled, don't retry
-      if (err instanceof Error && err.name === "AbortError" && options.signal?.aborted) {
+      if (isAbortError(err) && options.signal?.aborted) {
         throw err;
       }
 
-      const isTimeout =
-        err instanceof Error && err.name === "AbortError" && controller.signal.aborted;
+      const isTimeout = isAbortError(err) && controller.signal.aborted;
       const isLastAttempt = attempt === retries;
 
       if (isLastAttempt || !canRetry) {

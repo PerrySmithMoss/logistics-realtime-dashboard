@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!response.body) {
-      return new Response("No streamable content found", { status: 204 });
+      return new Response(null, { status: 204 });
     }
 
     return new Response(response.body, {

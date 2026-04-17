@@ -2,11 +2,11 @@ import { screen, waitFor } from "@testing-library/react";
 import { http } from "msw";
 import React from "react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import { initialFleetSnapshot, updatedFleetSnapshot } from "../../../../tests/mocks/fleet-fixtures";
-import { TestSseStream } from "../../../../tests/mocks/test-sse-stream";
-import { server } from "../../../../tests/setup/msw-server";
-import { customRender } from "../../../../tests/testing-utils";
-import { FleetDashboard } from "./fleet-dashboard.component";
+import { initialFleetSnapshot, updatedFleetSnapshot } from "../../../../../tests/mocks/fleet-fixtures";
+import { TestSseStream } from "../../../../../tests/mocks/test-sse-stream";
+import { server } from "../../../../../tests/setup/msw-server";
+import { customRender } from "../../../../../tests/testing-utils";
+import { FleetDashboard } from "../fleet-dashboard.component";
 
 const mapTestState = vi.hoisted(() => ({
   mountCount: 0,
@@ -14,7 +14,7 @@ const mapTestState = vi.hoisted(() => ({
   renderSpy: vi.fn(),
 }));
 
-vi.mock("./fleet-map.component", async () => {
+vi.mock("../fleet-map.component", async () => {
   const ReactModule = await import("react");
 
   return {

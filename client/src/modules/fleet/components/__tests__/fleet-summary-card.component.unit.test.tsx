@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { FleetSummaryCard } from "./fleet-summary-card.component";
+import { FleetSummaryCard } from "../fleet-summary-card.component";
 
 describe("FleetSummaryCard", () => {
   it("calculates the fleet percentage accurately", () => {

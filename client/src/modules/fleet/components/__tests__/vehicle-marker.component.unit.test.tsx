@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getVehicleMarkerStyles,
   VehicleMarker,
-} from "./vehicle-marker.component";
+} from "../vehicle-marker.component";
 
 describe("VehicleMarker", () => {
   it("renders the delayed marker tone and status metadata", () => {

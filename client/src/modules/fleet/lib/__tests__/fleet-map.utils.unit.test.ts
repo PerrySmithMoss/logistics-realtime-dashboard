@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPopupHtml, buildVehicleSvg } from "./fleet-map.utils";
+import { buildPopupHtml, buildVehicleSvg } from "../fleet-map.utils";
 
 describe("fleet map utils", () => {
   it("buildVehicleSvg applies the requested fill color", () => {

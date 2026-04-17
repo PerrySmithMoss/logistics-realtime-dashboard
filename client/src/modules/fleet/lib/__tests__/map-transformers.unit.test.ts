@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transformToGeoJSON } from "./map-transformers";
+import { transformToGeoJSON } from "../map-transformers";
 
 describe("transformToGeoJSON", () => {
   it("maps fleet coordinates and status into GeoJSON features", () => {
