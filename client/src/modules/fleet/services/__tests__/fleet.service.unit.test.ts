@@ -52,4 +52,34 @@ describe("fleetService", () => {
 
     await expect(fleetService.getVehicleById("VHC-404")).rejects.toBeInstanceOf(VehicleNotFoundError);
   });
+
+  it("passes AppError vehicle lookup failures through unchanged", async () => {
+    const error = new AppError("Forbidden", "FORBIDDEN" as never, 403);
+    vi.mocked(fleetRepository.getVehicleById).mockRejectedValueOnce(error);
+
+    await expect(fleetService.getVehicleById("VHC-202")).rejects.toBe(error);
+  });
+
+  it("wraps delayed-vehicle snapshot failures in FleetSnapshotError", async () => {
+    vi.mocked(fleetRepository.getSnapshot).mockRejectedValueOnce(new Error("stream down"));
+
+    await expect(fleetService.getDelayedVehicles()).rejects.toBeInstanceOf(FleetSnapshotError);
+  });
+
+  it("marks vehicles as not being worst performers when they are not delayed", async () => {
+    vi.mocked(fleetRepository.getVehicleById).mockResolvedValueOnce(initialFleetSnapshot.vehicles[0]);
+    vi.mocked(fleetRepository.getSnapshot).mockResolvedValueOnce(initialFleetSnapshot);
+
+    await expect(fleetService.getVehicleWithContext("VHC-101")).resolves.toEqual({
+      vehicle: initialFleetSnapshot.vehicles[0],
+      isWorstPerformer: false,
+    });
+  });
+
+  it("passes AppError context lookup failures through unchanged", async () => {
+    const error = new AppError("Forbidden", "FORBIDDEN" as never, 403);
+    vi.mocked(fleetRepository.getSnapshot).mockRejectedValueOnce(error);
+
+    await expect(fleetService.getVehicleWithContext("VHC-202")).rejects.toBe(error);
+  });
 });
