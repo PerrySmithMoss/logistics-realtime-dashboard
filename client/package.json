@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:int": "vitest run --config vitest.int.config.ts",
     "test:e2e": "playwright test",
