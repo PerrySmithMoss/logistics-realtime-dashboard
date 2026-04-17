@@ -68,4 +68,88 @@ describe("FleetMapSearch", () => {
 
     expect(onSearch).toHaveBeenCalledWith("VHC-202");
   });
+
+  it("closes the menu when escape is pressed", async () => {
+    render(<FleetMapSearch onSearch={vi.fn()} vehicles={vehicles} />);
+
+    const input = screen.getByPlaceholderText("Search Vehicle ID...");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "VHC" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("keeps the first option selected when arrow-up is pressed from the top", async () => {
+    const onSearch = vi.fn();
+
+    render(<FleetMapSearch onSearch={onSearch} vehicles={vehicles} />);
+
+    const input = screen.getByPlaceholderText("Search Vehicle ID...");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "VHC" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSearch).toHaveBeenCalledWith("VHC-101");
+  });
+
+  it("shows an empty state when no vehicles match the query", async () => {
+    render(<FleetMapSearch onSearch={vi.fn()} vehicles={vehicles} />);
+
+    const input = screen.getByPlaceholderText("Search Vehicle ID...");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "ZZZ" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(screen.getByText("No vehicles found.")).toBeInTheDocument();
+  });
+
+  it("does not submit when enter is pressed without any matching suggestions", async () => {
+    const onSearch = vi.fn();
+
+    render(<FleetMapSearch onSearch={onSearch} vehicles={vehicles} />);
+
+    const input = screen.getByPlaceholderText("Search Vehicle ID...");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "ZZZ" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it("keeps option selection working during the delayed blur close", async () => {
+    const onSearch = vi.fn();
+
+    render(<FleetMapSearch onSearch={onSearch} vehicles={vehicles} />);
+
+    const input = screen.getByPlaceholderText("Search Vehicle ID...");
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    fireEvent.mouseDown(screen.getByRole("button", { name: /vhc-101/i }));
+
+    expect(onSearch).toHaveBeenCalledWith("VHC-101");
+  });
 });
