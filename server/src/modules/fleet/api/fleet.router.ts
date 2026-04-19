@@ -20,7 +20,13 @@ export const createFleetRoutes = (
     internalAuthSecret: config.internalAuthSecret,
   });
 
-  const sseShield = sseRateLimiter(logger, cache, {
+  const snapshotRateLimit = rateLimiter(cache, {
+    windowMs: 60000,
+    maxRequests: 30,
+    keyPrefix: "rl:fleet:snapshot",
+  });
+
+  const sseRateLimit = sseRateLimiter(logger, cache, {
     maxConcurrent: config.maxConcurrent,
     minRetryMs: config.minRetryMs,
     errorMessageResponses: {
@@ -28,27 +34,9 @@ export const createFleetRoutes = (
     },
   });
 
-  const snapshotRateLimit = rateLimiter(cache, {
-    windowMs: 60000,
-    maxRequests: 30,
-    keyPrefix: "rl:fleet:snapshot",
-  });
+  fleetRouter.get("/snapshot", authGuard, snapshotRateLimit, controller.getSnapshot);
 
-  fleetRouter.get(
-    "/snapshot",
-    authGuard,
-    snapshotRateLimit,
-    //     validateFleetSnapshotRequest,
-    controller.getSnapshot,
-  );
-
-  fleetRouter.get(
-    "/stream",
-    authGuard,
-    sseShield,
-    //   validateFleetStatsStreamRequest,
-    controller.stream,
-  );
+  fleetRouter.get("/stream", authGuard, sseRateLimit, controller.stream);
 
   return fleetRouter;
 };

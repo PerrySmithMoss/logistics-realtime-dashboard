@@ -5,10 +5,7 @@ import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interfac
 import { Request, Response } from "express";
 import { BaseController } from "./base.controller";
 
-export class HealthController
-  extends BaseController
-  implements IHealthController
-{
+export class HealthController extends BaseController implements IHealthController {
   constructor(
     readonly config: IAppConfig,
     private readonly lifecycle: ILifecycleManager,

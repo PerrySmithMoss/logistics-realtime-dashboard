@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
 export interface IVehicleController {
-  list(req: Request, res: Response): Promise<Response>;
-  updateLocation(req: Request, res: Response): Promise<Response>;
+  list(req: Request, res: Response): Promise<Response | void> | Response | void;
+  updateLocation(req: Request, res: Response): Promise<Response | void> | Response | void;
 }
