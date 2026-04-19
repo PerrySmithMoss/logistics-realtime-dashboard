@@ -1,11 +1,15 @@
 {
-  "devDependencies": {
-    "husky": "^9.1.7"
-  },
+  "name": "logistics-realtime-dashboard",
+  "private": true,
+  "packageManager": "pnpm@10.18.3",
   "scripts": {
     "prepare": "husky",
-    "validate": "npm run validate:server && npm run validate:client",
-    "validate:server": "cd server && npx lint-staged",
-    "validate:client": "cd client && npx lint-staged"
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "validate": "pnpm --filter server exec lint-staged && pnpm --filter client exec lint-staged"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }
