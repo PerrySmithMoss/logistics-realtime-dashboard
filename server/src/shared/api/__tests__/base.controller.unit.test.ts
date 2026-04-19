@@ -1,14 +1,14 @@
-import {
-  AppErrorCodes,
-  ServiceUnavailableError,
-} from "@shared/errors/app.errors";
+import { AppErrorCodes, ServiceUnavailableError } from "@shared/errors/app.errors";
 import { createMockRequest } from "@shared/testing/test-utils/request.utils";
 import { createMockResponse } from "@shared/testing/test-utils/response.utils";
 import { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import {
+  ApiResponse,
+  ApiResponseMeta,
   ApiResponseOptions,
   ApiResponsePaginationMeta,
+  SerialisableApiResponseTypes,
 } from "../../types/response.types";
 import { BaseController } from "../base.controller";
 
@@ -17,20 +17,31 @@ class MockedBaseController extends BaseController {
     super(options);
   }
 
-  public triggerOk(req: Request, res: Response, data: any, meta?: any) {
+  public triggerOk<T extends SerialisableApiResponseTypes>(
+    req: Request,
+    res: Response<ApiResponse<T>>,
+    data: T,
+    meta?: ApiResponseMeta,
+  ) {
     return this.ok(req, res, data, meta);
   }
 
-  public triggerOkPaginated(
+  public triggerOkPaginated<T extends SerialisableApiResponseTypes>(
     req: Request,
-    res: Response,
-    data: any[],
+    res: Response<ApiResponse<T[]>>,
+    data: T[],
     pagination: ApiResponsePaginationMeta,
+    extraMeta?: ApiResponseMeta,
   ) {
-    return this.okPaginated(req, res, data, pagination);
+    return this.okPaginated(req, res, data, pagination, extraMeta);
   }
 
-  public triggerCreated(req: Request, res: Response, data: any, meta?: any) {
+  public triggerCreated<T extends SerialisableApiResponseTypes>(
+    req: Request,
+    res: Response<ApiResponse<T>>,
+    data: T,
+    meta?: ApiResponseMeta,
+  ) {
     return this.created(req, res, data, meta);
   }
 
@@ -102,9 +113,7 @@ describe("BaseController", () => {
       controller.triggerCreated(mockReq, mockRes, data);
 
       expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: true, data }),
-      );
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data }));
     });
 
     it("should handle pagination meta correctly in .okPaginated()", () => {
@@ -205,9 +214,11 @@ describe("BaseController", () => {
 
       controller.triggerOk(mockReq, mockRes, {});
 
-      const body = (mockRes.json as any).mock.calls[0][0];
-      expect(body.meta).toBeDefined();
-      expect(body.meta.requestId).toBeUndefined();
+      const mockedJson = vi.mocked(mockRes.json);
+      const responseBody = mockedJson.mock.calls[0][0];
+
+      expect(responseBody.meta).toBeDefined();
+      expect(responseBody.meta.requestId).toBeUndefined();
     });
 
     it("should ensure the data passed in is not mutated by the controller", () => {
@@ -216,7 +227,8 @@ describe("BaseController", () => {
 
       controller.triggerOk(mockReq, mockRes, inputData);
 
-      const responseBody = (mockRes.json as any).mock.calls[0][0];
+      const mockedJson = vi.mocked(mockRes.json);
+      const responseBody = mockedJson.mock.calls[0][0];
 
       expect(responseBody.data).not.toBe(inputData);
       expect(responseBody.data).toEqual(inputData);
@@ -229,9 +241,11 @@ describe("BaseController", () => {
 
       controller.triggerOkPaginated(mockReq, mockRes, data, pagination);
 
-      const body = (mockRes.json as any).mock.calls[0][0];
-      expect(Array.isArray(body.data)).toBe(true);
-      expect(body.data).toHaveLength(2);
+      const mockedJson = vi.mocked(mockRes.json);
+      const responseBody = mockedJson.mock.calls[0][0];
+
+      expect(Array.isArray(responseBody.data)).toBe(true);
+      expect(responseBody.data).toHaveLength(2);
     });
 
     it("should return a frozen response that cannot be mutated by middleware", () => {

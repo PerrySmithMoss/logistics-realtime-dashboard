@@ -35,11 +35,12 @@ export class ConsoleLogger implements ILogger {
 
   private safeStringify(data: unknown): string {
     try {
-      const prepared =
-        data instanceof Error
-          ? { name: data.name, message: data.message, stack: data.stack }
-          : data;
-      return this.isDev ? JSON.stringify(prepared, null, 2) : JSON.stringify(prepared);
+      if (data instanceof Error) {
+        const errObj = { name: data.name, message: data.message, stack: data.stack };
+        return this.isDev ? JSON.stringify(errObj, null, 2) : JSON.stringify(errObj);
+      }
+
+      return this.isDev ? JSON.stringify(data, null, 2) : JSON.stringify(data);
     } catch {
       return "[Circular Data or Stringify Error]";
     }
