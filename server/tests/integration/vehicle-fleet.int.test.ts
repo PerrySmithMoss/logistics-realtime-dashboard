@@ -154,6 +154,34 @@ describe("Vehicle and Fleet Integration", () => {
     }
   });
 
+  it("rejects invalid vehicle update payloads with structured validation details", async () => {
+    const harness = await bootstrapIntegrationApp();
+
+    try {
+      const response = await harness.requester
+        .patch("/api/v1/vehicles/V-101/location")
+        .set(harness.authHeaders)
+        .send({
+          lat: 95,
+          lng: -0.2,
+          status: "teleporting",
+          extra: true,
+        });
+
+      expect(response.status).toBe(422);
+      expect(response.body.error.code).toBe("UNPROCESSABLE_ENTITY");
+      expect(response.body.error.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: "body.lat" }),
+          expect.objectContaining({ path: "body.status" }),
+          expect.objectContaining({ path: "body" }),
+        ]),
+      );
+    } finally {
+      await harness.close();
+    }
+  });
+
   it("streams the initial fleet snapshot and heartbeat frames over SSE", async () => {
     const harness = await bootstrapIntegrationApp();
 

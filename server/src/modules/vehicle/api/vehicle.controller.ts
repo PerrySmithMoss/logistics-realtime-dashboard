@@ -3,19 +3,12 @@ import { UpdateVehicleLocationCommand } from "@modules/vehicle/core/commands/upd
 import { GetVehicleByIdQuery } from "@modules/vehicle/core/queries/get-vehicle-by-id.query";
 import { ListAllVehiclesQuery } from "@modules/vehicle/core/queries/list-all-vehicles.query";
 import { BaseController } from "@shared/api/base.controller";
-import { BadRequestError } from "@shared/errors/app.errors";
+import { getValidatedRequestData } from "@shared/api/middleware";
 import { ICommandBus } from "@shared/interfaces/command-bus.interface";
 import { IQueryBus } from "@shared/interfaces/query-bus.interface";
-import { VehicleStatus } from "@shared/types/vehicle.types";
 import { Request, Response } from "express";
-import { z } from "zod";
 import { IVehicleController } from "./interfaces/vehicle-controller.interface";
-
-const updateLocationSchema = z.object({
-  lat: z.number().finite().min(-90).max(90),
-  lng: z.number().finite().min(-180).max(180),
-  status: z.nativeEnum(VehicleStatus),
-});
+import { updateVehicleLocationSchema } from "./vehicle.schemas";
 
 export class VehicleController extends BaseController implements IVehicleController {
   constructor(
@@ -37,20 +30,9 @@ export class VehicleController extends BaseController implements IVehicleControl
   };
 
   public updateLocation = async (req: Request, res: Response) => {
-    const parsed = updateLocationSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      throw new BadRequestError("Invalid vehicle location payload");
-    }
-
-    const vehicleIdParam = req.params.vehicleId;
-    const vehicleId = Array.isArray(vehicleIdParam) ? vehicleIdParam[0] : vehicleIdParam;
-
-    if (!vehicleId) {
-      throw new BadRequestError("vehicleId is required");
-    }
-
-    const { lat, lng, status } = parsed.data;
+    const { body, params } = getValidatedRequestData<typeof updateVehicleLocationSchema>(req);
+    const { vehicleId } = params;
+    const { lat, lng, status } = body;
 
     await this.commandBus.execute(
       UpdateVehicleLocationCommand.type,

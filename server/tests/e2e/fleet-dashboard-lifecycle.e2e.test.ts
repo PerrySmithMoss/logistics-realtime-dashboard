@@ -46,28 +46,40 @@ describe("Fleet Dashboard Lifecycle E2E", () => {
       ];
 
       for (const update of updates) {
-        const response = await harness.requester
-          .patch(`/api/v1/vehicles/${update.vehicleId}/location`)
+        const { vehicleId, ...payload } = update;
+        const responsePromise = harness.requester
+          .patch(`/api/v1/vehicles/${vehicleId}/location`)
           .set(harness.authHeaders)
-          .send(update);
+          .send(payload);
 
+        await vi.advanceTimersByTimeAsync(25);
+        const response = await responsePromise;
         expect(response.status).toBe(200);
       }
+
+      const hasExpectedSnapshot = (snapshot: IFleetSnapshot) =>
+        updates.every((update) => {
+          const vehicle = snapshot.vehicles.find((candidate) => candidate.id === update.vehicleId);
+          return (
+            vehicle?.lat === update.lat &&
+            vehicle.lng === update.lng &&
+            vehicle.status === update.status
+          );
+        }) && snapshot.summary.performancePct === 40;
 
       await vi.advanceTimersByTimeAsync(harness.config.modules.fleet.batchIntervalMs + 10);
       await vi.advanceTimersByTimeAsync(1000);
 
+      const persistedSnapshotResponse = await harness.requester
+        .get("/api/v1/fleet/snapshot")
+        .set(harness.authHeaders);
+
+      expect(persistedSnapshotResponse.status).toBe(200);
+      expect(hasExpectedSnapshot(persistedSnapshotResponse.body.data)).toBe(true);
+
       const propagatedEvent = await stream.waitForEvent<IFleetSnapshot>(
         "stats-update",
-        (snapshot) =>
-          updates.every((update) => {
-            const vehicle = snapshot.vehicles.find((candidate) => candidate.id === update.vehicleId);
-            return (
-              vehicle?.lat === update.lat &&
-              vehicle.lng === update.lng &&
-              vehicle.status === update.status
-            );
-          }) && snapshot.summary.performancePct === 40,
+        hasExpectedSnapshot,
         1500,
       );
 
@@ -78,11 +90,6 @@ describe("Fleet Dashboard Lifecycle E2E", () => {
         performancePct: 40,
       });
 
-      const persistedSnapshotResponse = await harness.requester
-        .get("/api/v1/fleet/snapshot")
-        .set(harness.authHeaders);
-
-      expect(persistedSnapshotResponse.status).toBe(200);
       expect(persistedSnapshotResponse.body.data).toEqual(propagatedEvent.data);
 
       await stream.close(true);
