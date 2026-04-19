@@ -66,6 +66,47 @@ To match the backend's observability, I built a dual-channel logging system:
 
 - **Production**: High-priority errors only (Critical/Error), ensuring we catch map crashes in the wild without polluting the user's console or wasting memory.
 
+## Testing
+
+To keep the realtime dashboard stable under live SSE updates, search interactions, and map rendering pressure, I implemented a tiered client testing suite that mirrors the backend approach: isolated unit coverage, seam-focused integration coverage, and browser-level e2e verification.
+
+### Unit Testing (UI Logic & Infrastructure)
+
+- **Focus**: Pure transforms, hooks, route handlers, rendering contracts, and failure handling without relying on a live backend.
+- **Implementation**: Vitest with `jsdom`, using colocated `*.unit.test.ts(x)` files inside `__tests__` folders. `vitest.unit.config.ts` scopes the suite, while `vitest.shared.ts` centralises the shared environment, aliases, and coverage rules.
+- **The pattern**: Expensive imperative boundaries are mocked aggressively. For example, the dashboard unit tests replace the real map engine with a lean test double so the suite can verify composition, summary rendering, and control flow without pulling MapLibre into every run.
+- **The challenge**: Several client behaviours are time-dependent, including debounce, retry backoff, and request timeouts. I used `vi.useFakeTimers()` so these flows can be asserted deterministically instead of slowing the suite down with real waits.
+
+### Integration Testing (Module Seams & Realtime Composition)
+
+- **Focus**: Verifying that repositories, streamed dashboard state, and user-facing interactions collaborate correctly once the mocks get thinner.
+- **Implementation**: A dedicated Vitest integration config (`vitest.int.config.ts`) runs `*.int.test.ts(x)` files against a shared MSW server. Unhandled requests fail the suite immediately, which keeps the HTTP edges explicit.
+- **Method**:
+  1. Mock the backend HTTP boundary with MSW and assert the request contract.
+  2. Simulate the browser-facing SSE connection with `TestSseStream`.
+  3. Hydrate the dashboard from an initial snapshot.
+  4. Emit live `stats-update` frames and verify the UI updates without remounting the map.
+  5. Assert search, overlay actions, and connection error states across the real component tree.
+
+### E2E Testing (Browser Journey Against Real Services)
+
+- **Focus**: High-fidelity verification of the dashboard as a running browser application against the real frontend and backend test processes.
+- **Implementation**: Playwright boots both the Next app and the backend test server before the suite runs, so the browser journey exercises the real client/server handshake rather than an in-memory approximation.
+- **Key scenarios**:
+  - **Live telemetry**: Open the dashboard and verify vehicle telemetry changes over time, proving the SSE pipeline is alive end-to-end.
+  - **Search lifecycle**: Search for a vehicle, select it, and verify the correct map popup opens.
+  - **Connection recovery**: Kill the proxied stream in the browser, verify the reconnect indicator appears, then verify the dashboard recovers once the stream is restored.
+  - **Hard failure state**: Force the stream endpoint to return `403` and assert that the terminal connection loss UI is rendered.
+- **Perceptual stability**: The Playwright suite also tracks cumulative layout shift with a `PerformanceObserver`, giving me a browser-level guardrail during live updates.
+
+### Patterns & Test Structure
+
+- **Colocation**: Business-facing tests live beside the module they protect, mainly under `src/modules/fleet/.../__tests__`.
+- **Shared support**: Reusable fixtures, MSW setup, render helpers, and the custom SSE stream double live under `client/tests`.
+- **Naming**: `*.unit.test.ts(x)` is reserved for isolated logic, `*.int.test.ts(x)` for multi-module collaboration, and `*.e2e.test.ts` for Playwright browser journeys.
+- **Commands**: `npm run test:unit`, `npm run test:int`, and `npm run test:e2e`.
+- **Separation of concerns**: Unit tests mock module boundaries, integration tests mock transport boundaries, and e2e tests prefer real processes.
+
 ---
 
 ## Trade-offs & Strategic Minimalism
