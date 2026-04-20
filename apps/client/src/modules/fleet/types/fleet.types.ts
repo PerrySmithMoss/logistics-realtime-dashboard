@@ -1,28 +1,14 @@
 export type SseConnectionStatus = "connecting" | "connected" | "error";
 
-export type VehicleStatus = "active" | "inactive" | "delayed" | "maintenance";
+import type { FleetVehicle } from "@fleet/common/types";
 
-export interface FleetVehicle {
-  id: string;
-  plateNumber: string;
-  lat: number;
-  lng: number;
-  status: VehicleStatus;
-  lastUpdated: string;
-  isSnapped: boolean;
-}
-
-export interface FleetSummary {
-  total: number;
-  activeCount: number;
-  delayedCount: number;
-  performancePct: number;
-}
-
-export interface FleetSnapshot {
-  vehicles: FleetVehicle[];
-  summary: FleetSummary;
-}
+export {
+  VehicleStatus,
+  type FleetSnapshot,
+  type FleetSummary,
+  type FleetVehicle,
+  type VehicleSnapshot,
+} from "@fleet/common/types";
 
 export interface FleetMapHandle {
   zoomToVehicle: (lng: number, lat: number) => void;

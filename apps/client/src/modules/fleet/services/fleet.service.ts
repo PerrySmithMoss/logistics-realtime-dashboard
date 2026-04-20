@@ -1,9 +1,9 @@
 "server-only";
 
+import { type FleetSnapshot, type FleetVehicle } from "@fleet/common/types";
 import { AppError } from "@/shared/errors/app.errors";
 import { FleetSnapshotError, VehicleNotFoundError } from "../errors/fleet.errors";
 import { fleetRepository } from "../repositories/fleet.repository";
-import { FleetSnapshot, FleetVehicle } from "../types";
 
 export const fleetService = {
   getSnapshot: async (): Promise<FleetSnapshot> => {

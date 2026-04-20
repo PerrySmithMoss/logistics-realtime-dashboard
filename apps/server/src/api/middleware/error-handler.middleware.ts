@@ -1,7 +1,8 @@
+import { ErrorCode } from "@fleet/common/errors";
+import { type ApiResponseContext, type ApiResponseOptions } from "@fleet/common/types";
 import { IAppConfig } from "@config/index";
-import { AppError, AppErrorCodes } from "@shared/errors/app.errors";
+import { AppError } from "@shared/errors/app.errors";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import { ApiResponseContext, ApiResponseOptions } from "@shared/types/response.types";
 import { createErrorResponse } from "@shared/utils/response.utils";
 import { ErrorRequestHandler } from "express";
 
@@ -17,7 +18,7 @@ export const createErrorHandler = (logger: ILogger, config: IAppConfig): ErrorRe
     const isAppError = error instanceof AppError;
 
     const statusCode = isAppError ? error.statusCode : 500;
-    const code = isAppError ? error.code : AppErrorCodes.InternalServerError;
+    const code = isAppError ? error.code : ErrorCode.InternalServerError;
     const message = isAppError ? error.message : "Internal Server Error";
 
     const details = isAppError ? error.details : undefined;

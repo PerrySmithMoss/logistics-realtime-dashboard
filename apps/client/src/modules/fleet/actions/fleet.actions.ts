@@ -1,7 +1,7 @@
 "use server";
 
+import { type FleetSnapshot } from "@fleet/common/types";
 import { fleetService } from "../services/fleet.service";
-import { FleetSnapshot } from "../types";
 
 export const getSnapshotAction = async (): Promise<FleetSnapshot> => {
   return fleetService.getSnapshot();

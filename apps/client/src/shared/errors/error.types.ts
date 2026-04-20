@@ -1,6 +1,1 @@
-export interface ErrorDetails {
-  field?: string;
-  issue: string;
-  message: string;
-  meta?: Record<string, unknown>;
-}
+export type { ApiResponseErrorDetails as ErrorDetails } from "@fleet/common/types";

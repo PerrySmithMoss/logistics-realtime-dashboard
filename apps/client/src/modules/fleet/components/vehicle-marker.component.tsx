@@ -1,4 +1,4 @@
-import { VehicleStatus } from "../types";
+import { type VehicleStatus } from "@fleet/common/types";
 
 const VEHICLE_MARKER_STYLES: Record<VehicleStatus, string> = {
   active: "border-emerald-200 bg-emerald-500 text-emerald-950",

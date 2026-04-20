@@ -1,11 +1,10 @@
-export const VehicleStatus = {
-  Active: "active",
-  Inactive: "inactive",
-  Delayed: "delayed",
-  Maintenance: "maintenance",
-} as const;
+import {
+  type VehicleStatus as FleetCommonVehicleStatus,
+  VehicleStatus as FleetCommonVehicleStatusValues,
+} from "@fleet/common/types";
 
-export type VehicleStatus = (typeof VehicleStatus)[keyof typeof VehicleStatus];
+export const VehicleStatus = FleetCommonVehicleStatusValues;
+export type VehicleStatus = FleetCommonVehicleStatus;
 
 export interface VehicleProps {
   id: string;

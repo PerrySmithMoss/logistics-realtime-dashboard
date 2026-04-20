@@ -1,5 +1,5 @@
 import { InternalServerError, UnprocessableEntityError } from "@shared/errors/app.errors";
-import { ApiResponseErrorDetails } from "@shared/types/response.types";
+import { type ApiResponseErrorDetails } from "@fleet/common/types";
 import { Request, RequestHandler } from "express";
 import { z } from "zod";
 

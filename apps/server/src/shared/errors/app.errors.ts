@@ -1,31 +1,16 @@
-import { ApiResponseErrorDetails } from "@shared/types/response.types";
+import { ErrorCode } from "@fleet/common/errors";
+import { type ApiResponseErrorDetails } from "@fleet/common/types";
 
-export enum AppErrorCodes {
-  // app
-  NotFound = "NOT_FOUND",
-  BadRequest = "BAD_REQUEST",
-  Unauthorised = "UNAUTHORISED",
-  Forbidden = "FORBIDDEN",
-  UnprocessableEntity = "UNPROCESSABLE_ENTITY",
-  FetchError = "FETCH_ERROR",
-  HydrationFailed = "HYDRATION_FAILED",
-  InternalServerError = "INTERNAL_SERVER_ERROR",
-  ExternalServiceError = "EXTERNAL_SERVICE_ERROR",
-  ServiceUnavailable = "SERVICE_UNAVAILABLE",
-  MissingIdentifier = "MISSING_IDENTIFIER",
-  TooManyRequests = "TOO_MANY_REQUESTS",
+export { ErrorCode as AppErrorCodes } from "@fleet/common/errors";
 
-  // cache
-  CacheTypeMismatch = "CACHE_TYPE_MISMATCH",
-  CacheKeyNotFound = "CACHE_KEY_NOT_FOUND",
-}
+const AppErrorCodes = ErrorCode;
 
 // App errors
 
 export class AppError extends Error {
   constructor(
     public readonly message: string,
-    public readonly code: AppErrorCodes,
+    public readonly code: ErrorCode,
     public readonly statusCode: number = 500,
     public readonly isOperational: boolean = true,
     public readonly details?: ApiResponseErrorDetails[],

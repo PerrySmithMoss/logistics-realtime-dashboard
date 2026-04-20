@@ -1,5 +1,6 @@
+import { exponentialBackoff, mergeAbortSignals } from "@fleet/common/utils";
 import { ExternalServiceError, FetchError, InternalServerError } from "@shared/errors/app.errors";
-import { exponentialBackoff, getErrorData, mergeAbortSignals } from "@shared/utils";
+import { getErrorData } from "@shared/utils";
 
 export interface HttpClientOptions extends RequestInit {
   timeout?: number;

@@ -1,8 +1,8 @@
 "server-only";
 
+import { type FleetSnapshot, type FleetVehicle } from "@fleet/common/types";
 import { serverEnv } from "@/config/server-env";
 import { createHttpClient } from "@/shared/lib/http-client";
-import { FleetSnapshot, FleetVehicle } from "../types";
 
 const http = createHttpClient({
   baseUrl: serverEnv.FLEET_API_BASE_URL,

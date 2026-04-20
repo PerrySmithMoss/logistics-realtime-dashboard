@@ -1,11 +1,11 @@
 import {
-  ApiResponse,
-  ApiResponseContext,
-  ApiResponseError,
-  ApiResponseMeta,
-  ApiResponseOptions,
-  SerialisableApiResponseTypes,
-} from "../types/response.types";
+  type ApiResponse,
+  type ApiResponseContext,
+  type ApiResponseError,
+  type ApiResponseMeta,
+  type ApiResponseOptions,
+  type SerialisableApiResponseTypes,
+} from "@fleet/common/types";
 
 const getCommonResponseMeta = (
   context: ApiResponseContext,

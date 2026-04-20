@@ -1,13 +1,13 @@
 import { ServiceUnavailableError } from "@shared/errors/app.errors";
 import {
-  ApiResponse,
-  ApiResponseContext,
-  ApiResponseErrorDetails,
-  ApiResponseMeta,
-  ApiResponseOptions,
-  ApiResponsePaginationMeta,
-  SerialisableApiResponseTypes,
-} from "@shared/types/response.types";
+  type ApiResponse,
+  type ApiResponseContext,
+  type ApiResponseErrorDetails,
+  type ApiResponseMeta,
+  type ApiResponseOptions,
+  type ApiResponsePaginationMeta,
+  type SerialisableApiResponseTypes,
+} from "@fleet/common/types";
 import { createSuccessResponse } from "@shared/utils/response.utils";
 import { Request, Response } from "express";
 

@@ -1,5 +1,6 @@
 import { ExternalServiceError, FetchError } from "../errors";
-import { ApiResponse } from "../types";
+import { type ApiResponse } from "@fleet/common/types";
+import { exponentialBackoff, mergeAbortSignals } from "@fleet/common/utils";
 
 export interface HttpClientOptions extends RequestInit {
   timeout?: number;
@@ -29,32 +30,6 @@ const resolveUrl = (base: string, path: string, params?: Record<string, string>)
   }
 
   return url.toString();
-};
-
-const mergeAbortSignals = (signals: AbortSignal[]): AbortSignal => {
-  const controller = new AbortController();
-
-  const abort = (signal: AbortSignal) => {
-    controller.abort(signal.reason);
-    signals.forEach((candidate) => {
-      candidate.removeEventListener("abort", onAbort);
-    });
-  };
-
-  const onAbort = (event: Event) => {
-    abort(event.target as AbortSignal);
-  };
-
-  for (const signal of signals) {
-    if (signal.aborted) {
-      abort(signal);
-      break;
-    }
-
-    signal.addEventListener("abort", onAbort, { once: true });
-  }
-
-  return controller.signal;
 };
 
 const isWrappedResponse = <T>(res: unknown): res is ApiResponse<T> =>
@@ -172,8 +147,7 @@ const request = async <T>(
         throw new ExternalServiceError(label, err);
       }
 
-      const delay = Math.random() * initialRetryDelay * Math.pow(2, attempt);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await exponentialBackoff(initialRetryDelay, attempt);
     }
   }
 

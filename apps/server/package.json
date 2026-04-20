@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@fleet/common": "workspace:*",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "zod": "^4.3.6"

@@ -11,10 +11,12 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json ./apps/server/package.json
+COPY packages/common/package.json ./packages/common/package.json
 
 RUN pnpm install --filter server... --frozen-lockfile
 
 COPY apps/server ./apps/server
+COPY packages/common ./packages/common
 
 RUN pnpm --filter server build
 
@@ -27,6 +29,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json ./apps/server/package.json
+COPY packages/common/package.json ./packages/common/package.json
 
 RUN pnpm install --filter server --prod --frozen-lockfile --ignore-scripts
 
