@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --watch $([ -f .env.local ] && echo '--env-file=.env.local') ./src/index.ts",
-    "build": "tsup",
+    "build": "tsdown",
     "start": "node --enable-source-maps ./dist/index.js",
     "start:prod-local": "node --enable-source-maps --env-file=.env ./dist/index.js",
     "start:test": "tsx $([ -f .env.test ] && echo '--env-file=.env.test') ./src/test-server.ts",
@@ -40,7 +40,7 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.2",
     "supertest": "^7.2.2",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.21.9",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.1",

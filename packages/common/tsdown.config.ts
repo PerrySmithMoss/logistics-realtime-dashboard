@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 export default defineConfig({
   entry: {
@@ -11,6 +11,5 @@ export default defineConfig({
   target: "node24",
   dts: true,
   clean: true,
-  splitting: true,
   outDir: "dist",
 });
