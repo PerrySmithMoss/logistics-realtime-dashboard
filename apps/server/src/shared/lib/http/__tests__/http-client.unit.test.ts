@@ -3,8 +3,8 @@ import { exponentialBackoff } from "@shared/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { httpClient, HttpClientOptions } from "../http-client";
 
-vi.mock("@shared/utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@shared/utils")>();
+vi.mock("@fleet/common/utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@fleet/common/utils")>();
   return {
     ...actual,
     exponentialBackoff: vi.fn().mockResolvedValue(undefined),
@@ -58,7 +58,7 @@ const mockFetch = (...responses: ReturnType<typeof createMockResponse>[]) => {
 
 const URL = "https://api.example.com/data";
 
-// Setting fast default options so we don't have to
+// setting fast default options so we don't have to
 // wait exponentially long for the tests to run.
 const HTTP_CLIENT_DEFAULT_OPTIONS = {
   timeout: 100,

@@ -3,13 +3,17 @@
   "private": true,
   "packageManager": "pnpm@10.18.3",
   "scripts": {
-    "prepare": "husky",
-    "dev": "pnpm -r dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "validate": "pnpm --filter server exec lint-staged && pnpm --filter client exec lint-staged"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "test": "turbo test",
+    "format": "prettier --write .",
+    "clean": "turbo clean && rm -rf node_modules",
+    "validate": "turbo lint type-check test"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "turbo": "^2.9.6"
   }
 }
