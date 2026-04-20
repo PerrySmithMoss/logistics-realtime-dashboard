@@ -21,13 +21,15 @@ export const createVitestConfig = (include: string[]) =>
       clearMocks: true,
       coverage: {
         provider: "v8",
-        reporter: ["text", "html"],
-        include: [
-          "src/modules/fleet/components/**/*.{ts,tsx}",
-          "src/modules/fleet/lib/**/*.ts",
-          "src/shared/utils/**/*.ts",
-          "src/shared/infrastructure/sse-client/**/*.ts",
-        ],
+        reporter: ["text", "json", "html"],
+        include: ["src/**/*.{ts,tsx}"],
+        thresholds: {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+          autoUpdate: false,
+        },
       },
     },
   });

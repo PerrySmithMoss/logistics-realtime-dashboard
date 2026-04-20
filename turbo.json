@@ -18,8 +18,9 @@
       "outputs": []
     },
     "test": {
+      "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
-      "inputs": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.test.ts"]
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.test.ts", "vitest.config.ts"]
     },
     "clean": {
       "cache": false
