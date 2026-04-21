@@ -58,8 +58,8 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
   const envData = {
     ...process.env,
     ...overrides,
-    INTERNAL_AUTH_SECRET: getSecret("internal_api_key"),
-    OPEN_ROUTE_SERVICE_API_KEY: getSecret("open_route_service_api_key"),
+    INTERNAL_AUTH_SECRET: getSecret("fleet_internal_auth_secret"),
+    OPEN_ROUTE_SERVICE_API_KEY: getSecret("fleet_open_route_service_api_key"),
   };
 
   const result = envSchema.safeParse(envData);

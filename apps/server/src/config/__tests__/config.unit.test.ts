@@ -13,7 +13,7 @@ describe("Config Module", () => {
 
   it("should load valid defaults", () => {
     vi.mocked(getSecret).mockImplementation((key) => {
-      if (key === "open_route_service_api_key") return "valid-key";
+      if (key === "fleet_open_route_service_api_key") return "valid-key";
       return undefined;
     });
 
@@ -45,8 +45,8 @@ describe("Config Module", () => {
 
   it("should enforce secret length in production", () => {
     vi.mocked(getSecret).mockImplementation((key) => {
-      if (key === "open_route_service_api_key") return "valid-long-api-key";
-      if (key === "internal_api_key") return "short"; // Too short for production
+      if (key === "fleet_open_route_service_api_key") return "valid-long-api-key";
+      if (key === "fleet_internal_auth_secret") return "short"; // Too short for production
       return undefined;
     });
 
