@@ -108,7 +108,11 @@ export class AppContainer implements IAppContainer {
 
     const geoSnappingService =
       options.geoSnappingService ??
-      new OpenRouteServiceClient(config.modules.fleet.orsApiKey, fleetLogger);
+      new OpenRouteServiceClient(
+        config.modules.fleet.ors.apiKey,
+        fleetLogger,
+        config.modules.fleet.ors,
+      );
 
     const vehicleController = await VehicleModule.init(
       commandBus,

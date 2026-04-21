@@ -19,7 +19,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
+      "outputs": [],
       "inputs": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.test.ts", "vitest.config.ts"]
     },
     "clean": {

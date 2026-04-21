@@ -8,7 +8,7 @@ const serverEnvSchema = z
     SESSION_SIGNING_SECRET: z.string().optional(),
     FLEET_API_BASE_URL: z
       .url({ error: "FLEET_API_BASE_URL must be a valid URL" })
-      .default("http://localhost:5500"),
+      .default("http://localhost:5570"),
     FLEET_API_INTERNAL_KEY: z.string().min(1, "FLEET_API_INTERNAL_KEY is required"),
   })
   .refine(

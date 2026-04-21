@@ -4,7 +4,7 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   NEXT_PUBLIC_FLEET_API_BASE_URL: z
     .url({ error: "NEXT_PUBLIC_FLEET_API_BASE_URL must be a valid URL" })
-    .default("http://localhost:5500"),
+    .default("http://localhost:5570"),
 });
 
 const parsed = clientEnvSchema.safeParse({

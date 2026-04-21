@@ -4,7 +4,7 @@ import packageJson from "../../package.json";
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    PORT: z.coerce.number().default(5500),
+    PORT: z.coerce.number().default(5570),
     HOST: z.string().default("localhost"),
     MIN_LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("DEBUG"),
     INTERNAL_AUTH_SECRET: z.string().optional(),
@@ -14,6 +14,11 @@ export const envSchema = z
       .default(false),
 
     OPEN_ROUTE_SERVICE_API_KEY: z.string().optional(),
+    ORS_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+    ORS_REQUEST_RETRIES: z.coerce.number().int().min(0).default(1),
+    ORS_REQUEST_RETRY_DELAY_MS: z.coerce.number().int().min(0).default(750),
+    ORS_BATCH_MAX_SIZE: z.coerce.number().int().positive().default(50),
+    ORS_SNAP_RADIUS_METERS: z.coerce.number().int().positive().default(350),
 
     SIMULATOR_TICK_INTERVAL: z.coerce.number().default(2000),
     SIMULATOR_WATCHDOG_TIMEOUT: z.coerce.number().default(30000),
@@ -80,7 +85,14 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
     modules: {
       vehicle: { seedMockData: env.ENABLE_FLEET_SIMULATOR },
       fleet: {
-        orsApiKey: env.OPEN_ROUTE_SERVICE_API_KEY ?? "test-key",
+        ors: {
+          apiKey: env.OPEN_ROUTE_SERVICE_API_KEY ?? "test-key",
+          timeoutMs: env.ORS_REQUEST_TIMEOUT_MS,
+          retries: env.ORS_REQUEST_RETRIES,
+          retryDelayMs: env.ORS_REQUEST_RETRY_DELAY_MS,
+          batchMaxSize: env.ORS_BATCH_MAX_SIZE,
+          snapRadiusMeters: env.ORS_SNAP_RADIUS_METERS,
+        },
         enableFleetSimulator: env.ENABLE_FLEET_SIMULATOR,
         simulatorTickInterval: env.SIMULATOR_TICK_INTERVAL,
         watchdogTimeout: env.SIMULATOR_WATCHDOG_TIMEOUT,
