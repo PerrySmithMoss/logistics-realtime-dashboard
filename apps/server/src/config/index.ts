@@ -1,3 +1,4 @@
+import { getSecret } from "@shared/utils";
 import { z } from "zod";
 import packageJson from "../../package.json";
 
@@ -54,7 +55,14 @@ export const envSchema = z
   );
 
 export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
-  const result = envSchema.safeParse({ ...process.env, ...overrides });
+  const envData = {
+    ...process.env,
+    ...overrides,
+    INTERNAL_AUTH_SECRET: getSecret("internal_api_key"),
+    OPEN_ROUTE_SERVICE_API_KEY: getSecret("open_route_service_api_key"),
+  };
+
+  const result = envSchema.safeParse(envData);
 
   if (!result.success) {
     if (process.env.NODE_ENV !== "test") {

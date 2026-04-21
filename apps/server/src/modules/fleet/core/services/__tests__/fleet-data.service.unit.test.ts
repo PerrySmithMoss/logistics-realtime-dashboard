@@ -163,7 +163,7 @@ describe("FleetDataService", () => {
       );
     });
 
-    it("logs batch errors and re-buffers events for the next attempt", async () => {
+    it("logs batch errors and continues processing subsequent events", async () => {
       const { service, snappingService, logger, queryBus } = setup();
 
       queryBus.ask.mockResolvedValue({
@@ -179,11 +179,14 @@ describe("FleetDataService", () => {
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(logger.error).toHaveBeenCalledWith(
-        "Batch flush failed. Re-buffering events. Dropping batch to prevent overflow.",
+        "Batch flush failed. Dropping batch to prevent overflow.",
         expect.any(Error),
       );
 
       snappingService.snapBatch.mockResolvedValue([{ lat: 10, lng: 10, success: true }]);
+
+      await service.processVehicleMovement(createMovementEvent({ vehicleId: "v2" }));
+
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(snappingService.snapBatch).toHaveBeenCalledTimes(2);
