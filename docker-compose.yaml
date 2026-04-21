@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  api:
+    container_name: fleet-api
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: ./apps/server/Dockerfile
+      target: ${DOCKER_BUILD_TARGET:-development}
+    ports:
+      - "5570:5570"
+    env_file:
+      - ./apps/server/.env.local
+    environment:
+      - NODE_ENV=development
+      - PORT=5570
+      - HOST=0.0.0.0
+      - MIN_LOG_LEVEL=DEBUG
+      - ENABLE_FLEET_SIMULATOR=true
+    networks:
+      - fleet-network
+    volumes:
+      - .:/app:cached
+      - /app/node_modules
+      - /app/apps/server/node_modules
+
+  client:
+    container_name: fleet-client
+    build:
+      context: .
+      dockerfile: ./apps/client/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/client/.env.local
+    environment:
+      - NODE_ENV=development
+      - FLEET_API_BASE_URL=http://api:5570
+      - NEXT_PUBLIC_FLEET_API_BASE_URL=http://localhost:5570
+    networks:
+      - fleet-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/client/node_modules
+      - /app/apps/client/.next
+
+networks:
+  fleet-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1400

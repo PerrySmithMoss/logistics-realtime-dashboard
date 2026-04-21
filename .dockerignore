@@ -1,0 +1,35 @@
+# Node stuff
+**/node_modules
+npm-debug.log
+yarn-error.log
+
+# Build output
+**/dist
+**/.next
+**/.turbo
+*.tsbuildinfo
+
+# Env/config
+.env
+.env.*
+
+# Version control
+.git
+.gitignore
+
+# IDE/editor stuff
+.vscode
+.idea
+*.swp
+
+# Tests
+tests
+coverage
+__tests__
+
+# Logs
+*.log
+
+# Docker
+docker-compose.yml
+docker-stack.yaml
