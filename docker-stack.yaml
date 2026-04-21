@@ -8,7 +8,7 @@ services:
       - HOST=0.0.0.0
       - PORT=5570
       - INTERNAL_AUTH_SECRET=/run/secrets/fleet_internal_auth_secret
-      - OPEN_ROUTE_SERVICE_API_KEY=/run/secrets/fleet_service_api_key
+      - OPEN_ROUTE_SERVICE_API_KEY=/run/secrets/fleet_open_route_service_api_key
     secrets:
       - fleet_internal_auth_secret
       - fleet_open_route_service_api_key
