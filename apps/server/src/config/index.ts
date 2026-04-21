@@ -12,7 +12,7 @@ export const envSchema = z
 
     ENABLE_FLEET_SIMULATOR: z
       .preprocess((val) => val === "true" || val === true, z.boolean())
-      .default(false),
+      .default(true),
 
     OPEN_ROUTE_SERVICE_API_KEY: z.string().optional(),
     ORS_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
