@@ -1,6 +1,6 @@
 import { httpClient } from "@shared/lib/http";
 import { createMockLogger } from "@shared/testing/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenRouteServiceClient } from "../ors.client";
 
 // Mock remains outside as it's a module-level override
@@ -9,10 +9,20 @@ vi.mock("@shared/lib/http", () => ({
 }));
 
 describe("OpenRouteServiceClient", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   const setup = () => {
     const logger = createMockLogger();
     const apiKey = "test-api-key";
-    const client = new OpenRouteServiceClient(apiKey, logger);
+    const client = new OpenRouteServiceClient(apiKey, logger, {
+      timeoutMs: 15000,
+      retries: 1,
+      retryDelayMs: 750,
+      batchMaxSize: 2,
+      snapRadiusMeters: 350,
+    });
 
     const mockHttp = vi.mocked(httpClient);
 
@@ -35,6 +45,9 @@ describe("OpenRouteServiceClient", () => {
         expect.any(String),
         expect.objectContaining({
           body: JSON.stringify({ locations: [[20, 10]], radius: 350 }),
+          timeout: 15000,
+          retries: 1,
+          allowRetry: true,
           headers: expect.objectContaining({ Authorization: apiKey }),
         }),
       );
@@ -59,6 +72,53 @@ describe("OpenRouteServiceClient", () => {
       expect(mockHttp).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it("chunks larger point arrays into multiple ORS requests", async () => {
+      const { client, mockHttp } = setup();
+
+      mockHttp
+        .mockResolvedValueOnce({
+          locations: [
+            { location: [20.001, 10.001] },
+            { location: [21.001, 11.001] },
+          ],
+        })
+        .mockResolvedValueOnce({
+          locations: [{ location: [22.001, 12.001] }],
+        });
+
+      const result = await client.snapBatch([
+        { lat: 10, lng: 20 },
+        { lat: 11, lng: 21 },
+        { lat: 12, lng: 22 },
+      ]);
+
+      expect(mockHttp).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(3);
+      expect(mockHttp).toHaveBeenNthCalledWith(
+        1,
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            locations: [
+              [20, 10],
+              [21, 11],
+            ],
+            radius: 350,
+          }),
+        }),
+      );
+      expect(mockHttp).toHaveBeenNthCalledWith(
+        2,
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            locations: [[22, 12]],
+            radius: 350,
+          }),
+        }),
       );
     });
   });
@@ -88,7 +148,10 @@ describe("OpenRouteServiceClient", () => {
       expect(result[0].success).toBe(false);
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("Batch snapping failed"),
-        networkError,
+        expect.objectContaining({
+          error: networkError,
+          pointCount: 1,
+        }),
       );
     });
   });

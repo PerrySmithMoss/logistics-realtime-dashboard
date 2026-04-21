@@ -152,11 +152,7 @@ export class FleetDataService implements IFleetDataService {
         });
       });
     } catch (err) {
-      this.logger.error("Batch flush failed. Re-buffering events.", err);
-      // put events back so they can be re-buffered
-      events.forEach((e) => {
-        if (!this.snapBuffer.has(e.vehicleId)) this.snapBuffer.set(e.vehicleId, e);
-      });
+      this.logger.error("Batch flush failed. Dropping batch to prevent overflow.", err);
     } finally {
       this.isProcessing = false;
       this.scheduleNextBatch();

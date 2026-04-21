@@ -1,6 +1,6 @@
-import { ExternalServiceError, FetchError } from "../errors";
 import { type ApiResponse } from "@fleet/common/types";
 import { exponentialBackoff, mergeAbortSignals } from "@fleet/common/utils";
+import { ExternalServiceError, FetchError } from "../errors";
 
 export interface HttpClientOptions extends RequestInit {
   timeout?: number;
@@ -164,7 +164,7 @@ export interface HttpClient {
 
 export const createHttpClient = ({
   baseUrl,
-  timeout = 5500,
+  timeout = 5570,
   retries = 2,
   initialRetryDelay = 1000,
   defaultHeaders = {},

@@ -179,7 +179,7 @@ describe("FleetDataService", () => {
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(logger.error).toHaveBeenCalledWith(
-        "Batch flush failed. Re-buffering events.",
+        "Batch flush failed. Re-buffering events. Dropping batch to prevent overflow.",
         expect.any(Error),
       );
 

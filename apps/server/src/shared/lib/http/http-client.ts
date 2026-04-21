@@ -14,7 +14,7 @@ export interface HttpClientOptions extends RequestInit {
 export const httpClient = async <T>(
   url: string,
   {
-    timeout = 5500,
+    timeout = 5570,
     transform = false,
     retries = 2,
     initialRetryDelay = 1000,
