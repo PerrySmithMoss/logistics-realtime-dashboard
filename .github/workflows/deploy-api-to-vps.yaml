@@ -2,7 +2,7 @@ name: Deploy API to VPS
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - "apps/server/**"
       - "packages/**"
