@@ -54,6 +54,16 @@ describe("secret utils", () => {
       expect(result).toBe(TEST_VALUE);
     });
 
+    it("should return undefined when a /run/secrets path is configured but the file is missing", () => {
+      process.env[ENV_KEY] = `/run/secrets/${SECRET_NAME}`;
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      const result = getSecret(ENV_KEY, SECRET_NAME);
+
+      expect(result).toBeUndefined();
+      expect(fs.readFileSync).not.toHaveBeenCalled();
+    });
+
     it("should treat non-/run/secrets leading slash values as literal secrets", () => {
       process.env[ENV_KEY] = "/literal-secret-value";
 

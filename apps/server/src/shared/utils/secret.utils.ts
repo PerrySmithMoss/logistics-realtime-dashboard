@@ -18,6 +18,8 @@ export const getSecret = (envKey: string, secretName?: string): string | undefin
       } catch {
         return undefined;
       }
+
+      return undefined;
     }
 
     return envValue;
