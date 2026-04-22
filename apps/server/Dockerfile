@@ -40,13 +40,18 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--enable-source-maps"
 
-COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder /app/package.json ./package.json
+
+# copying shared packages (needed so pnpm can link them)
+COPY --from=builder /app/packages/common/package.json ./packages/common/package.json
+COPY --from=builder /app/packages/common/dist ./packages/common/dist
+
+COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 RUN pnpm install --filter server --prod --frozen-lockfile
-
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 WORKDIR /app/apps/server
 USER node
