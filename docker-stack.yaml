@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   fleet-api:
     image: ghcr.io/perrysmithmoss/logistics-realtime-dashboard:${GIT_COMMIT_HASH:-latest}
@@ -12,22 +14,22 @@ services:
     secrets:
       - fleet_internal_auth_secret
       - fleet_open_route_service_api_key
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.fleet-api.loadbalancer.server.port=5570"
-      - "traefik.http.routers.fleet-api.rule=Host(`fleet-api.perrysmithmoss.com`)"
-      - "traefik.http.routers.fleet-api.entrypoints=websecure"
-      - "traefik.http.routers.fleet-api.tls.certresolver=myresolver"
-
-      # CORS Middleware
-      - "traefik.http.middlewares.fleet-cors.headers.accesscontrolallowmethods=OPTIONS,GET,PATCH,PUT,POST"
-      - "traefik.http.middlewares.fleet-cors.headers.accesscontrolalloworiginlist=https://fleet.vercel.app"
-      - "traefik.http.middlewares.fleet-cors.headers.accesscontrolallowheaders=Content-Type,Authorization,X-Request-Id"
-
-      - "traefik.http.routers.fleet-api.middlewares=fleet-cors"
     networks:
       - portfolio_network
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.services.fleet-api.loadbalancer.server.port=5570"
+        - "traefik.http.routers.fleet-api.rule=Host(`fleet-api.perrysmithmoss.com`)"
+        - "traefik.http.routers.fleet-api.entrypoints=websecure"
+        - "traefik.http.routers.fleet-api.tls.certresolver=myresolver"
+
+        # CORS Middleware
+        - "traefik.http.middlewares.fleet-cors.headers.accesscontrolallowmethods=OPTIONS,GET,PATCH,PUT,POST"
+        - "traefik.http.middlewares.fleet-cors.headers.accesscontrolalloworiginlist=https://fleet.vercel.app"
+        - "traefik.http.middlewares.fleet-cors.headers.accesscontrolallowheaders=Content-Type,Authorization,X-Request-Id"
+
+        - "traefik.http.routers.fleet-api.middlewares=fleet-cors"
       update_config:
         order: start-first
         failure_action: rollback
