@@ -38,20 +38,6 @@ describe("ConsoleLogger", () => {
       expect(stdoutSpy).toHaveBeenCalledTimes(1);
       expect(stdoutSpy).toHaveBeenLastCalledWith(expect.stringContaining("captured"));
     });
-
-    it("should suppress DEBUG/INFO in production even if level is set to DEBUG", () => {
-      const logger = new ConsoleLogger({ level: "DEBUG", isDev: false });
-
-      logger.debug("hidden");
-      logger.warn("visible");
-
-      expect(stdoutSpy).toHaveBeenCalledTimes(1);
-
-      const firstCallArg = stdoutSpy.mock.calls[0][0];
-      const output = JSON.parse(firstCallArg.toString());
-
-      expect(output.lvl).toBe("WARN");
-    });
   });
 
   describe("Context and Immutability", () => {

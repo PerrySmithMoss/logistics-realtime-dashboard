@@ -70,7 +70,7 @@ export class FleetObserverService implements IFleetObserverService {
       const observer = this.observers.get(id);
       if (!observer) continue;
 
-      if (observer.res.writableEnded || !observer.res.writable) {
+      if (this.isObserverStale(observer.res)) {
         this.observers.delete(id);
         this.logger.debug(`[FleetObserverService] Cleaned up stale observer: ${id}`);
         continue;
@@ -101,5 +101,15 @@ export class FleetObserverService implements IFleetObserverService {
     this.reactor?.stop();
     this.eventBroker.unsubscribe(FleetStatsUpdatedEvent.type, this.broadcastToObservers);
     this.simulator?.stop();
+  }
+
+  private isObserverStale(res: Response): boolean {
+    return (
+      res.writableEnded ||
+      !res.writable ||
+      res.destroyed ||
+      res.closed ||
+      res.socket?.destroyed === true
+    );
   }
 }

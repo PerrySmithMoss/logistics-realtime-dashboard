@@ -32,6 +32,10 @@ export class FleetController extends BaseController implements IFleetController 
     const shutdownSignal = this.lifecycle.getShutdownSignal();
     let heartbeatTimer: NodeJS.Timeout | null = null;
     let cleaned = false;
+    const socket = req.socket;
+
+    const isConnectionClosed = () =>
+      cleaned || req.destroyed || res.destroyed || res.writableEnded || socket.destroyed;
 
     const cleanup = () => {
       if (cleaned) return;
@@ -44,6 +48,10 @@ export class FleetController extends BaseController implements IFleetController 
 
       this.observerService.removeObserver(connectionId);
       shutdownSignal.removeEventListener("abort", cleanup);
+      req.removeListener("aborted", cleanup);
+      req.removeListener("close", cleanup);
+      socket.removeListener("close", cleanup);
+      socket.removeListener("error", cleanup);
 
       if (!res.writableEnded) res.end();
     };
@@ -51,11 +59,15 @@ export class FleetController extends BaseController implements IFleetController 
     res.once("close", () => {
       cleanup();
     });
+    req.once("aborted", cleanup);
+    req.once("close", cleanup);
+    socket.once("close", cleanup);
+    socket.once("error", cleanup);
 
     const initialSnapshot = await this.dataService.getCurrentSnapshot();
 
     // exit early if the user disconnected while we are getting the snapshot
-    if (res.writableEnded) return;
+    if (isConnectionClosed()) return;
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -63,9 +75,10 @@ export class FleetController extends BaseController implements IFleetController 
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     });
+    res.flushHeaders?.();
 
     const sendSse = (event: string, data: unknown) => {
-      if (cleaned || res.writableEnded) return;
+      if (isConnectionClosed()) return;
       try {
         res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       } catch {
@@ -82,7 +95,7 @@ export class FleetController extends BaseController implements IFleetController 
     });
 
     const pulse = () => {
-      if (cleaned || res.writableEnded) return;
+      if (isConnectionClosed()) return cleanup();
       try {
         const canWrite = res.write(":\n\n");
         if (!canWrite) return cleanup();

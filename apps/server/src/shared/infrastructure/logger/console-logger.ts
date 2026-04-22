@@ -10,11 +10,8 @@ export class ConsoleLogger implements ILogger {
     private readonly options: ILoggerOptions,
     private readonly context: string = "Global",
   ) {
-    const configuredPriority = LOG_LEVEL_PRIORITY[options.level] ?? 0;
     this.isDev = options.isDev;
-    this.minLevelPriority = this.isDev
-      ? configuredPriority
-      : Math.max(configuredPriority, LOG_LEVEL_PRIORITY.WARN);
+    this.minLevelPriority = LOG_LEVEL_PRIORITY[options.level] ?? 0;
   }
 
   public withContext(newContext: string): ILogger {

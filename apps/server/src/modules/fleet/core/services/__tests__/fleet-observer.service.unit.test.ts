@@ -215,4 +215,34 @@ describe("FleetObserverService", () => {
     expect(simulator.stop).toHaveBeenCalled();
     expect(vi.mocked(broker.unsubscribe)).toHaveBeenCalled();
   });
+
+  it("treats a destroyed socket as a stale observer and shuts the pipeline down", () => {
+    const { service, broker, reactor, simulator, logger } = setup();
+
+    service.setLiveComponents(reactor, simulator);
+
+    const staleRes = createMockSseResponse();
+    staleRes.socket.destroyed = true;
+
+    service.addObserver("socket-dead", staleRes, vi.fn());
+
+    const broadcast = vi.mocked(broker.subscribe).mock.calls[0][1];
+    broadcast(
+      new FleetStatsUpdatedEvent({
+        summary: {
+          total: 1,
+          activeCount: 1,
+          delayedCount: 0,
+          performancePct: 100,
+        },
+        vehicles: [],
+      }),
+    );
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      "[FleetObserverService] Cleaned up stale observer: socket-dead",
+    );
+    expect(reactor.stop).toHaveBeenCalledTimes(1);
+    expect(simulator.stop).toHaveBeenCalledTimes(1);
+  });
 });

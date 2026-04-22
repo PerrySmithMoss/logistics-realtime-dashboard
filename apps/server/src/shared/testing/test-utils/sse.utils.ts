@@ -7,6 +7,9 @@ export type MockSseResponse = Response &
     headersWritten?: Record<string, string | number>;
     writable: boolean;
     writableEnded: boolean;
+    destroyed: boolean;
+    closed: boolean;
+    socket: { destroyed: boolean };
   };
 
 export const createMockSseResponse = (): MockSseResponse => {
@@ -16,6 +19,9 @@ export const createMockSseResponse = (): MockSseResponse => {
   const state = {
     writable: true,
     writableEnded: false,
+    destroyed: false,
+    closed: false,
+    socket: { destroyed: false },
     headersWritten: undefined as Record<string, string | number> | undefined,
   };
 
@@ -37,8 +43,12 @@ export const createMockSseResponse = (): MockSseResponse => {
     end: vi.fn().mockImplementation(function (this: MockSseResponse) {
       state.writableEnded = true;
       state.writable = false;
+      state.destroyed = true;
+      state.closed = true;
+      state.socket.destroyed = true;
       return container.proxy;
     }),
+    flushHeaders: vi.fn(),
   };
 
   container.proxy = new Proxy(emitter, {
