@@ -16,7 +16,7 @@ CMD ["pnpm", "--filter", "server", "dev"]
 FROM base AS pruner
 WORKDIR /app
 
-RUN pnpm add -g turbo
+RUN pnpm add -g turbo@2.9.6
 
 COPY . .
 
@@ -36,6 +36,7 @@ RUN pnpm turbo build --filter=server
 
 FROM base AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--enable-source-maps"
 

@@ -11,7 +11,7 @@
     "dev": "tsx --watch $([ -f .env.local ] && echo '--env-file=.env.local') ./src/index.ts",
     "build": "tsdown",
     "start": "node --enable-source-maps ./dist/index.js",
-    "start:prod-local": "node --enable-source-maps --env-file=.env ./dist/index.js",
+    "start:prod-local": "node --enable-source-maps --env-file=.env.local ./dist/index.js",
     "start:test": "tsx $([ -f .env.test ] && echo '--env-file=.env.test') ./src/test-server.ts",
     "lint": "eslint src",
     "type-check": "tsc -p tsconfig.app.json --noEmit",
