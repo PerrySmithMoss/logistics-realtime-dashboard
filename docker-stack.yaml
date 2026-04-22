@@ -2,7 +2,7 @@ services:
   fleet-api:
     image: ghcr.io/perrysmithmoss/logistics-realtime-dashboard:${GIT_COMMIT_HASH:-latest}
     env_file:
-      - ./apps/server/.env
+      - .env
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0

@@ -96,7 +96,7 @@ jobs:
 
       - name: Create env file
         run: |
-          echo "GIT_COMMIT_HASH=${{ github.sha }}" >> ./env
+          echo "GIT_COMMIT_HASH=${{ github.sha }}" >> .env
 
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1
@@ -106,4 +106,4 @@ jobs:
           host: ${{ secrets.VPS_IP }}
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          env_file: ./env
+          env_file: .env
