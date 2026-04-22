@@ -13,7 +13,7 @@ describe("Config Module", () => {
 
   it("should load valid defaults", () => {
     vi.mocked(getSecret).mockImplementation((key) => {
-      if (key === "fleet_open_route_service_api_key") return "valid-key";
+      if (key === "OPEN_ROUTE_SERVICE_API_KEY") return "valid-key";
       return undefined;
     });
 
