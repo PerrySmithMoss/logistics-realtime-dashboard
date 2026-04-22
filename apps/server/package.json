@@ -7,6 +7,9 @@
   "author": "",
   "license": "ISC",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx --watch $([ -f .env.local ] && echo '--env-file=.env.local') ./src/index.ts",
     "build": "tsdown",

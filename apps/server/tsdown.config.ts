@@ -13,15 +13,8 @@ export default defineConfig({
     };
   },
   deps: {
-    neverBundle: [
-      "express",
-      "helmet",
-      //other native/platform-specific libs here
-    ],
-    alwaysBundle: [
-      "@fleet/common",
-      // other internal packages here
-    ],
+    neverBundle: ["express", "helmet"],
+    alwaysBundle: [/^@fleet\/common(?:\/.*)?$/],
   },
   dts: false,
 });
