@@ -1,9 +1,17 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalEnv": ["NODE_ENV"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "FLEET_API_BASE_URL",
+        "FLEET_API_INTERNAL_KEY",
+        "SESSION_SIGNING_SECRET",
+        "NEXT_PUBLIC_NODE_ENV",
+        "NEXT_PUBLIC_FLEET_API_BASE_URL"
+      ]
     },
     "dev": {
       "cache": false,
