@@ -8,6 +8,7 @@
       "env": [
         "FLEET_API_BASE_URL",
         "FLEET_API_INTERNAL_KEY",
+        "FLEET_STREAM_SIGNING_SECRET",
         "SESSION_SIGNING_SECRET",
         "NEXT_PUBLIC_NODE_ENV",
         "NEXT_PUBLIC_FLEET_API_BASE_URL"
