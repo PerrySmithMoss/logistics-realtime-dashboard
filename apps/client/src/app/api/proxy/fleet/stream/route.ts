@@ -10,8 +10,13 @@ const STREAM_URL = `${serverEnv.FLEET_API_BASE_URL}/api/v1/fleet/stream`;
 
 export async function GET(req: NextRequest) {
   const userRole = req.headers.get("x-user-role") ?? "viewer";
-
   const traceId = req.headers.get("x-trace-id") || crypto.randomUUID();
+
+  const upstreamAbortController = new AbortController();
+
+  req.signal.addEventListener("abort", () => upstreamAbortController.abort(req.signal.reason), {
+    once: true,
+  });
 
   try {
     const response = await fetch(STREAM_URL, {
@@ -22,7 +27,7 @@ export async function GET(req: NextRequest) {
         "X-User-Role": userRole,
       },
       cache: "no-store",
-      signal: req.signal,
+      signal: upstreamAbortController.signal,
     });
 
     if (!response.ok) {
@@ -43,7 +48,74 @@ export async function GET(req: NextRequest) {
       return new Response(null, { status: 204 });
     }
 
-    return new Response(response.body, {
+    const reader = response.body.getReader();
+
+    let upstreamCancelled = false;
+
+    const cancelUpstream = async () => {
+      if (upstreamCancelled) return;
+      upstreamCancelled = true;
+      upstreamAbortController.abort();
+      try {
+        await reader.cancel();
+      } catch {
+        // no-op: upstream may already be closed
+      }
+    };
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let streamClosed = false;
+
+        const closeStream = () => {
+          if (streamClosed) return;
+          streamClosed = true;
+          controller.close();
+        };
+
+        const onAbort = () => void cancelUpstream();
+        req.signal.addEventListener("abort", onAbort, { once: true });
+
+        const pump = async () => {
+          try {
+            while (true) {
+              if (req.signal.aborted) {
+                await cancelUpstream();
+                closeStream();
+                return;
+              }
+
+              const { done, value } = await reader.read();
+
+              if (done) {
+                closeStream();
+                return;
+              }
+
+              if (value) {
+                controller.enqueue(value);
+              }
+            }
+          } catch (error) {
+            if (req.signal.aborted || streamClosed) {
+              closeStream();
+              return;
+            }
+
+            streamClosed = true;
+            controller.error(error);
+          } finally {
+            req.signal.removeEventListener("abort", onAbort);
+          }
+        };
+        void pump();
+      },
+      async cancel() {
+        await cancelUpstream();
+      },
+    });
+
+    return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",

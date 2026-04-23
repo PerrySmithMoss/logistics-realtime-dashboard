@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GET } from "../route";
 
 const logger = vi.hoisted(() => ({
   debug: vi.fn(),
@@ -19,8 +20,6 @@ vi.mock("@/config/server-env", () => ({
     FLEET_API_INTERNAL_KEY: "internal-secret",
   },
 }));
-
-import { GET } from "../route";
 
 describe("fleet stream proxy route", () => {
   beforeEach(() => {
@@ -59,7 +58,7 @@ describe("fleet stream proxy route", () => {
       "http://fleet-api.test/api/v1/fleet/stream",
       expect.objectContaining({
         cache: "no-store",
-        signal: req.signal,
+        signal: expect.any(AbortSignal),
         headers: {
           Accept: "text/event-stream",
           "X-Trace-Id": "trace-123",
@@ -71,6 +70,43 @@ describe("fleet stream proxy route", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/event-stream");
     expect(response.headers.get("X-Trace-Id")).toBe("trace-123");
+  });
+
+  it("cancels the upstream stream when the downstream request aborts", async () => {
+    let cancelCount = 0;
+
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(": connected\n\n"));
+      },
+      cancel() {
+        cancelCount++;
+      },
+    });
+
+    global.fetch = vi.fn().mockResolvedValueOnce(
+      new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    ) as unknown as typeof fetch;
+
+    const abortController = new AbortController();
+    const req = {
+      headers: new Headers(),
+      signal: abortController.signal,
+    };
+
+    const response = await GET(req as never);
+    expect(response.body).toBeTruthy();
+
+    const reader = response.body!.getReader();
+    await reader.read();
+
+    abortController.abort();
+    await reader.cancel();
+
+    expect(cancelCount).toBeGreaterThan(0);
   });
 
   it("defaults the user role and generates a trace id when the request lacks them", async () => {
