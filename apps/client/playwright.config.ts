@@ -10,6 +10,8 @@ const testEnv = {
   NEXT_PUBLIC_FLEET_API_BASE_URL:
     process.env.NEXT_PUBLIC_FLEET_API_BASE_URL ?? "http://127.0.0.1:4000",
   FLEET_API_INTERNAL_KEY: process.env.FLEET_API_INTERNAL_KEY ?? "test-internal-key",
+  FLEET_STREAM_SIGNING_SECRET:
+    process.env.FLEET_STREAM_SIGNING_SECRET ?? "test_stream_signing_secret_32_chars",
   SESSION_SIGNING_SECRET:
     process.env.SESSION_SIGNING_SECRET ?? "test_session_signing_secret_32_chars",
 };

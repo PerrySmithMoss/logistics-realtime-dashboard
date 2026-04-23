@@ -12,6 +12,7 @@ export const createApiRouter = (appContainer: IAppContainer): Router => {
     "/fleet",
     createFleetRoutes(controllers.fleet, logger, cache, {
       internalAuthSecret: config.server.internalAuthSecret,
+      streamTokenService: appContainer.streamTokenService,
       maxConcurrent: config.modules.fleet.sse.maxConcurrent,
       minRetryMs: config.modules.fleet.sse.minRetryMs,
     }),

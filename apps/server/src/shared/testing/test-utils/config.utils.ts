@@ -16,13 +16,21 @@ export const createMockConfig = (overrides: DeepPartial<IAppConfig> = {}): IAppC
       isTest: true,
       minLogLevel: "DEBUG",
       internalAuthSecret: "test-secret-at-least-32-chars-long-for-validity",
+      streamSigningSecret: "test_stream_signing_secret_32_chars_long",
     },
     modules: {
       vehicle: {
         seedMockData: false,
       },
       fleet: {
-        orsApiKey: "test-api-key",
+        ors: {
+          apiKey: "test-api-key",
+          timeoutMs: 15000,
+          retries: 1,
+          retryDelayMs: 750,
+          batchMaxSize: 50,
+          snapRadiusMeters: 350,
+        },
         enableFleetSimulator: false,
         simulatorTickInterval: 2000,
         watchdogTimeout: 30000,

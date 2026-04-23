@@ -11,6 +11,7 @@ import { IEventBroker } from "@shared/interfaces/event-broker.interface";
 import { IHealthController } from "@shared/interfaces/health-controller.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { IQueryBus } from "@shared/interfaces/query-bus.interface";
+import { StreamTokenService } from "@shared/security/stream-token.service";
 
 export interface IAppContainer {
   readonly config: IAppConfig;
@@ -30,6 +31,7 @@ export interface IAppContainer {
     readonly vehicle: IVehicleController;
   };
   readonly fleetDataService: IFleetDataService;
+  readonly streamTokenService: StreamTokenService;
   readonly fleetSimulator?: FleetSimulator;
   resetForTesting?(): Promise<void>;
 }
@@ -62,5 +64,6 @@ export interface AppContainerOptions {
   readonly controllers: AppContainerControllers;
   readonly loggers: AppContainerLoggers;
   readonly fleetDataService: IFleetDataService;
+  readonly streamTokenService: StreamTokenService;
   readonly fleetSimulator?: FleetSimulator;
 }

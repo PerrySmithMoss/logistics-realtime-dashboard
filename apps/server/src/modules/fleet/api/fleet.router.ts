@@ -1,6 +1,12 @@
-import { rateLimiter, sseRateLimiter, verifyServiceSecret } from "@shared/api/middleware";
+import {
+  rateLimiter,
+  sseRateLimiter,
+  verifyServiceSecret,
+  verifyStreamToken,
+} from "@shared/api/middleware";
 import { ICache } from "@shared/interfaces/cache.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
+import { StreamTokenService } from "@shared/security/stream-token.service";
 import { Router } from "express";
 import { IFleetController } from "./interfaces/fleet-controller.interface";
 
@@ -10,11 +16,14 @@ export const createFleetRoutes = (
   cache: ICache,
   config: {
     internalAuthSecret: string;
+    streamTokenService: StreamTokenService;
     maxConcurrent: number;
     minRetryMs: number;
   },
 ): Router => {
   const fleetRouter = Router();
+
+  const streamAuthGuard = verifyStreamToken(logger, config.streamTokenService);
 
   const authGuard = verifyServiceSecret(logger, {
     internalAuthSecret: config.internalAuthSecret,
@@ -36,7 +45,7 @@ export const createFleetRoutes = (
 
   fleetRouter.get("/snapshot", authGuard, snapshotRateLimit, controller.getSnapshot);
 
-  fleetRouter.get("/stream", authGuard, sseRateLimit, controller.stream);
+  fleetRouter.get("/stream", streamAuthGuard, sseRateLimit, controller.stream);
 
   return fleetRouter;
 };

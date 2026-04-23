@@ -12,9 +12,10 @@ describe("Fleet Simulator Integration", () => {
       const initialLat = initialResponse.body.data.vehicles[0].lat;
       const targetId = initialResponse.body.data.vehicles[0].id;
 
+      const streamToken = await harness.createStreamToken();
+
       harness.requester
-        .get("/api/v1/fleet/stream")
-        .set(harness.authHeaders)
+        .get(`/api/v1/fleet/stream?token=${encodeURIComponent(streamToken)}`)
         .end(() => {});
 
       await vi.advanceTimersByTimeAsync(500);

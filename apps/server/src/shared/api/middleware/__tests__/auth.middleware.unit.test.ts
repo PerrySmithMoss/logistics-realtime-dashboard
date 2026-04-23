@@ -3,7 +3,7 @@ import { createMockLogger } from "@shared/testing/test-utils";
 import { createMockRequest } from "@shared/testing/test-utils/request.utils";
 import { createMockResponse } from "@shared/testing/test-utils/response.utils";
 import { describe, expect, it, vi } from "vitest";
-import { verifyServiceSecret } from "../auth.middleware";
+import { verifyServiceSecret, verifyStreamToken } from "../auth.middleware";
 
 describe("auth middleware", () => {
   describe("verifyServiceSecret", () => {
@@ -84,6 +84,45 @@ describe("auth middleware", () => {
       const next = vi.fn();
 
       expect(() => middleware(req, res, next)).toThrow(UnauthorisedError);
+    });
+  });
+
+  describe("verifyStreamToken", () => {
+    const setup = () => {
+      const mockLogger = createMockLogger();
+      const streamTokenService = {
+        verify: vi.fn().mockResolvedValue(undefined),
+      } as never;
+      const middleware = verifyStreamToken(mockLogger, streamTokenService);
+      const next = vi.fn();
+
+      return { mockLogger, streamTokenService, middleware, next };
+    };
+
+    it("verifies the query token and calls next", async () => {
+      const { middleware, streamTokenService, next } = setup();
+      const req = createMockRequest({
+        query: { token: "signed-token" },
+        ip: "127.0.0.1",
+      });
+
+      await middleware(req, createMockResponse(), next);
+
+      expect(streamTokenService.verify).toHaveBeenCalledWith("signed-token", { ip: "127.0.0.1" });
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it("throws UnauthorisedError when the query token is missing", async () => {
+      const { middleware, mockLogger, next } = setup();
+      const req = createMockRequest({
+        query: {},
+        ip: "127.0.0.1",
+      });
+
+      await expect(middleware(req, createMockResponse(), next)).rejects.toThrow(UnauthorisedError);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        "[Auth] Failed stream token attempt from 127.0.0.1. Missing query token",
+      );
     });
   });
 });

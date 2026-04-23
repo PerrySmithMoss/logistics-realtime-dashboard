@@ -4,7 +4,7 @@ import { createTestRouter } from "@api/test.router";
 import { IAppConfig } from "@config/index";
 import { IFleetDataService } from "@modules/fleet/core/interfaces/fleet-data-service.interface";
 import { createHealthRouter } from "@shared/api/health.router";
-import { rateLimiter } from "@shared/api/middleware";
+import { corsMiddleware, rateLimiter } from "@shared/api/middleware";
 import { InternalServerError } from "@shared/errors/app.errors";
 import { consoleLogger } from "@shared/infrastructure/logger";
 import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
@@ -117,6 +117,7 @@ export class Application {
     expressApp.set("trust proxy", true);
 
     expressApp.use(requestIdMiddleware);
+    expressApp.use(corsMiddleware(this.config.server.corsAllowedOrigins));
     expressApp.use(express.json({ limit: "1mb" }));
 
     expressApp.use("/health", createHealthRouter(container.controllers.health));

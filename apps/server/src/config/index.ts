@@ -8,7 +8,18 @@ export const envSchema = z
     PORT: z.coerce.number().default(5570),
     HOST: z.string().default("localhost"),
     MIN_LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("DEBUG"),
+    CORS_ALLOWED_ORIGINS: z.preprocess(
+      (value) =>
+        typeof value === "string"
+          ? value
+              .split(",")
+              .map((origin) => origin.trim())
+              .filter(Boolean)
+          : value,
+      z.array(z.url()).default(["http://localhost:3000", "http://127.0.0.1:3000"]),
+    ),
     INTERNAL_AUTH_SECRET: z.string().optional(),
+    FLEET_STREAM_SIGNING_SECRET: z.string().optional(),
 
     ENABLE_FLEET_SIMULATOR: z
       .preprocess((val) => val === "true" || val === true, z.boolean())
@@ -43,6 +54,18 @@ export const envSchema = z
   )
   .refine(
     (data) => {
+      if (data.NODE_ENV === "production") {
+        return !!data.FLEET_STREAM_SIGNING_SECRET && data.FLEET_STREAM_SIGNING_SECRET.length >= 32;
+      }
+      return true;
+    },
+    {
+      message: "FLEET_STREAM_SIGNING_SECRET must be at least 32 characters in production",
+      path: ["FLEET_STREAM_SIGNING_SECRET"],
+    },
+  )
+  .refine(
+    (data) => {
       if (data.NODE_ENV !== "test" && !data.OPEN_ROUTE_SERVICE_API_KEY) {
         return false;
       }
@@ -59,6 +82,10 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
     ...process.env,
     ...overrides,
     INTERNAL_AUTH_SECRET: getSecret("INTERNAL_AUTH_SECRET", "fleet_internal_auth_secret"),
+    FLEET_STREAM_SIGNING_SECRET: getSecret(
+      "FLEET_STREAM_SIGNING_SECRET",
+      "fleet_stream_signing_secret",
+    ),
     OPEN_ROUTE_SERVICE_API_KEY: getSecret(
       "OPEN_ROUTE_SERVICE_API_KEY",
       "fleet_open_route_service_api_key",
@@ -91,7 +118,10 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
       isDev: env.NODE_ENV === "development",
       isTest: env.NODE_ENV === "test",
       minLogLevel: env.MIN_LOG_LEVEL,
+      corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
       internalAuthSecret: env.INTERNAL_AUTH_SECRET ?? "random_32_byte_string-do_not_use_in_prod",
+      streamSigningSecret:
+        env.FLEET_STREAM_SIGNING_SECRET ?? "test_stream_signing_secret_32_chars_long",
     },
     modules: {
       vehicle: { seedMockData: env.ENABLE_FLEET_SIMULATOR },

@@ -18,6 +18,7 @@ class SseConnectionError extends Error {
 }
 
 const logger = createLogger("SSeClient");
+const DEFAULT_TOKEN_URL = "/api/fleet/stream-token";
 
 export class SseClient {
   private listeners: Map<string, (event: MessageEvent) => void> = new Map();
@@ -28,6 +29,7 @@ export class SseClient {
   constructor(
     private readonly url: string,
     private readonly onError?: SseErrorHandler,
+    private readonly tokenUrl: string = DEFAULT_TOKEN_URL,
   ) {}
 
   private dispatchEvent(eventName: string, data: string): void {
@@ -75,7 +77,35 @@ export class SseClient {
 
     this.streamPromise = (async () => {
       try {
-        const response = await fetch(this.url, {
+        const tokenResponse = await fetch(this.tokenUrl, {
+          method: "POST",
+          cache: "no-store",
+          signal: this.abortController?.signal,
+        });
+
+        if (!tokenResponse.ok) {
+          throw new SseConnectionError(
+            `SSE token request failed with status ${tokenResponse.status}`,
+            {
+              recoverable: ![401, 403].includes(tokenResponse.status),
+              status: tokenResponse.status,
+            },
+          );
+        }
+
+        const tokenPayload = (await tokenResponse.json().catch(() => null)) as { token?: string } | null;
+        const token = tokenPayload?.token;
+
+        if (!token) {
+          throw new SseConnectionError("SSE token response missing token", {
+            recoverable: true,
+          });
+        }
+
+        const streamUrl = new URL(this.url, globalThis.location?.origin ?? "http://localhost");
+        streamUrl.searchParams.set("token", token);
+
+        const response = await fetch(streamUrl.toString(), {
           headers: {
             Accept: "text/event-stream",
           },
@@ -85,7 +115,7 @@ export class SseClient {
 
         if (!response.ok || !response.body) {
           throw new SseConnectionError(`SSE request failed with status ${response.status}`, {
-            recoverable: ![401, 403].includes(response.status),
+            recoverable: true,
             status: response.status,
           });
         }

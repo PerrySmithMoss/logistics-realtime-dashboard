@@ -69,7 +69,7 @@ test.describe("Fleet Dashboard", () => {
   });
 
   test("handles SSE connection lifecycle and recovery", async ({ page }) => {
-    await page.route("**/api/proxy/fleet/stream", (route) => route.abort("failed"));
+    await page.route("**/api/v1/fleet/stream?*", (route) => route.abort("failed"));
 
     await page.goto("/");
 
@@ -78,13 +78,13 @@ test.describe("Fleet Dashboard", () => {
     await expect(indicator).toBeVisible({ timeout: 7000 });
     await expect(indicator).toContainText("Reconnecting...");
 
-    await page.unroute("**/api/proxy/fleet/stream");
+    await page.unroute("**/api/v1/fleet/stream?*");
 
     await expect(indicator).not.toBeVisible({ timeout: 10000 });
   });
 
   test("shows hard failure when server rejects connection", async ({ page }) => {
-    await page.route("**/api/proxy/fleet/stream", (route) =>
+    await page.route("**/api/v1/fleet/stream?*", (route) =>
       route.fulfill({ status: 403, body: "Forbidden" }),
     );
 

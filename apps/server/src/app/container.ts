@@ -16,6 +16,7 @@ import { OpenRouteServiceClient } from "@shared/infrastructure/geo";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
 import { ConsoleLogger } from "@shared/infrastructure/logger";
 import { IGeoSnappingService, ILogger } from "@shared/interfaces";
+import { StreamTokenService } from "@shared/security/stream-token.service";
 import {
   AppContainerControllers,
   AppContainerLoggers,
@@ -72,6 +73,10 @@ export class AppContainer implements IAppContainer {
     return this.options.fleetDataService;
   }
 
+  public get streamTokenService(): StreamTokenService {
+    return this.options.streamTokenService;
+  }
+
   public get fleetSimulator(): FleetSimulator | undefined {
     return this.options.fleetSimulator;
   }
@@ -95,6 +100,8 @@ export class AppContainer implements IAppContainer {
 
     const lifecycleLogger = baseLogger.withContext("LifecycleManager");
     const cacheLogger = baseLogger.withContext("InMemoryCache");
+    const streamTokenCacheLogger = baseLogger.withContext("StreamTokenCache");
+    const streamTokenLogger = baseLogger.withContext("StreamToken");
     const vehicleLogger = baseLogger.withContext("Vehicle");
     const fleetLogger = baseLogger.withContext("Fleet");
     const eventBrokerLogger = baseLogger.withContext("InMemoryEventBroker");
@@ -102,9 +109,24 @@ export class AppContainer implements IAppContainer {
     const lifecycle = new LifecycleManager(lifecycleLogger);
     const database = new InMemoryDatabase(lifecycle);
     const cache = new InMemoryCache(cacheLogger);
+    const streamTokenCache = new InMemoryCache(streamTokenCacheLogger, {
+      cleanupIntervalMs: 60_000,
+      defaultTtlMs: 60_000,
+      sizeThreshold: 1,
+      maxEntries: 5_000,
+    });
     const eventBroker = new InMemoryEventBroker(lifecycle, eventBrokerLogger);
     const commandBus = new CommandBus();
     const queryBus = new QueryBus();
+    const streamTokenService = new StreamTokenService(
+      config.server.streamSigningSecret,
+      streamTokenCache,
+      streamTokenLogger,
+      {
+        clockToleranceSeconds: 5,
+        replayTtlMs: 60_000,
+      },
+    );
 
     const geoSnappingService =
       options.geoSnappingService ??
@@ -166,6 +188,7 @@ export class AppContainer implements IAppContainer {
       },
       loggers,
       fleetDataService,
+      streamTokenService,
       fleetSimulator,
     });
   }

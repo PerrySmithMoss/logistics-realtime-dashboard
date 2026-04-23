@@ -59,4 +59,45 @@ describe("ClientConsoleLogger", () => {
       }),
     );
   });
+
+  it("serialises nested Error objects inside payloads", () => {
+    const logger = new ClientConsoleLogger({ isDev: true, level: "DEBUG" }, "Fleet");
+
+    logger.error("stream failed", {
+      error: new Error("socket closed"),
+      meta: { attempt: 2 },
+    });
+
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("[Fleet]"),
+      "stream failed",
+      expect.objectContaining({
+        error: expect.objectContaining({
+          name: "Error",
+          message: "socket closed",
+        }),
+        meta: { attempt: 2 },
+      }),
+    );
+  });
+
+  it("guards against circular references while normalising payloads", () => {
+    const logger = new ClientConsoleLogger({ isDev: true, level: "DEBUG" }, "Fleet");
+    const payload: { self?: unknown; nested?: { loop?: unknown } } = {};
+    payload.self = payload;
+    payload.nested = { loop: payload };
+
+    logger.error("circular", payload);
+
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("[Fleet]"),
+      "circular",
+      expect.objectContaining({
+        self: "[Circular]",
+        nested: expect.objectContaining({
+          loop: "[Circular]",
+        }),
+      }),
+    );
+  });
 });

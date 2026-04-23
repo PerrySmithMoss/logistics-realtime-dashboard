@@ -115,6 +115,21 @@ describe("InMemoryCache", () => {
       // defensive check to make sure a second get call still returns null
       expect(await cache.get<string>("Dexter")).toBeNull();
     });
+
+    it("evicts the oldest entry when maxEntries is exceeded", async () => {
+      const logger = createMockLogger();
+      const cache = new InMemoryCache(logger, {
+        maxEntries: 2,
+      });
+
+      await cache.set("first", 1);
+      await cache.set("second", 2);
+      await cache.set("third", 3);
+
+      expect(await cache.get("first")).toBeNull();
+      expect(await cache.get("second")).toBe(2);
+      expect(await cache.get("third")).toBe(3);
+    });
   });
 
   describe("delete", () => {

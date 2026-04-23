@@ -1,3 +1,4 @@
+import { clientEnv } from "@/config/client-env";
 import { SseClient } from "@/shared/infrastructure";
 import { throttle } from "@/shared/utils";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +11,7 @@ interface UseFleetSseResult {
 }
 
 const THROTTLE_MS = 500;
+const STREAM_URL = `${clientEnv.NEXT_PUBLIC_FLEET_API_BASE_URL}/api/v1/fleet/stream`;
 
 export const useFleetSSE = (onUpdate: (data: FleetSnapshot) => void): UseFleetSseResult => {
   const [retryCount, setRetryCount] = useState(0);
@@ -33,7 +35,7 @@ export const useFleetSSE = (onUpdate: (data: FleetSnapshot) => void): UseFleetSs
       onUpdateRef.current(data);
     }, THROTTLE_MS);
 
-    const client = new SseClient("/api/proxy/fleet/stream", ({ recoverable }) => {
+    const client = new SseClient(STREAM_URL, ({ recoverable }) => {
       if (!isMounted) return;
 
       setStatus((prev) => (prev !== "error" ? "error" : prev));

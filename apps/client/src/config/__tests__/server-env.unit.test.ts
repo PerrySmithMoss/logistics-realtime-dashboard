@@ -19,6 +19,7 @@ describe("serverEnv", () => {
     process.env = {
       ...process.env,
       NODE_ENV: "test",
+      FLEET_STREAM_SIGNING_SECRET: "test_stream_signing_secret_32_chars",
       FLEET_API_BASE_URL: "http://localhost:4000",
       FLEET_API_INTERNAL_KEY: "internal-key",
     };
@@ -29,6 +30,7 @@ describe("serverEnv", () => {
     expect(serverEnv.FLEET_API_BASE_URL).toBe("http://localhost:4000");
     expect(serverEnv.FLEET_API_INTERNAL_KEY).toBe("internal-key");
     expect(serverEnv.SESSION_SIGNING_SECRET).toBe("dev_secret_fallback_32_chars_long_min");
+    expect(serverEnv.FLEET_STREAM_SIGNING_SECRET).toBe("test_stream_signing_secret_32_chars");
   });
 
   it("throws when required server env is invalid", async () => {
@@ -37,6 +39,7 @@ describe("serverEnv", () => {
       NODE_ENV: "production",
       FLEET_API_BASE_URL: "http://localhost:4000",
       FLEET_API_INTERNAL_KEY: "",
+      FLEET_STREAM_SIGNING_SECRET: "too-short",
       SESSION_SIGNING_SECRET: "too-short",
     };
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);

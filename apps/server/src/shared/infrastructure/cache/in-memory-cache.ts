@@ -6,6 +6,7 @@ interface InMemoryCacheOptions {
   cleanupIntervalMs?: number;
   sizeThreshold?: number;
   defaultTtlMs?: number;
+  maxEntries?: number;
 }
 
 interface ICacheEntry {
@@ -21,6 +22,7 @@ export class InMemoryCache implements ICache {
   private readonly CLEANUP_INTERVAL_MS: number;
   private readonly SIZE_THRESHOLD: number;
   private readonly DEFAULT_TTL_MS: number;
+  private readonly MAX_ENTRIES: number;
 
   constructor(
     private readonly logger: ILogger,
@@ -29,6 +31,19 @@ export class InMemoryCache implements ICache {
     this.CLEANUP_INTERVAL_MS = options.cleanupIntervalMs ?? 3_600_000;
     this.SIZE_THRESHOLD = options.sizeThreshold ?? 50;
     this.DEFAULT_TTL_MS = options.defaultTtlMs ?? 60_000;
+    this.MAX_ENTRIES = options.maxEntries ?? Number.POSITIVE_INFINITY;
+  }
+
+  private enforceMaxEntries(nextKey: string): void {
+    if (this.cache.has(nextKey) || this.cache.size < this.MAX_ENTRIES) {
+      return;
+    }
+
+    const oldestKey = this.cache.keys().next().value;
+
+    if (oldestKey) {
+      this.cache.delete(oldestKey);
+    }
   }
 
   private lazyCleanup(): void {
@@ -67,6 +82,7 @@ export class InMemoryCache implements ICache {
 
   public async set<T>(key: string, value: T, ttlMs: number = this.DEFAULT_TTL_MS): Promise<void> {
     this.lazyCleanup();
+    this.enforceMaxEntries(key);
     const expiresAt = Date.now() + ttlMs;
     this.cache.set(key, { value, expiresAt });
   }
@@ -91,6 +107,7 @@ export class InMemoryCache implements ICache {
     const currentEntry = this.cache.get(key);
     const expiresAt = currentEntry ? currentEntry.expiresAt : Date.now() + ttlMs;
 
+    this.enforceMaxEntries(key);
     this.cache.set(key, { value: newValue, expiresAt });
 
     return newValue;
@@ -116,6 +133,7 @@ export class InMemoryCache implements ICache {
     const currentEntry = this.cache.get(key);
     const expiresAt = currentEntry ? currentEntry.expiresAt : Date.now() + ttlMs;
 
+    this.enforceMaxEntries(key);
     this.cache.set(key, { value: newValue, expiresAt });
 
     return newValue;

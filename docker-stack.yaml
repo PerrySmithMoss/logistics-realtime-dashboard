@@ -11,9 +11,11 @@ services:
       - PORT=5570
       - MIN_LOG_LEVEL=INFO
       - INTERNAL_AUTH_SECRET=/run/secrets/fleet_internal_auth_secret
+      - FLEET_STREAM_SIGNING_SECRET=/run/secrets/fleet_stream_signing_secret
       - OPEN_ROUTE_SERVICE_API_KEY=/run/secrets/fleet_open_route_service_api_key
     secrets:
       - fleet_internal_auth_secret
+      - fleet_stream_signing_secret
       - fleet_open_route_service_api_key
     networks:
       - portfolio_network
@@ -24,13 +26,6 @@ services:
         - "traefik.http.routers.fleet-api.rule=Host(`fleet-api.perrysmithmoss.com`)"
         - "traefik.http.routers.fleet-api.entrypoints=websecure"
         - "traefik.http.routers.fleet-api.tls.certresolver=myresolver"
-
-        # CORS Middleware
-        - "traefik.http.middlewares.fleet-cors.headers.accesscontrolallowmethods=OPTIONS,GET,PATCH,PUT,POST"
-        - "traefik.http.middlewares.fleet-cors.headers.accesscontrolalloworiginlist=https://fleet-dashboard-pied.vercel.app"
-        - "traefik.http.middlewares.fleet-cors.headers.accesscontrolallowheaders=Content-Type,Authorization,X-Request-Id"
-
-        - "traefik.http.routers.fleet-api.middlewares=fleet-cors"
       update_config:
         order: start-first
         failure_action: rollback
@@ -43,6 +38,8 @@ networks:
 
 secrets:
   fleet_internal_auth_secret:
+    external: true
+  fleet_stream_signing_secret:
     external: true
   fleet_open_route_service_api_key:
     external: true

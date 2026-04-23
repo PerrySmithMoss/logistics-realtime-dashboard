@@ -37,7 +37,6 @@ export const sseRateLimiter = (
     const countKey = `sse:count:${req.path}:${ip}`;
     const retryKey = `sse:retry:${req.path}:${ip}`;
 
-    // 1. Check frequency (Rate Limit) first - this is still a 'get'
     const isThrottled = await cache.get(retryKey);
     const resetSeconds = Math.ceil(minRetryMs / 1000);
 

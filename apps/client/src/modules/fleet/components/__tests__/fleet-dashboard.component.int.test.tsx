@@ -65,11 +65,22 @@ describe("FleetDashboard integration", () => {
     mapTestState.openPopup.mockClear();
   });
 
+  const mockStreamToken = () =>
+    http.post("http://localhost:3000/api/fleet/stream-token", () =>
+      Response.json({
+        token: "signed-stream-token",
+      }),
+    );
+
   it("hydrates from the initial snapshot and applies streamed stats updates without remounting the map", async () => {
     const stream = new TestSseStream();
 
     server.use(
-      http.get("http://localhost:3000/api/proxy/fleet/stream", () => stream.createResponse()),
+      mockStreamToken(),
+      http.get("http://127.0.0.1:4000/api/v1/fleet/stream", ({ request }) => {
+        expect(new URL(request.url).searchParams.get("token")).toBe("signed-stream-token");
+        return stream.createResponse();
+      }),
     );
 
     customRender(<FleetDashboard initialData={initialFleetSnapshot} />);
@@ -96,8 +107,9 @@ describe("FleetDashboard integration", () => {
     "shows the connection error state when the stream returns %s",
     async (statusCode) => {
       server.use(
+        mockStreamToken(),
         http.get(
-          "http://localhost:3000/api/proxy/fleet/stream",
+          "http://127.0.0.1:4000/api/v1/fleet/stream",
           () => new Response(null, { status: statusCode }),
         ),
       );
@@ -113,7 +125,8 @@ describe("FleetDashboard integration", () => {
     const stream = new TestSseStream();
 
     server.use(
-      http.get("http://localhost:3000/api/proxy/fleet/stream", () => stream.createResponse()),
+      mockStreamToken(),
+      http.get("http://127.0.0.1:4000/api/v1/fleet/stream", () => stream.createResponse()),
     );
 
     customRender(<FleetDashboard initialData={initialFleetSnapshot} />);
@@ -140,7 +153,8 @@ describe("FleetDashboard integration", () => {
     const stream = new TestSseStream();
 
     server.use(
-      http.get("http://localhost:3000/api/proxy/fleet/stream", () => stream.createResponse()),
+      mockStreamToken(),
+      http.get("http://127.0.0.1:4000/api/v1/fleet/stream", () => stream.createResponse()),
     );
 
     customRender(<FleetDashboard initialData={initialFleetSnapshot} />);

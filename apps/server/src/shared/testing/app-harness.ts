@@ -4,6 +4,7 @@ import { IFleetSnapshot } from "@modules/fleet/core/dtos/fleet-snapshot.dto";
 import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.interface";
 import { DeepPartial } from "@shared/types";
 import { sleep } from "@shared/utils";
+import { SignJWT } from "jose";
 import { readFileSync } from "node:fs";
 import { createServer, request as httpRequest } from "node:http";
 import { AddressInfo } from "node:net";
@@ -13,6 +14,7 @@ import { vi } from "vitest";
 import { StreamClient, StreamClientOptions } from "./stream-client";
 
 const TEST_INTERNAL_SECRET = "integration-test-secret";
+const TEST_STREAM_SIGNING_SECRET = "integration_stream_signing_secret_32_chars";
 const E2E_ENV_PATH = path.resolve(process.cwd(), ".env.test");
 const DEFAULT_E2E_SYSTEM_TIME = new Date("2026-04-13T12:00:00Z");
 
@@ -67,6 +69,18 @@ const identitySnappingService: IGeoSnappingService = {
   },
 };
 
+const createStreamToken = async (secret: string) => {
+  const now = Math.floor(Date.now() / 1000);
+
+  return await new SignJWT({})
+    .setProtectedHeader({ alg: "HS256" })
+    .setAudience("fleet-stream")
+    .setIssuedAt(now)
+    .setJti(crypto.randomUUID())
+    .setExpirationTime(now + 30)
+    .sign(new TextEncoder().encode(secret));
+};
+
 export const createIntegrationConfig = (): IAppConfig => ({
   app: {
     version: "test",
@@ -81,13 +95,21 @@ export const createIntegrationConfig = (): IAppConfig => ({
     isTest: true,
     minLogLevel: "ERROR",
     internalAuthSecret: TEST_INTERNAL_SECRET,
+    streamSigningSecret: TEST_STREAM_SIGNING_SECRET,
   },
   modules: {
     vehicle: {
       seedMockData: true,
     },
     fleet: {
-      orsApiKey: "test-key",
+      ors: {
+        apiKey: "test-key",
+        timeoutMs: 15000,
+        retries: 1,
+        retryDelayMs: 750,
+        batchMaxSize: 50,
+        snapRadiusMeters: 350,
+      },
       enableFleetSimulator: true,
       simulatorTickInterval: 100,
       watchdogTimeout: 1000,
@@ -186,6 +208,7 @@ export const openFleetStream = async (app: Application, windowMs = 2000) => {
   });
 
   const { port } = server.address() as AddressInfo;
+  const streamToken = await createStreamToken(TEST_STREAM_SIGNING_SECRET);
 
   return new Promise<{
     statusCode?: number;
@@ -202,11 +225,8 @@ export const openFleetStream = async (app: Application, windowMs = 2000) => {
       {
         host: "127.0.0.1",
         port,
-        path: "/api/v1/fleet/stream",
+        path: `/api/v1/fleet/stream?token=${encodeURIComponent(streamToken)}`,
         method: "GET",
-        headers: {
-          "x-internal-secret": TEST_INTERNAL_SECRET,
-        },
       },
       (res) => {
         const finalize = () => {
@@ -290,6 +310,7 @@ export const bootstrapIntegrationApp = async () => {
     authHeaders: {
       "x-internal-secret": TEST_INTERNAL_SECRET,
     },
+    createStreamToken: async () => createStreamToken(TEST_STREAM_SIGNING_SECRET),
     close: async () => {
       await app.dispose();
     },
@@ -342,6 +363,7 @@ export const bootstrapE2EApp = async (
     authHeaders: {
       "x-internal-secret": config.server.internalAuthSecret,
     },
+    createStreamToken: async () => createStreamToken(config.server.streamSigningSecret),
     useFakeTimers: (now: Date = DEFAULT_E2E_SYSTEM_TIME) => {
       vi.useFakeTimers();
       vi.setSystemTime(now);
@@ -352,9 +374,10 @@ export const bootstrapE2EApp = async (
     waitForFleetSnapshot: (predicate: (snapshot: IFleetSnapshot) => boolean, timeoutMs?: number) =>
       waitForFleetSnapshot(requester, predicate, timeoutMs, harness.authHeaders),
     openStream: async (streamOptions: Omit<StreamClientOptions, "baseUrl" | "headers"> = {}) => {
+      const token = await harness.createStreamToken();
       const client = new StreamClient({
         baseUrl,
-        headers: harness.authHeaders,
+        path: `/api/v1/fleet/stream?token=${encodeURIComponent(token)}`,
         ...streamOptions,
       });
 

@@ -14,6 +14,7 @@ describe("Config Module", () => {
   it("should load valid defaults", () => {
     vi.mocked(getSecret).mockImplementation((key) => {
       if (key === "OPEN_ROUTE_SERVICE_API_KEY") return "valid-key";
+      if (key === "FLEET_STREAM_SIGNING_SECRET") return "valid-stream-signing-secret-32chars";
       return undefined;
     });
 
@@ -24,6 +25,7 @@ describe("Config Module", () => {
     expect(cfg.server.port).toBe(5570);
     expect(cfg.server.isDev).toBe(true);
     expect(cfg.modules.fleet.ors.apiKey).toBe("valid-key");
+    expect(cfg.server.corsAllowedOrigins).toContain("http://localhost:3000");
   });
 
   it("should allow missing ORS Key in test environment", () => {
@@ -31,6 +33,7 @@ describe("Config Module", () => {
 
     const cfg = createConfig({ NODE_ENV: "test" });
     expect(cfg.modules.fleet.ors.apiKey).toBe("test-key");
+    expect(cfg.server.streamSigningSecret).toBe("test_stream_signing_secret_32_chars_long");
   });
 
   it("should throw if ORS Key is missing in production", () => {
@@ -57,6 +60,22 @@ describe("Config Module", () => {
     ).toThrow(/INTERNAL_AUTH_SECRET/);
   });
 
+  it("should enforce stream signing secret length in production", () => {
+    vi.mocked(getSecret).mockImplementation((key) => {
+      if (key === "OPEN_ROUTE_SERVICE_API_KEY") return "valid-long-api-key";
+      if (key === "INTERNAL_AUTH_SECRET")
+        return "valid_internal_secret_32_chars_long";
+      if (key === "FLEET_STREAM_SIGNING_SECRET") return "short";
+      return undefined;
+    });
+
+    expect(() =>
+      createConfig({
+        NODE_ENV: "production",
+      }),
+    ).toThrow(/FLEET_STREAM_SIGNING_SECRET/);
+  });
+
   it("should correctly transform boolean strings", () => {
     const cfg = createConfig({ ENABLE_FLEET_SIMULATOR: "true" });
     expect(cfg.modules.fleet.enableFleetSimulator).toBe(true);
@@ -68,7 +87,11 @@ describe("Config Module", () => {
   });
 
   it("should expose ORS transport tuning config", () => {
-    vi.mocked(getSecret).mockReturnValue("valid-key");
+    vi.mocked(getSecret).mockImplementation((key) => {
+      if (key === "OPEN_ROUTE_SERVICE_API_KEY") return "valid-key";
+      if (key === "FLEET_STREAM_SIGNING_SECRET") return "valid-stream-signing-secret-32chars";
+      return undefined;
+    });
 
     const cfg = createConfig({
       NODE_ENV: "development",
@@ -86,5 +109,23 @@ describe("Config Module", () => {
       batchMaxSize: 25,
       snapRadiusMeters: 200,
     });
+  });
+
+  it("should parse comma-separated cors origins", () => {
+    vi.mocked(getSecret).mockImplementation((key) => {
+      if (key === "OPEN_ROUTE_SERVICE_API_KEY") return "valid-key";
+      if (key === "FLEET_STREAM_SIGNING_SECRET") return "valid-stream-signing-secret-32chars";
+      return undefined;
+    });
+
+    const cfg = createConfig({
+      NODE_ENV: "development",
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000, https://fleet-dashboard-pied.vercel.app",
+    });
+
+    expect(cfg.server.corsAllowedOrigins).toEqual([
+      "http://localhost:3000",
+      "https://fleet-dashboard-pied.vercel.app",
+    ]);
   });
 });

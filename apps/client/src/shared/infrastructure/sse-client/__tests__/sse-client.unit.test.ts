@@ -49,15 +49,35 @@ describe("SseClient", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce(
+        Response.json({
+          token: "signed-stream-token",
+        }),
+      )
+      .mockResolvedValueOnce(
         createEventStreamResponse(["event: stats-update\n", 'data: {"vehicles":', "1}\n\n"]),
       ) as unknown as typeof fetch;
 
-    const client = new SseClient("/api/proxy/fleet/stream");
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream");
     client.subscribe<{ vehicles: number }>("stats-update", onData);
 
     await vi.waitFor(() => {
       expect(onData).toHaveBeenCalledWith({ vehicles: 1 });
     });
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      "/api/fleet/stream-token",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "http://fleet-api.test/api/v1/fleet/stream?token=signed-stream-token",
+      expect.objectContaining({
+        headers: { Accept: "text/event-stream" },
+      }),
+    );
   });
 
   it("treats an unexpected server disconnect as recoverable", async () => {
@@ -66,10 +86,15 @@ describe("SseClient", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce(
+        Response.json({
+          token: "signed-stream-token",
+        }),
+      )
+      .mockResolvedValueOnce(
         createEventStreamResponse(['event: heartbeat\ndata: "ok"\n\n']),
       ) as unknown as typeof fetch;
 
-    const client = new SseClient("/api/proxy/fleet/stream", onError);
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream", onError);
     client.subscribe("stats-update", vi.fn());
 
     await vi.waitFor(() => {
@@ -83,10 +108,15 @@ describe("SseClient", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce(
+        Response.json({
+          token: "signed-stream-token",
+        }),
+      )
+      .mockResolvedValueOnce(
         createEventStreamResponse(['event: stats-update\ndata: {"broken": }\n\n']),
       ) as unknown as typeof fetch;
 
-    const client = new SseClient("/api/proxy/fleet/stream");
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream");
     client.subscribe("stats-update", onData);
 
     await vi.waitFor(() => {
@@ -101,14 +131,14 @@ describe("SseClient", () => {
     expect(onData).not.toHaveBeenCalled();
   });
 
-  it("marks 401 responses as non-recoverable", async () => {
+  it("marks token endpoint 401 responses as non-recoverable", async () => {
     const onError = vi.fn();
 
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce(new Response(null, { status: 401 })) as unknown as typeof fetch;
 
-    const client = new SseClient("/api/proxy/fleet/stream", onError);
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream", onError);
     client.subscribe("stats-update", vi.fn());
 
     await vi.waitFor(() => {
@@ -116,14 +146,19 @@ describe("SseClient", () => {
     });
   });
 
-  it("treats network timeout failures as recoverable", async () => {
+  it("treats stream connection failures as recoverable", async () => {
     const onError = vi.fn();
 
     global.fetch = vi
       .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          token: "signed-stream-token",
+        }),
+      )
       .mockRejectedValueOnce(new Error("Network timeout")) as unknown as typeof fetch;
 
-    const client = new SseClient("/api/proxy/fleet/stream", onError);
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream", onError);
     client.subscribe("stats-update", vi.fn());
 
     await vi.waitFor(() => {
@@ -131,29 +166,58 @@ describe("SseClient", () => {
     });
   });
 
+  it("treats stream 401 responses as recoverable because the client will fetch a fresh token", async () => {
+    const onError = vi.fn();
+
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          token: "signed-stream-token",
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 401 })) as unknown as typeof fetch;
+
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream", onError);
+    client.subscribe("stats-update", vi.fn());
+
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledWith({ recoverable: true, status: 401 });
+    });
+  });
+
   it("disconnects cleanly without surfacing a recoverable error", async () => {
     const onError = vi.fn();
     let capturedSignal: AbortSignal | undefined;
 
-    global.fetch = vi.fn().mockImplementationOnce(async (_url, options) => {
-      capturedSignal = options?.signal;
-
-      return new Response(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            options?.signal?.addEventListener("abort", () => {
-              controller.error(new DOMException("Aborted", "AbortError"));
-            });
-          },
+    const mockedFetch = vi
+      .fn()
+      .mockImplementationOnce(async () =>
+        Response.json({
+          token: "signed-stream-token",
         }),
-        {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        },
-      );
-    }) as unknown as typeof fetch;
+      )
+      .mockImplementationOnce(async (_url, options) => {
+        capturedSignal = options?.signal;
 
-    const client = new SseClient("/api/proxy/fleet/stream", onError);
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              options?.signal?.addEventListener("abort", () => {
+                controller.error(new DOMException("Aborted", "AbortError"));
+              });
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        );
+      });
+
+    global.fetch = mockedFetch as unknown as typeof fetch;
+
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream", onError);
     client.subscribe("stats-update", vi.fn());
 
     await vi.waitFor(() => {
