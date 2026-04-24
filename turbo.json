@@ -31,6 +31,11 @@
       "outputs": [],
       "inputs": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.test.ts", "vitest.config.ts"]
     },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "inputs": ["tests/**/*.ts", "playwright.config.ts"],
+      "cache": true
+    },
     "clean": {
       "cache": false
     }
