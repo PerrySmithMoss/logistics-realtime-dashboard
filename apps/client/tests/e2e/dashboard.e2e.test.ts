@@ -80,7 +80,7 @@ test.describe("Fleet Dashboard", () => {
 
     await page.unroute("**/api/v1/fleet/stream?*");
 
-    await expect(indicator).not.toBeVisible({ timeout: 10000 });
+    await expect(indicator).toContainText("Live", { timeout: 10000 });
   });
 
   test("shows hard failure when server rejects connection", async ({ page }) => {

@@ -117,7 +117,7 @@ export class SseClient {
 
         if (!response.ok || !response.body) {
           throw new SseConnectionError(`SSE request failed with status ${response.status}`, {
-            recoverable: true,
+            recoverable: ![401, 403].includes(response.status),
             status: response.status,
           });
         }

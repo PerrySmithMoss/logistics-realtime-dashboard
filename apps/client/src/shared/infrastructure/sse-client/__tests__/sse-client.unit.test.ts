@@ -166,7 +166,7 @@ describe("SseClient", () => {
     });
   });
 
-  it("treats stream 401 responses as recoverable because the client will fetch a fresh token", async () => {
+  it("marks stream 401 responses as non-recoverable", async () => {
     const onError = vi.fn();
 
     global.fetch = vi
@@ -182,7 +182,27 @@ describe("SseClient", () => {
     client.subscribe("stats-update", vi.fn());
 
     await vi.waitFor(() => {
-      expect(onError).toHaveBeenCalledWith({ recoverable: true, status: 401 });
+      expect(onError).toHaveBeenCalledWith({ recoverable: false, status: 401 });
+    });
+  });
+
+  it("marks stream 403 responses as non-recoverable", async () => {
+    const onError = vi.fn();
+
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          token: "signed-stream-token",
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 403 })) as unknown as typeof fetch;
+
+    const client = new SseClient("http://fleet-api.test/api/v1/fleet/stream", onError);
+    client.subscribe("stats-update", vi.fn());
+
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledWith({ recoverable: false, status: 403 });
     });
   });
 
