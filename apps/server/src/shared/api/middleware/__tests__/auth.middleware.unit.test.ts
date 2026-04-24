@@ -92,7 +92,7 @@ describe("auth middleware", () => {
       const mockLogger = createMockLogger();
       const streamTokenService = {
         verify: vi.fn().mockResolvedValue(undefined),
-      } as never;
+      };
       const middleware = verifyStreamToken(mockLogger, streamTokenService);
       const next = vi.fn();
 

@@ -1,6 +1,6 @@
 import { UnauthorisedError } from "@shared/errors/app.errors";
+import { IStreamTokenService } from "@shared/interfaces";
 import { ILogger } from "@shared/interfaces/logger.interface";
-import { StreamTokenService } from "@shared/security/stream-token.service";
 import { RequestHandler } from "express";
 
 export const verifyServiceSecret = (
@@ -23,7 +23,7 @@ export const verifyServiceSecret = (
 
 export const verifyStreamToken = (
   logger: ILogger,
-  streamTokenService: StreamTokenService,
+  streamTokenService: IStreamTokenService,
 ): RequestHandler => {
   return async (req, _res, next) => {
     const rawToken = req.query.token;

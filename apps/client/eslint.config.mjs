@@ -3,9 +3,14 @@ import nextTs from "eslint-config-next/typescript";
 import prettierConfig from "eslint-config-prettier";
 import { defineConfig, globalIgnores } from "eslint/config";
 
+const tsFiles = ["**/*.{ts,tsx,mts,cts}"];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
-  ...nextTs,
+  ...nextTs.map((config) => ({
+    ...config,
+    files: tsFiles,
+  })),
   prettierConfig,
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);

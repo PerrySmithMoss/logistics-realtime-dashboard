@@ -11,6 +11,12 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      lint-staged:
+        specifier: ^16.4.0
+        version: 16.4.0
+      prettier:
+        specifier: ^3.8.3
+        version: 3.8.3
       turbo:
         specifier: ^2.9.6
         version: 2.9.6
@@ -81,15 +87,9 @@ importers:
       jsdom:
         specifier: ^29.0.2
         version: 29.0.2(@noble/hashes@1.8.0)
-      lint-staged:
-        specifier: ^16.4.0
-        version: 16.4.0
       msw:
         specifier: ^2.13.3
         version: 2.13.4(@types/node@20.19.39)(typescript@5.9.3)
-      prettier:
-        specifier: ^3.8.2
-        version: 3.8.3
       tailwindcss:
         specifier: ^4
         version: 4.2.2
@@ -140,17 +140,11 @@ importers:
         specifier: ^4.1.4
         version: 4.1.4(vitest@4.1.4)
       eslint:
-        specifier: ^10.2.0
+        specifier: ^10.2.1
         version: 10.2.1(jiti@2.6.1)
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@10.2.1(jiti@2.6.1))
-      lint-staged:
-        specifier: ^16.4.0
-        version: 16.4.0
-      prettier:
-        specifier: ^3.8.2
-        version: 3.8.3
       supertest:
         specifier: ^7.2.2
         version: 7.2.2
@@ -172,12 +166,30 @@ importers:
 
   packages/common:
     devDependencies:
+      '@eslint/js':
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@10.2.1(jiti@2.6.1))
       '@vitest/coverage-v8':
         specifier: ^4.1.4
         version: 4.1.4(vitest@4.1.4)
+      eslint:
+        specifier: ^10.2.1
+        version: 10.2.1(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^10.1.8
+        version: 10.1.8(eslint@10.2.1(jiti@2.6.1))
       tsdown:
         specifier: ^0.21.9
         version: 0.21.9(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.58.1
+        version: 8.58.2(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3)
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.4(@types/node@20.19.39)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2(@noble/hashes@1.8.0))(msw@2.13.4(@types/node@20.19.39)(typescript@5.9.3))(vite@8.0.8(@types/node@20.19.39)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
 
 packages:
 

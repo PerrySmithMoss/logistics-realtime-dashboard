@@ -15,6 +15,7 @@ export const createMockConfig = (overrides: DeepPartial<IAppConfig> = {}): IAppC
       isDev: true,
       isTest: true,
       minLogLevel: "DEBUG",
+      corsAllowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
       internalAuthSecret: "test-secret-at-least-32-chars-long-for-validity",
       streamSigningSecret: "test_stream_signing_secret_32_chars_long",
     },
@@ -56,6 +57,10 @@ export const createMockConfig = (overrides: DeepPartial<IAppConfig> = {}): IAppC
       fleet: {
         ...baseConfig.modules.fleet,
         ...overrides.modules?.fleet,
+        ors: {
+          ...baseConfig.modules.fleet.ors,
+          ...overrides.modules?.fleet?.ors,
+        },
         sse: {
           ...baseConfig.modules.fleet.sse,
           ...overrides.modules?.fleet?.sse,

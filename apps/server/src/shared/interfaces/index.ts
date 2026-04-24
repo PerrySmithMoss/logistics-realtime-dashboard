@@ -10,4 +10,5 @@ export * from "./lifecycle-manager.interface";
 export * from "./logger.interface";
 export * from "./query-bus.interface";
 export * from "./simulator.interface";
+export * from "./stream-token.interface";
 export * from "./vehicle-status-change-event.interface";

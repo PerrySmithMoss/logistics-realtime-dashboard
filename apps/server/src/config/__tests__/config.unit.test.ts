@@ -63,8 +63,7 @@ describe("Config Module", () => {
   it("should enforce stream signing secret length in production", () => {
     vi.mocked(getSecret).mockImplementation((key) => {
       if (key === "OPEN_ROUTE_SERVICE_API_KEY") return "valid-long-api-key";
-      if (key === "INTERNAL_AUTH_SECRET")
-        return "valid_internal_secret_32_chars_long";
+      if (key === "INTERNAL_AUTH_SECRET") return "valid_internal_secret_32_chars_long";
       if (key === "FLEET_STREAM_SIGNING_SECRET") return "short";
       return undefined;
     });
@@ -120,12 +119,9 @@ describe("Config Module", () => {
 
     const cfg = createConfig({
       NODE_ENV: "development",
-      CORS_ALLOWED_ORIGINS: "http://localhost:3000, https://fleet-dashboard-pied.vercel.app",
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000",
     });
 
-    expect(cfg.server.corsAllowedOrigins).toEqual([
-      "http://localhost:3000",
-      "https://fleet-dashboard-pied.vercel.app",
-    ]);
+    expect(cfg.server.corsAllowedOrigins).toEqual(["http://localhost:3000"]);
   });
 });

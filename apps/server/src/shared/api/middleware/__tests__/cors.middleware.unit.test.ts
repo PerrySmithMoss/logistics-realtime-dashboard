@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { corsMiddleware } from "../cors.middleware";
 
 describe("corsMiddleware", () => {
-  const allowedOrigins = ["http://localhost:3000", "https://fleet-dashboard-pied.vercel.app"];
+  const allowedOrigins = ["http://localhost:3000"];
 
   it("sets CORS headers for allowed origins", () => {
     const req = createMockRequest({
@@ -18,7 +18,10 @@ describe("corsMiddleware", () => {
 
     corsMiddleware(allowedOrigins)(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith("Access-Control-Allow-Origin", "http://localhost:3000");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Access-Control-Allow-Origin",
+      "http://localhost:3000",
+    );
     expect(res.setHeader).toHaveBeenCalledWith("Vary", "Origin");
     expect(next).toHaveBeenCalledWith();
   });

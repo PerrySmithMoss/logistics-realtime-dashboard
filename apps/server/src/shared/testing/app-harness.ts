@@ -94,6 +94,7 @@ export const createIntegrationConfig = (): IAppConfig => ({
     isDev: false,
     isTest: true,
     minLogLevel: "ERROR",
+    corsAllowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
     internalAuthSecret: TEST_INTERNAL_SECRET,
     streamSigningSecret: TEST_STREAM_SIGNING_SECRET,
   },
@@ -151,6 +152,10 @@ const mergeConfig = (base: IAppConfig, overrides: DeepPartial<IAppConfig> = {}):
     fleet: {
       ...base.modules.fleet,
       ...overrides.modules?.fleet,
+      ors: {
+        ...base.modules.fleet.ors,
+        ...overrides.modules?.fleet?.ors,
+      },
       sse: {
         ...base.modules.fleet.sse,
         ...overrides.modules?.fleet?.sse,
