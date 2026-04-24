@@ -51,7 +51,6 @@ export class FleetController extends BaseController implements IFleetController 
       this.observerService.removeObserver(connectionId);
       shutdownSignal.removeEventListener("abort", cleanup);
       req.removeListener("aborted", cleanup);
-      req.removeListener("close", cleanup);
       socket.removeListener("close", cleanup);
       socket.removeListener("error", cleanup);
 
@@ -62,7 +61,6 @@ export class FleetController extends BaseController implements IFleetController 
       cleanup();
     });
     req.once("aborted", cleanup);
-    req.once("close", cleanup);
     socket.once("close", cleanup);
     socket.once("error", cleanup);
 
