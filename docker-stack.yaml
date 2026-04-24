@@ -9,7 +9,7 @@ services:
       - NODE_ENV=production
       - HOST=0.0.0.0
       - PORT=5570
-      - MIN_LOG_LEVEL=INFO
+      - MIN_LOG_LEVEL=ERROR
       - CORS_ALLOWED_ORIGINS=https://fleet-dashboard-pied.vercel.app,https://fleet-dashboard-jedxcjyxa-perrysmithmoss-projects.vercel.app/
       - INTERNAL_AUTH_SECRET=/run/secrets/fleet_internal_auth_secret
       - FLEET_STREAM_SIGNING_SECRET=/run/secrets/fleet_stream_signing_secret

@@ -5,10 +5,54 @@ interface FleetMapOverlayProps {
   sseStatus: SseConnectionStatus;
   delayedVehicles: FleetVehicle[];
   onVehicleClick: (v: FleetVehicle) => void;
+  variant?: "floating" | "panel";
 }
 
 export const FleetMapOverlay = memo(
-  ({ sseStatus, delayedVehicles, onVehicleClick }: FleetMapOverlayProps) => {
+  ({
+    sseStatus,
+    delayedVehicles,
+    onVehicleClick,
+    variant = "floating",
+  }: FleetMapOverlayProps) => {
+    if (variant === "panel") {
+      return (
+        <section className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur-md">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                Live Fleet Status
+              </h4>
+              <div className="mt-3 flex items-center gap-4">
+                <LegendItem color="#10b981" label="Active" />
+                <LegendItem color="#ef4444" label="Delayed" />
+              </div>
+            </div>
+            <ConnectionIndicator status={sseStatus} />
+          </div>
+
+          {delayedVehicles.length > 0 && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                Delayed Vehicles
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {delayedVehicles.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => onVehicleClick(v)}
+                    className="cursor-pointer shrink-0 rounded-xl border border-red-100 bg-white px-3 py-2 text-xs font-bold text-red-600 shadow-sm transition-all hover:bg-red-50 active:scale-95"
+                  >
+                    {v.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      );
+    }
+
     return (
       <>
         <div className="absolute top-6 right-6 z-20">
@@ -44,7 +88,18 @@ export const FleetMapOverlay = memo(
 );
 
 const ConnectionIndicator = ({ status }: { status: SseConnectionStatus }) => {
-  if (status === "connected") return null;
+  if (status === "connected") {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white/95 px-3 py-2 text-[11px] font-semibold text-emerald-700 shadow-sm backdrop-blur-sm"
+      >
+        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        Live
+      </div>
+    );
+  }
 
   const isConnecting = status === "connecting";
 

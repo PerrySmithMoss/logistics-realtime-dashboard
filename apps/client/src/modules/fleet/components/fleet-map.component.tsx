@@ -70,6 +70,8 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
+    const isCompactViewport = window.matchMedia("(max-width: 767px)").matches;
+
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: "https://tiles.openfreemap.org/styles/positron",
@@ -97,7 +99,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
         source: "vehicles",
         layout: {
           "icon-image": ["match", ["get", "status"], "delayed", "marker-delayed", "marker-active"],
-          "icon-size": 0.35,
+          "icon-size": isCompactViewport ? 0.44 : 0.35,
           "icon-allow-overlap": true,
           "icon-anchor": "bottom",
         },

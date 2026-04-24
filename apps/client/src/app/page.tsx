@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function HomePage() {
   const fleetSnapshotPromise = fleetService.getSnapshot();
   return (
-    <main className="h-screen bg-slate-50">
+    <main className="h-dvh bg-slate-50">
       <Suspense fallback={<FleetStatsSkeleton />}>
         <FleetDashboard initialDataPromise={fleetSnapshotPromise} />
       </Suspense>

@@ -12,6 +12,7 @@ import { FleetVehicle } from "../types";
 interface FleetMapSearchProps {
   onSearch: (vehicleId: string) => void;
   vehicles: Pick<FleetVehicle, "id" | "status">[];
+  className?: string;
 }
 
 const StatusBadge = ({ status }: { status: string }) => (
@@ -22,7 +23,11 @@ const StatusBadge = ({ status }: { status: string }) => (
   </span>
 );
 
-export const FleetMapSearch = ({ onSearch, vehicles }: FleetMapSearchProps) => {
+export const FleetMapSearch = ({
+  onSearch,
+  vehicles,
+  className = "absolute top-6 left-6 z-20 w-72",
+}: FleetMapSearchProps) => {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -98,7 +103,7 @@ export const FleetMapSearch = ({ onSearch, vehicles }: FleetMapSearchProps) => {
     isOpen && (debouncedQuery.length > 0 || (query.length === 0 && vehicles.length > 0));
 
   return (
-    <div className="absolute top-6 left-6 z-20 w-72">
+    <div className={className}>
       <form onSubmit={(e) => e.preventDefault()} className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-30 text-slate-400">
           <SearchIcon />

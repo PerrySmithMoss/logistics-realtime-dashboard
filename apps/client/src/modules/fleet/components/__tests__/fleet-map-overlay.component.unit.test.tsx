@@ -21,6 +21,12 @@ describe("FleetMapOverlay", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Reconnecting...");
   });
 
+  it("shows the live indicator when the stream is connected", () => {
+    render(<FleetMapOverlay sseStatus="connected" delayedVehicles={[]} onVehicleClick={vi.fn()} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Live");
+  });
+
   it("shows the connection lost indicator when the stream errors", () => {
     render(<FleetMapOverlay sseStatus="error" delayedVehicles={[]} onVehicleClick={vi.fn()} />);
 
@@ -40,7 +46,21 @@ describe("FleetMapOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /vhc-202/i }));
 
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Live");
     expect(onVehicleClick).toHaveBeenCalledWith(delayedVehicle);
+  });
+
+  it("renders a stacked panel variant for mobile controls", () => {
+    render(
+      <FleetMapOverlay
+        sseStatus="connected"
+        delayedVehicles={[delayedVehicle]}
+        onVehicleClick={vi.fn()}
+        variant="panel"
+      />,
+    );
+
+    expect(screen.getByText("Delayed Vehicles")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /vhc-202/i })).toBeInTheDocument();
   });
 });
