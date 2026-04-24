@@ -1,6 +1,6 @@
+import { IAppConfig } from "@config/index";
 import { ErrorCode } from "@fleet/common/errors";
 import { type ApiResponseContext, type ApiResponseOptions } from "@fleet/common/types";
-import { IAppConfig } from "@config/index";
 import { AppError } from "@shared/errors/app.errors";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { createErrorResponse } from "@shared/utils/response.utils";
@@ -14,23 +14,24 @@ export const createErrorHandler = (logger: ILogger, config: IAppConfig): ErrorRe
   };
 
   return (err, req, res, _next) => {
+    const isAppError = err instanceof AppError;
     const error = err instanceof Error ? err : new Error(String(err));
-    const isAppError = error instanceof AppError;
 
-    const statusCode = isAppError ? error.statusCode : 500;
-    const code = isAppError ? error.code : ErrorCode.InternalServerError;
-    const message = isAppError ? error.message : "Internal Server Error";
+    const statusCode = isAppError ? err.statusCode : 500;
+    const code = isAppError ? err.code : ErrorCode.InternalServerError;
+    const message = isAppError ? err.message : "Internal Server Error";
+    const details = isAppError ? err.details : undefined;
+    const retryAfter = isAppError ? err.retryAfterSeconds : undefined;
 
-    const details = isAppError ? error.details : undefined;
-    const retryAfter = isAppError ? error.retryAfterSeconds : undefined;
+    const logLevel = !isAppError ? "critical" : statusCode >= 500 ? "error" : "warn";
 
-    const logLevel = !isAppError || statusCode >= 500 ? "error" : "warn";
+    const shouldLogStack = config.server.isDev || logLevel === "error" || logLevel === "critical";
 
     logger[logLevel](`[${code}] ${req.method} ${req.path}`, {
-      requestId: req.id,
+      requestId: req.id ?? req.headers["x-request-id"],
       message: error.message,
       code,
-      stack: error.stack,
+      stack: shouldLogStack ? error.stack : undefined,
       details,
     });
 
@@ -39,19 +40,19 @@ export const createErrorHandler = (logger: ILogger, config: IAppConfig): ErrorRe
     }
 
     const context: ApiResponseContext = {
-      requestId: req.id,
+      requestId: req.id ?? String(req.headers["x-request-id"] ?? "unknown"),
       path: req.path,
       retryAfter,
     };
 
-    return res.status(statusCode).json(
+    res.status(statusCode).json(
       createErrorResponse(
         {
           message,
           code,
           statusCode,
           details,
-          stack: error.stack,
+          stack: config.server.isDev ? error.stack : undefined,
         },
         context,
         options,
