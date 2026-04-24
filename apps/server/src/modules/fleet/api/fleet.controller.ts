@@ -5,6 +5,7 @@ import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { IFleetDataService } from "../core/interfaces/fleet-data-service.interface";
 import { IFleetObserverService } from "../core/interfaces/fleet-observer-service.interface";
+import { FleetSessionResetService } from "../core/services/fleet-session-reset.service";
 import { IFleetController } from "./interfaces/fleet-controller.interface";
 
 export class FleetController extends BaseController implements IFleetController {
@@ -12,6 +13,7 @@ export class FleetController extends BaseController implements IFleetController 
     readonly config: IAppConfig,
     private readonly observerService: IFleetObserverService,
     private readonly dataService: IFleetDataService,
+    private readonly resetService: FleetSessionResetService,
     private readonly lifecycle: ILifecycleManager,
     private readonly heartbeatIntervalMs: number,
   ) {
@@ -63,6 +65,8 @@ export class FleetController extends BaseController implements IFleetController 
     req.once("close", cleanup);
     socket.once("close", cleanup);
     socket.once("error", cleanup);
+
+    await this.resetService.waitForIdle();
 
     const initialSnapshot = await this.dataService.getCurrentSnapshot();
 

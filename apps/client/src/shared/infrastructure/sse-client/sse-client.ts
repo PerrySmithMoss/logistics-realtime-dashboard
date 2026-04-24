@@ -93,7 +93,9 @@ export class SseClient {
           );
         }
 
-        const tokenPayload = (await tokenResponse.json().catch(() => null)) as { token?: string } | null;
+        const tokenPayload = (await tokenResponse.json().catch(() => null)) as {
+          token?: string;
+        } | null;
         const token = tokenPayload?.token;
 
         if (!token) {
@@ -180,7 +182,7 @@ export class SseClient {
     };
 
     this.listeners.set(eventName, handler);
-    void this.connect();
+    this.connect();
   }
 
   public disconnect(): void {

@@ -53,6 +53,12 @@ export class FleetSimulator implements ISimulator {
     }
   }
 
+  public reset(): void {
+    this.stop();
+    this.vehicleStates.clear();
+    this.lastHeartbeat = 0;
+  }
+
   private async tick() {
     if (this.lifecycle.isShuttingDown) {
       this.stop();

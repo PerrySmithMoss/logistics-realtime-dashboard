@@ -30,6 +30,7 @@ export const createMockFleetDataService = (
 
   const mock = {
     hydrate: vi.fn().mockResolvedValue(undefined),
+    reset: vi.fn().mockResolvedValue(undefined),
     processVehicleMovement: vi.fn().mockResolvedValue(undefined),
     getCurrentSnapshot: vi.fn().mockResolvedValue(
       createFleetSnapshot({
@@ -71,6 +72,7 @@ export const createMockFleetSimulator = (
 ): Mocked<ISimulator> => ({
   heartbeat: vi.fn(),
   stop: vi.fn(),
+  reset: vi.fn(),
   start: vi.fn(),
   initialise: vi.fn(),
   ...overrides,

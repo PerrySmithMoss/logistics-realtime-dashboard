@@ -57,6 +57,9 @@ export const createMockCache = (): MockCache => {
       });
       return value;
     }),
+    reset: vi.fn(async () => {
+      store.clear();
+    }),
   } as unknown as MockCache;
 
   cache.seed = (key: string, value: unknown, ttlMs = 60_000) => {

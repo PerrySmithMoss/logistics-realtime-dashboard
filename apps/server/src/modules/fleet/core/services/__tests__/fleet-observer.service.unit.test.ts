@@ -6,6 +6,7 @@ import {
   createMockSseResponse,
 } from "@shared/testing/test-utils";
 import { FleetStatsUpdatedEvent } from "../../events/fleet-events";
+import { FleetSessionResetService } from "../fleet-session-reset.service";
 import { FleetObserverService } from "../fleet-observer.service";
 
 describe("FleetObserverService", () => {
@@ -14,10 +15,14 @@ describe("FleetObserverService", () => {
     const logger = createMockLogger();
     const reactor = createMockFleetReactor();
     const simulator = createMockFleetSimulator();
+    const resetService = {
+      scheduleReset: vi.fn().mockResolvedValue(undefined),
+      waitForIdle: vi.fn().mockResolvedValue(undefined),
+    } as unknown as FleetSessionResetService;
 
-    const service = new FleetObserverService(broker, logger);
+    const service = new FleetObserverService(broker, logger, resetService);
 
-    return { broker, logger, reactor, simulator, service };
+    return { broker, logger, reactor, simulator, resetService, service };
   };
 
   it("rejects observer registration until live components are wired", () => {
@@ -33,7 +38,7 @@ describe("FleetObserverService", () => {
   });
 
   it("activates the pipeline for the first observer and deactivates it when the last observer leaves", () => {
-    const { service, broker, reactor, simulator } = setup();
+    const { service, broker, reactor, simulator, resetService } = setup();
     service.setLiveComponents(reactor, simulator);
 
     service.addObserver("obs-1", createMockSseResponse(), vi.fn());
@@ -53,6 +58,7 @@ describe("FleetObserverService", () => {
       expect.any(Function),
     );
     expect(simulator.stop).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(resetService.scheduleReset)).toHaveBeenCalledTimes(1);
   });
 
   it("heartbeats the simulator only while observers are connected", () => {
@@ -69,7 +75,7 @@ describe("FleetObserverService", () => {
   });
 
   it("removes stale observers during broadcast and shuts the pipeline down if none remain", () => {
-    const { service, broker, reactor, simulator, logger } = setup();
+    const { service, broker, reactor, simulator, logger, resetService } = setup();
     service.setLiveComponents(reactor, simulator);
 
     const staleRes = createMockSseResponse();
@@ -97,6 +103,7 @@ describe("FleetObserverService", () => {
     );
     expect(reactor.stop).toHaveBeenCalledTimes(1);
     expect(simulator.stop).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(resetService.scheduleReset)).toHaveBeenCalledTimes(1);
   });
 
   it("drops observers whose callbacks throw and logs the failure", () => {

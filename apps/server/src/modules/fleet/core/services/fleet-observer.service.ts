@@ -5,6 +5,7 @@ import { ILogger } from "@shared/interfaces/logger.interface";
 import { Response } from "express";
 import { FleetStatsUpdatedEvent } from "../events/fleet-events";
 import { IFleetObserverService } from "../interfaces/fleet-observer-service.interface";
+import { FleetSessionResetService } from "./fleet-session-reset.service";
 
 interface Observer {
   res: Response;
@@ -19,6 +20,7 @@ export class FleetObserverService implements IFleetObserverService {
   constructor(
     private readonly eventBroker: IEventBroker,
     private readonly logger: ILogger,
+    private readonly resetService?: FleetSessionResetService,
   ) {}
 
   public setLiveComponents(reactor: IBroadcastScheduler, simulator?: ISimulator): void {
@@ -101,6 +103,9 @@ export class FleetObserverService implements IFleetObserverService {
     this.reactor?.stop();
     this.eventBroker.unsubscribe(FleetStatsUpdatedEvent.type, this.broadcastToObservers);
     this.simulator?.stop();
+    this.resetService?.scheduleReset().catch((err) => {
+      this.logger.error("[FleetObserverService] Failed to reset fleet session state:", err);
+    });
   }
 
   private isObserverStale(res: Response): boolean {

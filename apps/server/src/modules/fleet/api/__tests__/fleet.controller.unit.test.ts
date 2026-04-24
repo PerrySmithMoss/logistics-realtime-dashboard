@@ -8,6 +8,7 @@ import {
 import { createMockConfig } from "@shared/testing/test-utils/config.utils";
 import { createMockRequest } from "@shared/testing/test-utils/request.utils";
 import { createVehicleSnapshot } from "@shared/testing/test-utils/vehicle.utils";
+import { FleetSessionResetService } from "../../core/services/fleet-session-reset.service";
 import { FleetController } from "../fleet.controller";
 
 vi.mock("node:crypto", () => ({
@@ -31,6 +32,11 @@ describe("FleetController", () => {
 
     const observerService = createMockFleetObserverService();
     const dataService = createMockFleetDataService();
+    const resetService = {
+      scheduleReset: vi.fn().mockResolvedValue(undefined),
+      waitForIdle: vi.fn().mockResolvedValue(undefined),
+      setSimulator: vi.fn(),
+    } as unknown as FleetSessionResetService;
     const lifecycle = createMockLifecycleManager();
 
     if (ready) lifecycle.setReady();
@@ -42,11 +48,12 @@ describe("FleetController", () => {
       createMockConfig(),
       observerService,
       dataService,
+      resetService,
       lifecycle,
       15_000,
     );
 
-    return { observerService, dataService, lifecycle, req, res, controller };
+    return { observerService, dataService, resetService, lifecycle, req, res, controller };
   };
 
   afterEach(() => {
@@ -71,7 +78,7 @@ describe("FleetController", () => {
   });
 
   it("opens an SSE stream, sends the initial snapshot, and heartbeats observers while writable", async () => {
-    const { controller, dataService, observerService, req, res } = setup();
+    const { controller, dataService, observerService, resetService, req, res } = setup();
 
     const expectedSnapshot = createSnapshot();
     dataService.getCurrentSnapshot.mockResolvedValue(expectedSnapshot);
@@ -87,6 +94,7 @@ describe("FleetController", () => {
     );
 
     expect(dataService.getCurrentSnapshot).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(resetService.waitForIdle)).toHaveBeenCalledTimes(1);
 
     expect(res.write).toHaveBeenCalledWith(
       `event: stats-update\ndata: ${JSON.stringify(expectedSnapshot)}\n\n`,
@@ -135,6 +143,28 @@ describe("FleetController", () => {
 
     expect(res.writeHead).not.toHaveBeenCalled();
     expect(observerService.addObserver).not.toHaveBeenCalled();
+  });
+
+  it("waits for an in-flight fleet reset before opening the stream", async () => {
+    const { controller, dataService, resetService, req, res } = setup();
+
+    let releaseReset: () => void = () => {};
+    vi.mocked(resetService.waitForIdle).mockReturnValue(
+      new Promise<void>((resolve) => {
+        releaseReset = resolve;
+      }),
+    );
+
+    const streamPromise = controller.stream(req, res);
+    await Promise.resolve();
+
+    expect(dataService.getCurrentSnapshot).not.toHaveBeenCalled();
+
+    releaseReset();
+    await streamPromise;
+
+    expect(dataService.getCurrentSnapshot).toHaveBeenCalledTimes(1);
+    expect(res.writeHead).toHaveBeenCalledTimes(1);
   });
 
   it("cleans up observers and closes the response when the shutdown signal aborts", async () => {

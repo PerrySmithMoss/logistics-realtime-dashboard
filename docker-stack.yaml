@@ -10,7 +10,7 @@ services:
       - HOST=0.0.0.0
       - PORT=5570
       - MIN_LOG_LEVEL=INFO
-      - CORS_ALLOWED_ORIGINS=https://fleet-dashboard-pied.vercel.app
+      - CORS_ALLOWED_ORIGINS=https://fleet-dashboard-pied.vercel.app,https://fleet-dashboard-jedxcjyxa-perrysmithmoss-projects.vercel.app/
       - INTERNAL_AUTH_SECRET=/run/secrets/fleet_internal_auth_secret
       - FLEET_STREAM_SIGNING_SECRET=/run/secrets/fleet_stream_signing_secret
       - OPEN_ROUTE_SERVICE_API_KEY=/run/secrets/fleet_open_route_service_api_key

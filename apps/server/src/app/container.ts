@@ -158,6 +158,8 @@ export class AppContainer implements IAppContainer {
       eventBroker,
       fleetLogger,
       geoSnappingService,
+      database,
+      cache,
     );
 
     lifecycle.setReady();

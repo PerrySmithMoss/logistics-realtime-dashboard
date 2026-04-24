@@ -7,6 +7,8 @@ import { IGeoSnappingService } from "@shared/interfaces/geo-snapping-service.int
 import { ILifecycleManager } from "@shared/interfaces/lifecycle-manager.interface";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { IQueryBus } from "@shared/interfaces/query-bus.interface";
+import { ICache } from "@shared/interfaces/cache.interface";
+import { IDatabase } from "@shared/interfaces/database.interface";
 import { FleetController } from "./api/fleet.controller";
 import { IFleetController } from "./api/interfaces/fleet-controller.interface";
 import { FleetEventReactor } from "./core/events/fleet-event-reactor";
@@ -14,6 +16,7 @@ import { IFleetDataService } from "./core/interfaces/fleet-data-service.interfac
 import { FleetStatsProjection } from "./core/projections/fleet-stats.projection";
 import { FleetDataService } from "./core/services/fleet-data.service";
 import { FleetObserverService } from "./core/services/fleet-observer.service";
+import { FleetSessionResetService } from "./core/services/fleet-session-reset.service";
 import { FleetEventSubscriber } from "./infrastructure/fleet-event-subscriber";
 import { FleetSimulator } from "./infrastructure/fleet-simulator";
 
@@ -32,6 +35,8 @@ export class FleetModule {
     eventBroker: IEventBroker,
     logger: ILogger,
     snappingService: IGeoSnappingService,
+    database: IDatabase,
+    cache: ICache,
   ): Promise<FleetModuleResult> {
     const {
       batchIntervalMs,
@@ -55,7 +60,9 @@ export class FleetModule {
       },
     );
 
-    const observerService = new FleetObserverService(eventBroker, logger);
+    let simulator: FleetSimulator | undefined;
+    const resetService = new FleetSessionResetService(database, cache, dataService, logger);
+    const observerService = new FleetObserverService(eventBroker, logger, resetService);
     const reactor = new FleetEventReactor(dataService, eventBroker, logger);
     const subscriber = new FleetEventSubscriber(
       eventBroker,
@@ -70,13 +77,12 @@ export class FleetModule {
 
     subscriber.subscribe();
 
-    let simulator: FleetSimulator | undefined;
-
     if (enableFleetSimulator) {
       simulator = new FleetSimulator(commandBus, logger, lifecycle, {
         tickInterval: simulatorTickInterval,
         watchdogTimeout: watchdogTimeout,
       });
+      resetService.setSimulator(simulator);
       simulator.initialise(mockVehicles.map((v) => v.id));
 
       observerService.setLiveComponents(reactor, simulator);
@@ -94,6 +100,7 @@ export class FleetModule {
         config,
         observerService,
         dataService,
+        resetService,
         lifecycle,
         config.modules.fleet.sse.heartbeatIntervalMs,
       ),
