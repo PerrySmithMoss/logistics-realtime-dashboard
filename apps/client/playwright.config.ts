@@ -1,8 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 import { config as loadEnv } from "dotenv";
+import fs from "node:fs";
 import path from "node:path";
 
-loadEnv({ path: path.resolve(__dirname, ".env.test") });
+const envPath = path.resolve(__dirname, ".env.test");
+
+if (fs.existsSync(envPath)) {
+  loadEnv({ path: envPath });
+}
 
 const testEnv = {
   ...process.env,
@@ -41,11 +46,14 @@ export default defineConfig({
       env: testEnv,
     },
     {
-      command: "pnpm run dev -- --hostname 127.0.0.1 --port 3000",
+      command: "pnpm run dev",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: testEnv,
+      env: {
+        ...testEnv,
+        PORT: "3000",
+      },
     },
   ],
 });
