@@ -67,7 +67,7 @@ jobs:
         run: npx playwright install-deps
 
       - name: Run E2E
-        run: pnpm turbo run test:e2
+        run: pnpm turbo run test:e2e
 
   build-and-push-image:
     if: |
