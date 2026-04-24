@@ -34,8 +34,8 @@ export class FleetController extends BaseController implements IFleetController 
     const shutdownSignal = this.lifecycle.getShutdownSignal();
     let heartbeatTimer: NodeJS.Timeout | null = null;
     let cleaned = false;
-    const socket = req.socket;
 
+    const socket = req.socket;
     const isConnectionClosed = () =>
       cleaned || req.destroyed || res.destroyed || res.writableEnded || socket.destroyed;
 
@@ -50,22 +50,17 @@ export class FleetController extends BaseController implements IFleetController 
 
       this.observerService.removeObserver(connectionId);
       shutdownSignal.removeEventListener("abort", cleanup);
-      req.removeListener("aborted", cleanup);
       socket.removeListener("close", cleanup);
       socket.removeListener("error", cleanup);
 
       if (!res.writableEnded) res.end();
     };
 
-    res.once("close", () => {
-      cleanup();
-    });
-    req.once("aborted", cleanup);
+    res.once("close", cleanup);
     socket.once("close", cleanup);
     socket.once("error", cleanup);
 
     await this.resetService.waitForIdle();
-
     const initialSnapshot = await this.dataService.getCurrentSnapshot();
 
     // exit early if the user disconnected while we are getting the snapshot
@@ -98,6 +93,7 @@ export class FleetController extends BaseController implements IFleetController 
 
     const pulse = () => {
       if (isConnectionClosed()) return cleanup();
+
       try {
         const canWrite = res.write(":\n\n");
         if (!canWrite) return cleanup();

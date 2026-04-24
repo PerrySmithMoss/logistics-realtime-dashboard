@@ -204,12 +204,12 @@ describe("FleetController", () => {
     expect(res.writableEnded).toBe(true);
   });
 
-  it("cleans up resources when the request is aborted", async () => {
+  it("cleans up resources when the client disconnects", async () => {
     const { controller, observerService, req, res } = setup();
 
     await controller.stream(req, res);
 
-    req.emit("aborted");
+    res.emit("close");
 
     expect(observerService.removeObserver).toHaveBeenCalledWith("connection-123");
     expect(res.end).toHaveBeenCalledTimes(1);
