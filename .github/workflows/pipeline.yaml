@@ -75,7 +75,7 @@ jobs:
         run: pnpm --filter client exec playwright install-deps
 
       - name: Run E2E
-        run: pnpm turbo run test:e2e
+        run: pnpm turbo run test:e2e --filter=client
 
   build-and-push-image:
     if: |
