@@ -42,3 +42,12 @@ This is a monorepo-style project divided into two main concerns:
 2. Setup server: go to the `/apps/server` directory, follow the `/apps/server` [README.md](https://github.com/PerrySmithMoss/logistics-realtime-dashboard/blob/main/apps/server/README.md) file to set up your `.env` file and `OPEN_ROUTE_SERVICE_API_KEY` API key.
 3. Setup client: go to the `/apps/client` directory, follow the `/apps/client` [README.md](https://github.com/PerrySmithMoss/logistics-realtime-dashboard/blob/main/apps/client/README.md) file to install dependencies.
 4. Run: start the server first, then the client.
+
+### VPS API releases
+
+The API workflow deploys an immutable image through its own restricted SSH
+account and the `VPS Production` environment. It cannot apply the Docker stack
+from this repository. An administrator owns the existing Swarm service
+configuration. See the
+[portfolio release runbook](https://github.com/PerrySmithMoss/perry-infra/blob/main/deploy/portfolio/README.md)
+for installation, production checks and rollback by digest and revision.

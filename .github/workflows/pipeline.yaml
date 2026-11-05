@@ -1,11 +1,42 @@
 name: Monorepo Pipeline
 
 on:
+  workflow_dispatch:
+    inputs:
+      rollback_digest:
+        description: Previously verified sha256 digest (leave both fields blank for a fresh build)
+        type: string
+      rollback_revision:
+        description: Commit SHA associated with the rollback digest
+        type: string
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: fleet-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  validate-rollback-inputs:
+    if: github.event_name == 'workflow_dispatch' && (inputs.rollback_digest != '' || inputs.rollback_revision != '')
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require a valid digest and revision together
+        shell: bash
+        env:
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+          ROLLBACK_REVISION: ${{ inputs.rollback_revision }}
+        run: |
+          if [[ ! "$ROLLBACK_DIGEST" =~ ^sha256:[a-f0-9]{64}$ || ! "$ROLLBACK_REVISION" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::Provide both a sha256 digest and its 40-character commit SHA."
+            exit 1
+          fi
+
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -23,6 +54,13 @@ jobs:
               - 'packages/**'
               - 'docker-stack.yaml'
               - '.github/workflows/**'
+
+  build-api-image:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build --platform linux/amd64 --target runner -f apps/server/Dockerfile .
 
   validate:
     runs-on: ubuntu-latest
@@ -78,9 +116,12 @@ jobs:
         run: pnpm turbo run test:e2e --filter=client
 
   build-and-push-image:
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     if: |
-      github.ref == 'refs/heads/main' && 
-      needs.changes.outputs.server == 'true'
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      inputs.rollback_digest == '' && inputs.rollback_revision == '' &&
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.server == 'true')
     needs: [e2e, changes]
     runs-on: ubuntu-latest
     permissions:
@@ -105,11 +146,13 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./apps/server/Dockerfile
           target: runner
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -126,22 +169,52 @@ jobs:
             Image: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
   deploy:
-    needs: [build-and-push-image]
+    needs: [build-and-push-image, validate-rollback-inputs]
+    if: |
+      !cancelled() && github.ref == 'refs/heads/main' &&
+      (needs.build-and-push-image.result == 'success' ||
+       (needs.build-and-push-image.result == 'skipped' && needs.validate-rollback-inputs.result == 'success'))
+    environment: VPS Production
     runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions: {}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Create env file
+      - name: Release verified image through restricted SSH
+        shell: bash
+        env:
+          RELEASE_DIGEST: ${{ inputs.rollback_digest || needs.build-and-push-image.outputs.digest }}
+          RELEASE_REVISION: ${{ inputs.rollback_revision || github.sha }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_KNOWN_HOSTS: ${{ vars.VPS_KNOWN_HOSTS }}
+          APP_RELEASE_KEY: ${{ secrets.APP_RELEASE_KEY }}
         run: |
-          echo "GIT_COMMIT_HASH=${{ github.sha }}" >> .env
+          set -euo pipefail
+          [[ "$RELEASE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$RELEASE_REVISION" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ -n "$VPS_KNOWN_HOSTS" && -n "$APP_RELEASE_KEY" ]]
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          printf '%s\n' "$APP_RELEASE_KEY" > "$ssh_dir/key"
+          unset APP_RELEASE_KEY
+          ssh -F /dev/null -nT -i "$ssh_dir/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null "fleet-release@$VPS_HOST" \
+            "release $RELEASE_DIGEST $RELEASE_REVISION"
 
-      - name: Docker Stack Deploy
-        uses: cssnr/stack-deploy-action@v1
-        with:
-          name: fleet
-          file: docker-stack.yaml
-          host: ${{ secrets.VPS_IP }}
-          user: deploy
-          ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          env_file: .env
+      - name: Verify application endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..6}; do
+            if (
+              curl --fail --silent --show-error --max-time 10 --output /dev/null https://fleet-api.perrysmithmoss.com/health/ready
+            ); then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
