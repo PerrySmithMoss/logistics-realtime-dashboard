@@ -10,22 +10,22 @@
   },
   "exports": {
     ".": {
-      "types": "./src/index.d.mts",
+      "types": "./dist/index.d.mts",
       "development": "./src/index.ts",
       "default": "./dist/index.mjs"
     },
     "./errors": {
-      "types": "./src/errors/index.d.mts",
+      "types": "./dist/errors/index.d.mts",
       "development": "./src/errors/index.ts",
       "default": "./dist/errors/index.mjs"
     },
     "./types": {
-      "types": "./src/types/index.d.mts",
+      "types": "./dist/types/index.d.mts",
       "development": "./src/types/index.ts",
       "default": "./dist/types/index.mjs"
     },
     "./utils": {
-      "types": "./src/utils/index.d.mts",
+      "types": "./dist/utils/index.d.mts",
       "development": "./src/utils/index.ts",
       "default": "./dist/utils/index.mjs"
     }
