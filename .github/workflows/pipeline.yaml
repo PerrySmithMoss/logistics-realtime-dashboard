@@ -60,7 +60,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: docker build --platform linux/amd64 --target runner -f apps/server/Dockerfile .
+      - run: docker build --platform linux/amd64 --target runner -t fleet-api-test -f apps/server/Dockerfile .
+      - name: Verify the runtime starts without build tools
+        run: |
+          container=$(docker run -d -e NODE_ENV=test -e HOST=0.0.0.0 fleet-api-test)
+          trap 'docker rm -f "$container" >/dev/null' EXIT
+          docker exec "$container" sh -c '! command -v npm && ! command -v pnpm'
+          for attempt in $(seq 1 25); do
+            if docker exec "$container" node -e 'fetch("http://127.0.0.1:5570/health/ready").then(r => { if (!r.ok) process.exitCode = 1; }).catch(() => { process.exitCode = 1; });'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs "$container" >&2
+          exit 1
 
   validate:
     runs-on: ubuntu-latest
@@ -158,6 +171,26 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Scan the exact release image
+        env:
+          RELEASE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -eu
+          image="ghcr.io/perrysmithmoss/logistics-realtime-dashboard@$RELEASE_DIGEST"
+          scanner=aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+          docker pull "$image"
+          docker save -o "$RUNNER_TEMP/release.tar" "$image"
+          mkdir -p "$RUNNER_TEMP/image-scan"
+          docker run --rm -v trivy-cache:/root/.cache/trivy -v "$RUNNER_TEMP/release.tar:/image.tar:ro" -v "$RUNNER_TEMP/image-scan:/reports" "$scanner" image --input /image.tar --scanners vuln --format json --output /reports/api.json
+          docker run --rm -v trivy-cache:/root/.cache/trivy -v "$RUNNER_TEMP/release.tar:/image.tar:ro" "$scanner" image --input /image.tar --scanners vuln --ignore-unfixed --severity CRITICAL --exit-code 1
+
+      - name: Upload full release scan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: api-image-vulnerabilities
+          path: ${{ runner.temp }}/image-scan
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
