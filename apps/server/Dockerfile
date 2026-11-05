@@ -1,9 +1,10 @@
-FROM node:24.14-slim AS base
+ARG NODE_IMAGE=node:24.22.2-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d
+FROM ${NODE_IMAGE} AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN npm install -g pnpm@10.33.0
+RUN npm install -g pnpm@10.34.9
 
 FROM base AS development
 
@@ -35,7 +36,12 @@ COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=server
 RUN pnpm deploy --filter server --prod --legacy /prod/server
 
-FROM base AS runner
+FROM ${NODE_IMAGE} AS runner
+# Run the built server without the package installers used by the build.
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg
+
 WORKDIR /app
 
 ENV NODE_ENV=production

@@ -19,6 +19,7 @@
       "persistent": true
     },
     "type-check": {
+      "dependsOn": ["^build"],
       "cache": true,
       "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"]
     },
