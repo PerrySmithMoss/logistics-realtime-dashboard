@@ -38,6 +38,8 @@ This is a monorepo-style project divided into two main concerns:
 
 ## Getting Started
 
+Use Node.js 26.13.0 (see `.node-version`) and the pnpm version in `package.json`.
+
 1. Clone the repo
 2. Setup server: go to the `/apps/server` directory, follow the `/apps/server` [README.md](https://github.com/PerrySmithMoss/logistics-realtime-dashboard/blob/main/apps/server/README.md) file to set up your `.env` file and `OPEN_ROUTE_SERVICE_API_KEY` API key.
 3. Setup client: go to the `/apps/client` directory, follow the `/apps/client` [README.md](https://github.com/PerrySmithMoss/logistics-realtime-dashboard/blob/main/apps/client/README.md) file to install dependencies.
