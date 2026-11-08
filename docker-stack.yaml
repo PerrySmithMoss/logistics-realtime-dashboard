@@ -23,6 +23,7 @@ services:
     deploy:
       labels:
         - "traefik.enable=true"
+        - "traefik.swarm.lbswarm=true"
         - "traefik.http.services.fleet-api.loadbalancer.server.port=5570"
         - "traefik.http.routers.fleet-api.rule=Host(`fleet-api.perrysmithmoss.com`)"
         - "traefik.http.routers.fleet-api.entrypoints=websecure"
