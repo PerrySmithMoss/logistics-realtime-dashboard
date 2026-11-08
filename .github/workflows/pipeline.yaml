@@ -109,23 +109,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright Browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter client exec playwright install --with-deps chromium
-
-      - name: Install Playwright OS Dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter client exec playwright install-deps chromium
-
-      - name: Run E2E
-        run: pnpm turbo run test:e2e --filter=client
+      - name: Run E2E with runner Chrome
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          google-chrome --version
+          pnpm turbo run test:e2e --filter=client
 
   build-and-push-image:
     outputs:
