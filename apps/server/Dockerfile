@@ -51,7 +51,8 @@ COPY --from=builder /prod/server/ ./
 USER node
 EXPOSE 5570
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://localhost:5570/health/live').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+# Wait for fleet data hydration before Swarm routes requests to this task.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --start-interval=1s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 5570) + '/health/ready').then(response => process.exit(response.ok ? 0 : 1), () => process.exit(1))"]
 
 CMD ["node", "dist/index.js"]

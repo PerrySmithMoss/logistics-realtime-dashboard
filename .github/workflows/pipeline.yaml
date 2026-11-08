@@ -66,12 +66,15 @@ jobs:
           container=$(docker run -d -e NODE_ENV=test -e HOST=0.0.0.0 fleet-api-test)
           trap 'docker rm -f "$container" >/dev/null' EXIT
           docker exec "$container" sh -c '! command -v npm && ! command -v pnpm'
-          for attempt in $(seq 1 25); do
-            if docker exec "$container" node -e 'fetch("http://127.0.0.1:5570/health/ready").then(r => { if (!r.ok) process.exitCode = 1; }).catch(() => { process.exitCode = 1; });'; then
-              exit 0
-            fi
-            sleep 1
+          for attempt in $(seq 1 40); do
+            health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container")
+            case "$health" in
+              healthy) exit 0 ;;
+              starting) sleep 1 ;;
+              *) break ;;
+            esac
           done
+          echo "Fleet container did not become healthy (status: ${health:-missing})" >&2
           docker logs "$container" >&2
           exit 1
 
