@@ -50,10 +50,6 @@ export class HttpServer implements IServer {
 
       this.logger.info("Shutting down HTTP server...");
 
-      if ("closeIdleConnections" in this.server) {
-        this.server.closeIdleConnections();
-      }
-
       this.server.close((err) => {
         if (err) return reject(err);
 
