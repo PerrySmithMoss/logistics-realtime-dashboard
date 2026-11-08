@@ -179,23 +179,18 @@ export class Application {
       process.exit(0);
     }
 
-    this.container.lifecycle.prepareForShutdown();
-
     const forceExitTimeout = this.config.server.isDev ? 3000 : 10000;
     const forceExit = setTimeout(() => {
       activeLogger.error(`Cleanup timed out after ${forceExitTimeout}ms. Forcing exit.`);
       process.exit(1);
     }, forceExitTimeout);
 
-    if (!this.config.server.isDev) {
-      activeLogger.info("Waiting 3s for resources to drain...");
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-
     try {
-      activeLogger.info("Stopping HTTP server and closing database connections...");
-
-      await Promise.all([this.server.stop(), this.container.lifecycle.closeAll()]);
+      // Close the listener and idle connections before reporting shutdown.
+      const draining = this.server.stop();
+      this.container.lifecycle.prepareForShutdown();
+      await draining;
+      await this.container.lifecycle.closeAll();
 
       clearTimeout(forceExit);
       activeLogger.info("Shutdown successful.");
