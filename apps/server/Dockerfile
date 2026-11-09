@@ -37,6 +37,12 @@ RUN pnpm turbo build --filter=server
 RUN pnpm deploy --filter server --prod --legacy /prod/server
 
 FROM ${NODE_IMAGE} AS runner
+# Require the DSA-6613-1 zlib fix from Debian's signed repositories.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends zlib1g \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' zlib1g)" ge '1:1.3.dfsg+really1.3.1-1+deb13u1' \
+    && rm -rf /var/lib/apt/lists/*
+
 # Run the built server without the package installers used by the build.
 RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
