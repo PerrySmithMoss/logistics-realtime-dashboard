@@ -15,7 +15,7 @@ export const rateLimiter = (cache: ICache, options: RateLimiterOptions): Request
     const ip = req.ip;
     if (!ip) throw new InternalServerError("IP verification failed.");
 
-    const key = `${keyPrefix}:${req.path}:${ip}`;
+    const key = `${keyPrefix}:${ip}`;
 
     const currentUsage = await cache.increment(key, windowMs);
 
@@ -27,7 +27,6 @@ export const rateLimiter = (cache: ICache, options: RateLimiterOptions): Request
     res.setHeader("X-RateLimit-Remaining", remaining);
 
     if (currentUsage > maxRequests) {
-      res.setHeader("X-RateLimit-Remaining", 0);
       throw new TooManyRequestsError("Too many requests. Please slow down.", resetSeconds);
     }
 

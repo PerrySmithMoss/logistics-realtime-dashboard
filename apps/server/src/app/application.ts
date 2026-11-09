@@ -114,12 +114,10 @@ export class Application {
       }),
     );
 
-    expressApp.set("trust proxy", true);
+    expressApp.set("trust proxy", this.config.server.trustProxyHops);
 
     expressApp.use(requestIdMiddleware);
     expressApp.use(corsMiddleware(this.config.server.corsAllowedOrigins));
-    expressApp.use(express.json({ limit: "1mb" }));
-
     expressApp.use("/health", createHealthRouter(container.controllers.health));
 
     const globalRateLimit = rateLimiter(container.cache, {

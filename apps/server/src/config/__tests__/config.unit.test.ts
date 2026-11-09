@@ -28,11 +28,11 @@ describe("Config Module", () => {
     expect(cfg.server.corsAllowedOrigins).toContain("http://localhost:3000");
   });
 
-  it("should allow missing ORS Key in test environment", () => {
+  it.each(["development", "test"])("allows a missing ORS key in %s", (NODE_ENV) => {
     vi.mocked(getSecret).mockReturnValue(undefined);
 
-    const cfg = createConfig({ NODE_ENV: "test" });
-    expect(cfg.modules.fleet.ors.apiKey).toBe("test-key");
+    const cfg = createConfig({ NODE_ENV });
+    expect(cfg.modules.fleet.ors.apiKey).toBeUndefined();
     expect(cfg.server.streamSigningSecret).toBe("test_stream_signing_secret_32_chars_long");
   });
 

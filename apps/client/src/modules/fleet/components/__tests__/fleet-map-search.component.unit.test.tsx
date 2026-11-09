@@ -18,7 +18,7 @@ describe("FleetMapSearch", () => {
 
   afterEach(async () => {
     if (vi.isFakeTimers()) {
-      await vi.runOnlyPendingTimersAsync();
+      await act(() => vi.runOnlyPendingTimersAsync());
     }
     vi.useRealTimers();
   });

@@ -7,6 +7,7 @@ export const envSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().default(5570),
     HOST: z.string().default("localhost"),
+    TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().optional(),
     MIN_LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("DEBUG"),
     CORS_ALLOWED_ORIGINS: z.preprocess(
       (value) =>
@@ -25,7 +26,7 @@ export const envSchema = z
       .preprocess((val) => val === "true" || val === true, z.boolean())
       .default(true),
 
-    OPEN_ROUTE_SERVICE_API_KEY: z.string().optional(),
+    OPEN_ROUTE_SERVICE_API_KEY: z.string().trim().optional(),
     ORS_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
     ORS_REQUEST_RETRIES: z.coerce.number().int().min(0).default(1),
     ORS_REQUEST_RETRY_DELAY_MS: z.coerce.number().int().min(0).default(750),
@@ -64,18 +65,10 @@ export const envSchema = z
       path: ["FLEET_STREAM_SIGNING_SECRET"],
     },
   )
-  .refine(
-    (data) => {
-      if (data.NODE_ENV !== "test" && !data.OPEN_ROUTE_SERVICE_API_KEY) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: "OPEN_ROUTE_SERVICE_API_KEY is required in non-test environments",
-      path: ["OPEN_ROUTE_SERVICE_API_KEY"],
-    },
-  );
+  .refine((data) => data.NODE_ENV !== "production" || Boolean(data.OPEN_ROUTE_SERVICE_API_KEY), {
+    message: "OPEN_ROUTE_SERVICE_API_KEY is required in production",
+    path: ["OPEN_ROUTE_SERVICE_API_KEY"],
+  });
 
 export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
   const envData = {
@@ -95,12 +88,12 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
   const result = envSchema.safeParse(envData);
 
   if (!result.success) {
+    const details = z.prettifyError(result.error);
     if (process.env.NODE_ENV !== "test") {
-      console.error("❌ Invalid Environment Configuration:");
-      console.error(JSON.stringify(result.error.format(), null, 2));
+      process.stderr.write(`Invalid environment configuration\n${details}\n`);
       process.exit(1);
     }
-    throw new Error(`Config validation failed: ${JSON.stringify(result.error.format())}`);
+    throw new Error(`Config validation failed\n${details}`);
   }
 
   const env = result.data;
@@ -113,6 +106,7 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
     server: {
       port: env.PORT,
       host: env.HOST,
+      trustProxyHops: env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === "production" ? 1 : 0),
       env: env.NODE_ENV,
       isProd: env.NODE_ENV === "production",
       isDev: env.NODE_ENV === "development",
@@ -127,7 +121,7 @@ export const createConfig = (overrides: Partial<NodeJS.ProcessEnv> = {}) => {
       vehicle: { seedMockData: env.ENABLE_FLEET_SIMULATOR },
       fleet: {
         ors: {
-          apiKey: env.OPEN_ROUTE_SERVICE_API_KEY ?? "test-key",
+          apiKey: env.OPEN_ROUTE_SERVICE_API_KEY,
           timeoutMs: env.ORS_REQUEST_TIMEOUT_MS,
           retries: env.ORS_REQUEST_RETRIES,
           retryDelayMs: env.ORS_REQUEST_RETRY_DELAY_MS,

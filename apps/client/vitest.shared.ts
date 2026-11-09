@@ -2,13 +2,13 @@ import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
-loadEnv({ path: path.resolve(__dirname, ".env.test") });
+loadEnv({ path: path.resolve(import.meta.dirname, ".env.test"), quiet: true });
 
 export const createVitestConfig = (include: string[]) =>
   defineConfig({
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "src"),
+        "@": path.resolve(import.meta.dirname, "src"),
       },
     },
     test: {

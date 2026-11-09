@@ -32,7 +32,7 @@ describe("rateLimiter", () => {
 
     await middleware(req, res, next);
 
-    expect(cache.increment).toHaveBeenCalledWith("rl:/fleet/stream:203.0.113.10", 10_000);
+    expect(cache.increment).toHaveBeenCalledWith("rl:203.0.113.10", 10_000);
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", 3);
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Reset", 10);
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Remaining", 1);
@@ -74,7 +74,7 @@ describe("rateLimiter", () => {
 
     await middleware(req, res, next);
 
-    expect(cache.increment).toHaveBeenCalledWith("api-gate:/fleet/stream:203.0.113.10", 10_000);
+    expect(cache.increment).toHaveBeenCalledWith("api-gate:203.0.113.10", 10_000);
   });
 
   it("handles cache connection errors by throwing InternalServerError", async () => {

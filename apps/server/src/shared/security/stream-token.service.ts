@@ -26,6 +26,7 @@ export class StreamTokenService {
       const { payload } = await jwtVerify(token, this.secret, {
         audience: STREAM_TOKEN_AUDIENCE,
         algorithms: ["HS256"],
+        requiredClaims: ["exp"],
         clockTolerance: this.options.clockToleranceSeconds ?? 5,
       });
 
@@ -35,17 +36,15 @@ export class StreamTokenService {
       }
 
       const replayKey = `${REPLAY_KEY_PREFIX}:${payload.jti}`;
-      const isReplay = await this.cache.get<boolean>(replayKey);
+      const uses = await this.cache.increment(replayKey, this.options.replayTtlMs ?? 60_000);
 
-      if (isReplay) {
+      if (uses > 1) {
         this.logger.warn("[StreamTokenService] Rejected replayed stream token", {
           ...metadata,
           jti: payload.jti,
         });
         throw new UnauthorisedError();
       }
-
-      await this.cache.set(replayKey, true, this.options.replayTtlMs ?? 60_000);
     } catch (error) {
       if (error instanceof UnauthorisedError) {
         throw error;

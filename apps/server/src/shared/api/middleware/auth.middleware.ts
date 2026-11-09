@@ -2,15 +2,23 @@ import { UnauthorisedError } from "@shared/errors/app.errors";
 import { IStreamTokenService } from "@shared/interfaces";
 import { ILogger } from "@shared/interfaces/logger.interface";
 import { RequestHandler } from "express";
+import { timingSafeEqual } from "node:crypto";
 
 export const verifyServiceSecret = (
   logger: ILogger,
   { internalAuthSecret }: { internalAuthSecret: string },
 ): RequestHandler => {
+  const expectedSecret = Buffer.from(internalAuthSecret);
+
   return (req, _res, next) => {
     const incomingSecret = req.headers["x-internal-secret"];
+    const secret = typeof incomingSecret === "string" ? Buffer.from(incomingSecret) : undefined;
 
-    if (!incomingSecret || incomingSecret !== internalAuthSecret) {
+    if (
+      !secret?.length ||
+      secret.length !== expectedSecret.length ||
+      !timingSafeEqual(secret, expectedSecret)
+    ) {
       logger.warn(
         `[Auth] Failed attempt from ${req.ip}. ${!incomingSecret ? "Missing header" : "Invalid value"}`,
       );

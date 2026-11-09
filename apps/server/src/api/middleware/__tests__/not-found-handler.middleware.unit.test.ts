@@ -7,7 +7,7 @@ describe("notFoundHandler", () => {
   it("forwards a NotFoundError with the correct metadata", () => {
     const req = createMockRequest({
       method: "PATCH",
-      originalUrl: "/api/vehicles/missing",
+      path: "/api/vehicles/missing",
     });
 
     const res = {} as Response;
@@ -25,16 +25,17 @@ describe("notFoundHandler", () => {
     expect(error.message).toBe("PATCH /api/vehicles/missing not found");
   });
 
-  it("handles the error message format correctly based on the class implementation", () => {
+  it("omits the query string from the error message", () => {
     const req = createMockRequest({
       method: "GET",
-      originalUrl: "Resource",
+      path: "/resource",
+      originalUrl: "/resource?token=example",
     });
     const next = vi.fn();
 
     notFoundHandler(req, {} as Response, next);
 
     const error = next.mock.calls[0][0] as NotFoundError;
-    expect(error.message).toBe("GET Resource not found");
+    expect(error.message).toBe("GET /resource not found");
   });
 });

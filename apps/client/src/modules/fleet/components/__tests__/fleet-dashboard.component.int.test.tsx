@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { FeatureCollection } from "geojson";
 import { http } from "msw";
 import React from "react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
@@ -25,7 +26,7 @@ vi.mock("../fleet-map.component", async () => {
   return {
     FleetMap: ReactModule.forwardRef(
       (
-        { data }: { data: GeoJSON.FeatureCollection },
+        { data }: { data: FeatureCollection },
         ref: React.ForwardedRef<{
           zoomToVehicle: Mock;
           openPopup: Mock;
