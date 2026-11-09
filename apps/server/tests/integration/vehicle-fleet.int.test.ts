@@ -101,11 +101,32 @@ describe("Vehicle and Fleet Integration", () => {
 
       const limitedResponse = await harness.requester
         .get("/api/v1/fleet/snapshot")
+        .set("X-Forwarded-For", "203.0.113.1")
         .set(harness.authHeaders);
 
       expect(limitedResponse.status).toBe(429);
       expect(limitedResponse.headers["x-request-id"]).toBeTruthy();
       expect(limitedResponse.body.error.code).toBe("TOO_MANY_REQUESTS");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it("uses the nearest forwarded address and shares the global limit across paths", async () => {
+    const harness = await bootstrapIntegrationApp({ trustProxyHops: 1 });
+
+    try {
+      await harness.requester
+        .get("/missing-one")
+        .set("X-Forwarded-For", "203.0.113.1, 198.51.100.10")
+        .expect(404)
+        .expect("X-RateLimit-Remaining", "99");
+
+      await harness.requester
+        .get("/missing-two")
+        .set("X-Forwarded-For", "203.0.113.2, 198.51.100.10")
+        .expect(404)
+        .expect("X-RateLimit-Remaining", "98");
     } finally {
       await harness.close();
     }
@@ -149,6 +170,25 @@ describe("Vehicle and Fleet Integration", () => {
 
       expect(unprocessableResponse.status).toBe(422);
       expect(unprocessableResponse.body.error.code).toBe("UNPROCESSABLE_ENTITY");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it("authenticates before parsing JSON and returns a generic error for malformed input", async () => {
+    const harness = await bootstrapIntegrationApp();
+
+    try {
+      const update = () => harness.requester.patch("/api/v1/vehicles/V-101/location").type("json");
+
+      await update().send("private request data").expect(401);
+      const response = await update()
+        .set(harness.authHeaders)
+        .send("private request data")
+        .expect(400);
+
+      expect(response.body.error).toMatchObject({ code: "BAD_REQUEST", message: "Bad Request" });
+      expect(response.text).not.toContain("private request data");
     } finally {
       await harness.close();
     }

@@ -12,7 +12,14 @@ const eslintConfig = defineConfig([
     files: tsFiles,
   })),
   prettierConfig,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "coverage/**",
+    "test-results/**",
+    "next-env.d.ts",
+  ]),
 ]);
 
 export default eslintConfig;

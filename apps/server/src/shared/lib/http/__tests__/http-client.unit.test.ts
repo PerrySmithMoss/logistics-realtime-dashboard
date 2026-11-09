@@ -3,8 +3,8 @@ import { exponentialBackoff } from "@shared/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { httpClient, HttpClientOptions } from "../http-client";
 
-vi.mock("@fleet/common/utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@fleet/common/utils")>();
+vi.mock(import("@fleet/common/utils"), async (importOriginal) => {
+  const actual = await importOriginal();
   return {
     ...actual,
     exponentialBackoff: vi.fn().mockResolvedValue(undefined),

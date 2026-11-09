@@ -7,11 +7,13 @@ import { StreamTokenService } from "../stream-token.service";
 
 const SECRET = "test_stream_signing_secret_32_chars_long";
 
-const createToken = async (overrides: {
-  jti?: string;
-  audience?: string;
-  expiresInSeconds?: number;
-} = {}) => {
+const createToken = async (
+  overrides: {
+    jti?: string;
+    audience?: string;
+    expiresInSeconds?: number;
+  } = {},
+) => {
   const now = Math.floor(Date.now() / 1000);
 
   return await new SignJWT({})
@@ -54,6 +56,17 @@ describe("StreamTokenService", () => {
     const token = await createToken({ audience: "wrong-audience" });
 
     await expect(service.verify(token)).rejects.toThrow(UnauthorisedError);
+  });
+
+  it("allows only one verification when a token is submitted concurrently", async () => {
+    const logger = createMockLogger();
+    const service = new StreamTokenService(SECRET, new InMemoryCache(logger), logger);
+    const token = await createToken();
+
+    const results = await Promise.allSettled([service.verify(token), service.verify(token)]);
+
+    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+    expect(results).toContainEqual({ status: "rejected", reason: expect.any(UnauthorisedError) });
   });
 
   it("rejects expired tokens", async () => {

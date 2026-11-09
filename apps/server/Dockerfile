@@ -1,23 +1,34 @@
 ARG NODE_IMAGE=node:26.13.0-trixie-slim@sha256:5adad64f9a1fca2d51972caa65983634c8a774eb300d72b20f7f2a0f60368072
+ARG RUNTIME_IMAGE=node:26.13.0-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216
 FROM ${NODE_IMAGE} AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN npm install -g pnpm@10.34.9
+RUN npm install -g pnpm@12.18.0
 
-FROM base AS development
-
+FROM ${RUNTIME_IMAGE} AS development
+RUN apk add --no-cache 'zlib>=1.4-r0' \
+    && npm install -g pnpm@12.18.0 \
+    && rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 WORKDIR /app
-COPY . .
-RUN pnpm install
 
-CMD ["pnpm", "--filter", "server", "dev"]
+RUN chown node:node /app
+COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=node:node apps/client/package.json ./apps/client/
+COPY --chown=node:node apps/server/package.json ./apps/server/
+COPY --chown=node:node packages/common/package.json ./packages/common/
+USER node
+RUN pnpm install --frozen-lockfile
+COPY --chown=node:node . .
+
+CMD ["pnpm", "exec", "turbo", "dev", "--filter=server", "--env-mode=loose"]
 
 FROM base AS pruner
 WORKDIR /app
 
-RUN pnpm add -g turbo@2.9.6
+RUN npm install -g turbo@2.11.10
 
 COPY . .
 
@@ -36,17 +47,14 @@ COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=server
 RUN pnpm deploy --filter server --prod --legacy /prod/server
 
-FROM ${NODE_IMAGE} AS runner
-# Require the DSA-6613-1 zlib fix from Debian's signed repositories.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends zlib1g \
-    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' zlib1g)" ge '1:1.3.dfsg+really1.3.1-1+deb13u1' \
-    && rm -rf /var/lib/apt/lists/*
+FROM ${RUNTIME_IMAGE} AS runner
 
+# Require Alpine's patched zlib from the signed stable repositories.
 # Run the built server without the package installers used by the build.
-RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
-    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
-    /usr/local/bin/yarn /usr/local/bin/yarnpkg
+RUN apk add --no-cache 'zlib>=1.4-r0' \
+    && rm -rf /usr/local/lib/node_modules /opt/yarn-* \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+        /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 WORKDIR /app
 

@@ -38,12 +38,12 @@ This is a monorepo-style project divided into two main concerns:
 
 ## Getting Started
 
-Use Node.js 26.13.0 (see `.node-version`) and the pnpm version in `package.json`.
+1. Copy `apps/server/.env.example` and `apps/client/.env.example` to `.env.local` in their respective directories.
+2. Generate three secrets with `openssl rand -hex 32`. Use one for `INTERNAL_AUTH_SECRET` on the server and `FLEET_API_INTERNAL_KEY` on the client, one for `FLEET_STREAM_SIGNING_SECRET` on both, and one for `SESSION_SIGNING_SECRET` on the client.
+3. Set `OPEN_ROUTE_SERVICE_API_KEY` in `apps/server/.env.local` to enable road snapping. With no key, the local simulator uses raw coordinates. [OpenRouteService signup](https://openrouteservice.org/dev/#/signup)
+4. Run `docker compose up --build` and open `http://localhost:3000`. For local development with Node.js 26.13.0 and the pnpm version in `package.json`, run `pnpm install --frozen-lockfile` and `pnpm dev` from the repository root.
 
-1. Clone the repo
-2. Setup server: go to the `/apps/server` directory, follow the `/apps/server` [README.md](https://github.com/PerrySmithMoss/logistics-realtime-dashboard/blob/main/apps/server/README.md) file to set up your `.env` file and `OPEN_ROUTE_SERVICE_API_KEY` API key.
-3. Setup client: go to the `/apps/client` directory, follow the `/apps/client` [README.md](https://github.com/PerrySmithMoss/logistics-realtime-dashboard/blob/main/apps/client/README.md) file to install dependencies.
-4. Run: start the server first, then the client.
+To publish the local dashboard on another port, set `FLEET_CLIENT_PORT` when running Compose and add the dashboard origin to `CORS_ALLOWED_ORIGINS` in `apps/server/.env.local`.
 
 ### VPS API releases
 
@@ -53,3 +53,7 @@ from this repository. An administrator owns the existing Swarm service
 configuration. See the
 [portfolio release runbook](https://github.com/PerrySmithMoss/perry-infra/blob/main/deploy/portfolio/README.md)
 for installation, production checks and rollback by digest and revision.
+
+The API defaults to trusting one forwarding hop in production, where Traefik
+is the only ingress to the service. Direct deployments should set
+`TRUST_PROXY_HOPS=0`.

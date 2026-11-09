@@ -10,6 +10,7 @@ export const createMockConfig = (overrides: DeepPartial<IAppConfig> = {}): IAppC
     server: {
       port: 5570,
       host: "localhost",
+      trustProxyHops: 0,
       env: "test",
       isProd: false,
       isDev: true,

@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   validate-rollback-inputs:
+    name: Validate rollback inputs
     if: github.event_name == 'workflow_dispatch' && (inputs.rollback_digest != '' || inputs.rollback_revision != '')
     runs-on: ubuntu-latest
     permissions: {}
@@ -38,14 +39,17 @@ jobs:
           fi
 
   changes:
+    name: Detect API changes
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       server: ${{ steps.filter.outputs.server }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: dorny/paths-filter@v4
+          persist-credentials: false
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -53,19 +57,27 @@ jobs:
               - 'apps/server/**'
               - 'packages/**'
               - 'docker-stack.yaml'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - '.dockerignore'
               - '.github/workflows/**'
 
   build-api-image:
+    name: Test API image
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - run: docker build --platform linux/amd64 --target runner -t fleet-api-test -f apps/server/Dockerfile .
       - name: Verify the runtime starts without build tools
         run: |
           container=$(docker run -d -e NODE_ENV=test -e HOST=0.0.0.0 fleet-api-test)
           trap 'docker rm -f "$container" >/dev/null' EXIT
-          docker exec "$container" sh -c '! command -v npm && ! command -v pnpm'
+          docker exec "$container" node -e 'const { spawnSync } = require("node:child_process"); if (process.getuid() === 0 || ["npm", "pnpm", "yarn"].some(command => spawnSync(command).error?.code !== "ENOENT")) process.exitCode = 1;'
           for attempt in $(seq 1 40); do
             health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container")
             case "$health" in
@@ -79,20 +91,25 @@ jobs:
           exit 1
 
   validate:
+    name: Audit and validate workspace
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version-file: .node-version, cache: "pnpm" }
       - run: pnpm install --frozen-lockfile
 
+      - name: Audit dependencies
+        run: pnpm audit
+
       - name: Validate
-        run: pnpm turbo run lint type-check test --filter="...[origin/main]"
+        run: pnpm validate
 
   e2e:
+    name: Test dashboard in Chromium
     needs: [validate]
     runs-on: ubuntu-latest
     env:
@@ -104,9 +121,11 @@ jobs:
       FLEET_API_BASE_URL: http://127.0.0.1:4000
       NEXT_PUBLIC_FLEET_API_BASE_URL: http://127.0.0.1:4000
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version-file: .node-version, cache: "pnpm" }
 
       - name: Install dependencies
@@ -120,6 +139,7 @@ jobs:
           pnpm turbo run test:e2e --filter=client
 
   build-and-push-image:
+    name: Publish and scan API image
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     if: |
@@ -129,12 +149,14 @@ jobs:
     needs: [e2e, changes]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: write
+      contents: write # Create the release and Git tag.
+      packages: write # Push the API image to GHCR.
     steps:
-      - uses: actions/checkout@v6
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -142,16 +164,15 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=${{ github.sha }}
-            type=raw,value=latest
 
       - name: Build and push
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./apps/server/Dockerfile
@@ -163,36 +184,42 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Scan the exact release image
+      - name: Scan the release image before updating latest
         env:
           RELEASE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -eu
-          image="ghcr.io/perrysmithmoss/logistics-realtime-dashboard@$RELEASE_DIGEST"
-          scanner=aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          image="$repository@$RELEASE_DIGEST"
+          scanner=aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
           docker pull "$image"
           docker save -o "$RUNNER_TEMP/release.tar" "$image"
           mkdir -p "$RUNNER_TEMP/image-scan"
           docker run --rm -v trivy-cache:/root/.cache/trivy -v "$RUNNER_TEMP/release.tar:/image.tar:ro" -v "$RUNNER_TEMP/image-scan:/reports" "$scanner" image --input /image.tar --scanners vuln --format json --output /reports/api.json
-          docker run --rm -v trivy-cache:/root/.cache/trivy -v "$RUNNER_TEMP/release.tar:/image.tar:ro" "$scanner" image --input /image.tar --scanners vuln --ignore-unfixed --severity CRITICAL --exit-code 1
+          docker run --rm -v trivy-cache:/root/.cache/trivy -v "$RUNNER_TEMP/release.tar:/image.tar:ro" "$scanner" image --input /image.tar --scanners vuln --ignore-unfixed --exit-code 1
+          docker buildx imagetools create --prefer-index=false --tag "$repository:latest" "$image"
 
       - name: Upload full release scan
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: api-image-vulnerabilities
           path: ${{ runner.temp }}/image-scan
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Release v1.0.${{ github.run_number }}
-          body: |
-            Automated release for commit ${{ github.sha }}
-            Image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v1.0.$GITHUB_RUN_NUMBER"
+          notes=$(printf 'Automated release for commit %s\nImage: ghcr.io/%s:%s' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_SHA")
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "Release $tag" --notes "$notes"
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Release $tag" --notes "$notes"
+          fi
 
   deploy:
+    name: Deploy API
     needs: [build-and-push-image, validate-rollback-inputs]
     if: |
       !cancelled() && github.ref == 'refs/heads/main' &&

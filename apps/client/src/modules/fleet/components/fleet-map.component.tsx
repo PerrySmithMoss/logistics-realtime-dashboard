@@ -1,6 +1,7 @@
 "use client";
 
-import maplibregl from "maplibre-gl";
+import type { FeatureCollection, Point } from "geojson";
+import { Map as MapLibreMap, Popup, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { FLEET_MAP_ICON_COLORS } from "../constants";
@@ -9,17 +10,17 @@ import { FleetMapHandle, FleetVehicle } from "../types";
 import { VehicleMarker } from "./vehicle-marker.component";
 
 interface FleetMapProps {
-  data: GeoJSON.FeatureCollection;
+  data: FeatureCollection;
 }
 
-interface TrackedFleetMapPopup extends maplibregl.Popup {
+interface TrackedFleetMapPopup extends Popup {
   _vehicleId?: string;
 }
 
 export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const activePopup = useRef<maplibregl.Popup | null>(null);
+  const map = useRef<MapLibreMap | null>(null);
+  const activePopup = useRef<TrackedFleetMapPopup | null>(null);
   const isMapReady = useRef(false);
   const pendingFocus = useRef<{ lng: number; lat: number } | null>(null);
   const pendingPopupVehicle = useRef<FleetVehicle | null>(null);
@@ -32,7 +33,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
 
     activePopup.current?.remove();
 
-    const popup = new maplibregl.Popup({
+    const popup = new Popup({
       closeButton: false,
       offset: 15,
       className: "custom-fleet-popup",
@@ -46,33 +47,31 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
     activePopup.current = popup;
   }, []);
 
-  useImperativeHandle(
-    ref,
-    (): FleetMapHandle => ({
-      zoomToVehicle: (lng, lat) => {
-        if (!map.current?.isStyleLoaded() || !isMapReady.current) {
-          pendingFocus.current = { lng, lat };
-          return;
-        }
+  useImperativeHandle(ref, (): FleetMapHandle => ({
+    zoomToVehicle: (lng, lat) => {
+      if (!map.current?.isStyleLoaded() || !isMapReady.current) {
+        pendingFocus.current = { lng, lat };
+        return;
+      }
 
-        map.current?.flyTo({
-          center: [lng, lat],
-          zoom: 16,
-          speed: 1.2,
-          curve: 1.42,
-          essential: true,
-        });
-      },
-      openPopup,
-    }),
-  );
+      map.current?.flyTo({
+        center: [lng, lat],
+        zoom: 16,
+        speed: 1.2,
+        curve: 1.42,
+        essential: true,
+      });
+    },
+    openPopup,
+  }));
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
+    setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).href);
     const isCompactViewport = window.matchMedia("(max-width: 767px)").matches;
 
-    const mapInstance = new maplibregl.Map({
+    const mapInstance = new MapLibreMap({
       container: mapContainer.current,
       style: "https://tiles.openfreemap.org/styles/positron",
       center: [-0.1278, 51.5074],
@@ -109,7 +108,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
         if (!e.features?.length) return;
 
         const props = e.features[0].properties as FleetVehicle;
-        const geometry = e.features[0].geometry as GeoJSON.Point;
+        const geometry = e.features[0].geometry as Point;
         const [lng, lat] = geometry.coordinates;
 
         openPopup({ ...props, lng, lat });
@@ -159,7 +158,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
     const mapInstance = map.current;
     if (!mapInstance || !isMapReady.current) return;
 
-    const source = mapInstance.getSource("vehicles") as maplibregl.GeoJSONSource;
+    const source = mapInstance.getSource<GeoJSONSource>("vehicles");
     if (!source) return;
 
     source.setData(data);
@@ -167,12 +166,8 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(({ data }, ref
     // update popup position to make sure it follows the vehicle as it moves.
     const currentPopup = activePopup.current;
 
-    if (
-      currentPopup &&
-      currentPopup.isOpen() &&
-      (currentPopup as TrackedFleetMapPopup)._vehicleId
-    ) {
-      const vehicleId = (currentPopup as TrackedFleetMapPopup)._vehicleId;
+    if (currentPopup?.isOpen() && currentPopup._vehicleId) {
+      const vehicleId = currentPopup._vehicleId;
 
       const updatedFeature = data.features.find((f) => f.properties?.id === vehicleId);
 

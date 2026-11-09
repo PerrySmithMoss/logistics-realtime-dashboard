@@ -19,7 +19,7 @@ class IntersectionObserverMock {
 }
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: "error" });
+  server.listen({ onUnhandledFrame: "error" });
   vi.stubGlobal("ResizeObserver", ResizeObserverMock);
   vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
   vi.stubGlobal(

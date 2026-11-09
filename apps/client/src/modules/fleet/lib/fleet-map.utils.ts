@@ -22,11 +22,14 @@ export const loadVehicleIcon = (fill: string): Promise<HTMLImageElement> =>
     img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(buildVehicleSvg(fill))}`;
   });
 
+const escapeHtmlText = (text: string): string =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 export const buildPopupHtml = (vehicle: Pick<FleetVehicle, "id" | "status">): string => `
   <div class="p-2 font-sans min-w-40 text-black">
     <div class="flex items-baseline justify-between border-b border-slate-100 pb-1 mb-2">
       <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Vehicle</span>
-      <h3 class="text-sm font-bold text-slate-800 text-right">${vehicle.id}</h3>
+      <h3 class="text-sm font-bold text-slate-800 text-right">${escapeHtmlText(vehicle.id)}</h3>
     </div>
     
     <div class="grid grid-cols-2 items-center">
@@ -34,7 +37,7 @@ export const buildPopupHtml = (vehicle: Pick<FleetVehicle, "id" | "status">): st
       <span class="text-xs font-bold text-right ${
         vehicle.status === "delayed" ? "text-red-500" : "text-emerald-500"
       }">
-        ${vehicle.status.toUpperCase()}
+        ${escapeHtmlText(vehicle.status.toUpperCase())}
       </span>
     </div>
   </div>

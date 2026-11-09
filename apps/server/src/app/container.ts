@@ -12,7 +12,7 @@ import { InternalServerError } from "@shared/errors/app.errors";
 import { InMemoryCache } from "@shared/infrastructure/cache";
 import { InMemoryDatabase } from "@shared/infrastructure/database/in-memory-database";
 import { InMemoryEventBroker } from "@shared/infrastructure/events/in-memory-event-broker";
-import { OpenRouteServiceClient } from "@shared/infrastructure/geo";
+import { IdentityGeoSnappingService, OpenRouteServiceClient } from "@shared/infrastructure/geo";
 import { LifecycleManager } from "@shared/infrastructure/lifecycle/lifecycle-manager";
 import { ConsoleLogger } from "@shared/infrastructure/logger";
 import { IGeoSnappingService, ILogger } from "@shared/interfaces";
@@ -128,13 +128,12 @@ export class AppContainer implements IAppContainer {
       },
     );
 
+    const orsSettings = config.modules.fleet.ors;
     const geoSnappingService =
       options.geoSnappingService ??
-      new OpenRouteServiceClient(
-        config.modules.fleet.ors.apiKey,
-        fleetLogger,
-        config.modules.fleet.ors,
-      );
+      (orsSettings.apiKey
+        ? new OpenRouteServiceClient(orsSettings.apiKey, fleetLogger, orsSettings)
+        : new IdentityGeoSnappingService());
 
     const vehicleController = await VehicleModule.init(
       commandBus,

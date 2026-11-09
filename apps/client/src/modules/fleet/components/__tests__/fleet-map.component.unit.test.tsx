@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import type { FeatureCollection } from "geojson";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -32,34 +33,33 @@ const mapState = {
 };
 
 vi.mock("maplibre-gl", () => ({
-  default: {
-    Map: vi.fn().mockImplementation(function () {
-      return {
-        ...mapState,
-        on: vi.fn((event: string, layerOrHandler: unknown, maybeHandler?: unknown) => {
-          if (typeof layerOrHandler === "string") {
-            mapState.layerEvents.set(
-              `${event}:${layerOrHandler}`,
-              maybeHandler as (...args: unknown[]) => void,
-            );
-            return;
-          }
+  setWorkerUrl: vi.fn(),
+  Map: vi.fn().mockImplementation(function () {
+    return {
+      ...mapState,
+      on: vi.fn((event: string, layerOrHandler: unknown, maybeHandler?: unknown) => {
+        if (typeof layerOrHandler === "string") {
+          mapState.layerEvents.set(
+            `${event}:${layerOrHandler}`,
+            maybeHandler as (...args: unknown[]) => void,
+          );
+          return;
+        }
 
-          mapState.events.set(event, layerOrHandler as (...args: unknown[]) => void);
-        }),
-      };
-    }),
-    Popup: vi.fn().mockImplementation(function () {
-      return {
-        setLngLat: popupSetLngLat.mockReturnThis(),
-        setHTML: popupSetHTML.mockReturnThis(),
-        addTo: popupAddTo,
-        remove: popupRemove,
-        isOpen: popupIsOpen,
-        _vehicleId: undefined,
-      };
-    }),
-  },
+        mapState.events.set(event, layerOrHandler as (...args: unknown[]) => void);
+      }),
+    };
+  }),
+  Popup: vi.fn().mockImplementation(function () {
+    return {
+      setLngLat: popupSetLngLat.mockReturnThis(),
+      setHTML: popupSetHTML.mockReturnThis(),
+      addTo: popupAddTo,
+      remove: popupRemove,
+      isOpen: popupIsOpen,
+      _vehicleId: undefined,
+    };
+  }),
 }));
 
 vi.mock("../../lib/fleet-map.utils", () => ({
@@ -232,7 +232,7 @@ describe("FleetMap", () => {
   });
 
   it("skips malformed screen-reader features and cleans up the map on unmount", () => {
-    const malformedData: GeoJSON.FeatureCollection = {
+    const malformedData: FeatureCollection = {
       type: "FeatureCollection",
       features: [
         {

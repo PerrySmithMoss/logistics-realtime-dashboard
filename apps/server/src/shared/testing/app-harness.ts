@@ -81,12 +81,15 @@ const createStreamToken = async (secret: string) => {
     .sign(new TextEncoder().encode(secret));
 };
 
-export const createIntegrationConfig = (): IAppConfig => ({
+export const createIntegrationConfig = (
+  serverOverrides: Partial<IAppConfig["server"]> = {},
+): IAppConfig => ({
   app: {
     version: "test",
     name: "server",
   },
   server: {
+    trustProxyHops: 0,
     port: 0,
     host: "127.0.0.1",
     env: "test",
@@ -97,6 +100,7 @@ export const createIntegrationConfig = (): IAppConfig => ({
     corsAllowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
     internalAuthSecret: TEST_INTERNAL_SECRET,
     streamSigningSecret: TEST_STREAM_SIGNING_SECRET,
+    ...serverOverrides,
   },
   modules: {
     vehicle: {
@@ -302,8 +306,8 @@ export const openFleetStream = async (app: Application, windowMs = 2000) => {
   });
 };
 
-export const bootstrapIntegrationApp = async () => {
-  const app = new Application(createIntegrationConfig());
+export const bootstrapIntegrationApp = async (serverOverrides?: Partial<IAppConfig["server"]>) => {
+  const app = new Application(createIntegrationConfig(serverOverrides));
   await app.bootstrap({ geoSnappingService: identitySnappingService });
 
   const requester = request(app.getServer());

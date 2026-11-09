@@ -10,12 +10,13 @@ yarn-error.log
 *.tsbuildinfo
 
 # Env/config
-.env
-.env.*
+**/.env
+**/.env.*
 
 # Version control
 .git
 .gitignore
+.tmp/
 
 # IDE/editor stuff
 .vscode
@@ -23,13 +24,14 @@ yarn-error.log
 *.swp
 
 # Tests
-tests
-coverage
-__tests__
+**/tests
+**/coverage
+**/__tests__
+**/test-results
 
 # Logs
 *.log
 
 # Docker
-docker-compose.yml
+docker-compose.yaml
 docker-stack.yaml

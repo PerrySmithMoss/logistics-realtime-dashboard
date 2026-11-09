@@ -13,4 +13,9 @@ describe("fleet map utils", () => {
     expect(html).toContain("DELAYED");
     expect(html).toContain("text-red-500");
   });
+
+  it("renders vehicle IDs as text even when they contain HTML", () => {
+    const html = buildPopupHtml({ id: "<img src=x onerror=alert(1)>&", status: "active" });
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;&amp;");
+  });
 });

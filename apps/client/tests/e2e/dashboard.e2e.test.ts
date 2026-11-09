@@ -8,6 +8,17 @@ declare global {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route("https://tiles.openfreemap.org/styles/positron", (route) =>
+    route.fulfill({
+      headers: { "Access-Control-Allow-Origin": "*" },
+      json: {
+        version: 8,
+        sources: {},
+        layers: [{ id: "background", type: "background" }],
+      },
+    }),
+  );
+
   await page.addInitScript(() => {
     window.__layoutShiftScore = 0;
 
@@ -69,16 +80,14 @@ test.describe("Fleet Dashboard", () => {
   });
 
   test("handles SSE connection lifecycle and recovery", async ({ page }) => {
-    await page.route("**/api/v1/fleet/stream?*", (route) => route.abort("failed"));
+    await page.route("**/api/v1/fleet/stream?*", (route) => route.abort("failed"), { times: 1 });
 
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     const indicator = page.getByRole("status");
 
     await expect(indicator).toBeVisible({ timeout: 7000 });
     await expect(indicator).toContainText("Reconnecting...");
-
-    await page.unroute("**/api/v1/fleet/stream?*");
 
     await expect(indicator).toContainText("Live", { timeout: 10000 });
   });
