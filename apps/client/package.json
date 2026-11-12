@@ -11,6 +11,7 @@
     "dev": "next dev",
     "start:backend:test": "pnpm --filter server start:test",
     "build": "next build",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
@@ -47,6 +48,7 @@
     "eslint-config-prettier": "^10.1.8",
     "jsdom": "^31.0.0",
     "msw": "^3.0.4",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.5",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
