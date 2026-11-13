@@ -1,5 +1,19 @@
 # Logistics Real-Time Dashboard (Frontend Core)
 
+## App Icons
+
+The route-inspired **F** uses the dashboard's slate and emerald palette. Its simple silhouette and solid background keep it legible in small browser tabs in both light and dark themes.
+
+- `src/app/icon.svg` is the editable vector source and modern browser favicon.
+- `src/app/favicon.ico` contains 16, 32, and 48 px fallbacks.
+- `src/app/apple-icon.png` is an opaque 180 px Apple touch icon, with square corners so the OS can apply its own mask.
+- `public/icons/` contains 192 and 512 px home-screen icons and a separate, opaque 512 px maskable icon with extra padding.
+- `src/app/manifest.webmanifest` declares the home-screen icons and preserves the normal browser display mode.
+
+Next.js's file-based metadata automatically serves and links the favicon, SVG, Apple touch icon, and manifest. Keep these declarations in the files rather than duplicating icon links in `layout.tsx`.
+
+After editing `src/app/icon.svg`, run `pnpm --filter client generate:icons` from the repository root and commit the generated assets. Sharp is a development dependency; generation happens only when the artwork changes, with no runtime icon generation or external icon service.
+
 ## Architectural Decisions
 
 ### Domain-Driven Modular Directory
