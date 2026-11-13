@@ -19,10 +19,11 @@ services:
       - fleet_stream_signing_secret
       - fleet_open_route_service_api_key
     networks:
-      - portfolio_network
+      - fleet_ingress
     deploy:
       labels:
         - "traefik.enable=true"
+        - "traefik.swarm.network=fleet_ingress"
         - "traefik.swarm.lbswarm=true"
         - "traefik.http.services.fleet-api.loadbalancer.server.port=5570"
         - "traefik.http.routers.fleet-api.rule=Host(`fleet-api.perrysmithmoss.com`)"
@@ -35,7 +36,7 @@ services:
         condition: on-failure
 
 networks:
-  portfolio_network:
+  fleet_ingress:
     external: true
 
 secrets:
