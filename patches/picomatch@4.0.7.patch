@@ -1,0 +1,8 @@
+diff --git a/lib/parse.js b/lib/parse.js
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -523,0 +524,4 @@
++    // GHSA-fc5q-39xc-vjpf: block repeated extglobs before regex construction.
++    if (value === '+' || value === '*') {
++      throw new SyntaxError('Repeated extglobs are disabled (CVE-2026-112366)');
++    }

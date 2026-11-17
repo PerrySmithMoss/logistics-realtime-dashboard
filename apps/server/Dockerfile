@@ -19,6 +19,8 @@ COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --chown=node:node apps/client/package.json ./apps/client/
 COPY --chown=node:node apps/server/package.json ./apps/server/
 COPY --chown=node:node packages/common/package.json ./packages/common/
+COPY --chown=node:node security/ ./security/
+COPY --chown=node:node patches/ ./patches/
 USER node
 RUN pnpm install --frozen-lockfile
 COPY --chown=node:node . .
@@ -39,13 +41,18 @@ WORKDIR /app
 
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=pruner /app/security/ ./security/
+COPY --from=pruner /app/patches/ ./patches/
 
 RUN pnpm install --frozen-lockfile
 
 COPY --from=pruner /app/out/full/ .
 
 RUN pnpm turbo build --filter=server
-RUN pnpm deploy --filter server --prod --legacy /prod/server
+# The production subset omits Picomatch build tools. Keep normal installs strict,
+# allow their unused patches only during this prune, then verify the deployed tree.
+RUN pnpm --config.allow-unused-patches=true deploy --filter server --prod --legacy /prod/server \
+    && node security/picomatch.mjs verify /prod/server
 
 FROM ${RUNTIME_IMAGE} AS runner
 

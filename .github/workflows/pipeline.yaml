@@ -100,8 +100,11 @@ jobs:
         with: { node-version-file: .node-version, cache: "pnpm" }
       - run: pnpm install --frozen-lockfile
 
+      - name: Verify Picomatch mitigation and audit policy
+        run: node --test security/picomatch.test.mjs
+
       - name: Audit dependencies
-        run: pnpm audit
+        run: node security/picomatch.mjs audit pnpm .
 
       - name: Validate
         run: pnpm validate
