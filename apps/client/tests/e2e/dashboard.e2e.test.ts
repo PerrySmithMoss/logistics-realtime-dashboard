@@ -80,7 +80,12 @@ test.describe("Fleet Dashboard", () => {
   });
 
   test("handles SSE connection lifecycle and recovery", async ({ page }) => {
-    await page.route("**/api/v1/fleet/stream?*", (route) => route.abort("failed"), { times: 1 });
+    // Strict Mode can consume the first request during a discarded mount.
+    // Keep the fault active until the current connection visibly enters retry.
+    let allowRecovery = false;
+    await page.route("**/api/v1/fleet/stream?*", (route) =>
+      allowRecovery ? route.continue() : route.abort("failed"),
+    );
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
@@ -89,6 +94,7 @@ test.describe("Fleet Dashboard", () => {
     await expect(indicator).toBeVisible({ timeout: 7000 });
     await expect(indicator).toContainText("Reconnecting...");
 
+    allowRecovery = true;
     await expect(indicator).toContainText("Live", { timeout: 10000 });
   });
 
