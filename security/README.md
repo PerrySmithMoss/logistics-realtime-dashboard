@@ -4,8 +4,9 @@ Reviewed 17 November 2026 for [GHSA-fc5q-39xc-vjpf / CVE-2026-112366](https://gi
 The published advisory affects Picomatch through 4.0.7 and has no patched release.
 The linked upstream PR #194 explicitly does not fix `+(*a)`.
 
-pnpm's `patchedDependencies` patches Picomatch 2.3.2 and 4.0.7 and the install
-hook verifies every physical copy, including nested dependencies. The patch files
+pnpm's `patchedDependencies` patches Picomatch 2.3.2 and 4.0.7. The install hook
+also patches reviewed residual copies restored from an older build cache, then
+verifies every physical copy, including nested dependencies. The patch files
 are also included before dependency installation in the API Docker build.
 The production-only deploy permits unused build-tool patches for that prune
 operation and then verifies the deployed dependency tree. Normal installs retain
